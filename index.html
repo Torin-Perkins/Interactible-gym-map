@@ -12,11 +12,8 @@
   <header>
     <h1>Grip PT @ LA Fitness — Atlanta</h1>
     <p class="sub"><span id="gymCount"></span> gyms · <span id="candCount"></span> candidates</p>
-    <div class="loader">
-      <label class="file-btn">Choose spreadsheet…<input id="fileInput" type="file" accept=".xlsx,.xls,.xlsm,.csv" hidden></label>
-      <button id="forgetBtn" type="button" class="link" hidden>Forget</button>
-    </div>
-    <p class="sub data-status" id="dataStatus"></p>
+    <p class="sub data-status"><span id="dataStatus"></span> <button id="refreshBtn" type="button" class="link">Refresh</button></p>
+    <p class="sub data-status">Staff counts as of <span id="staffDate"></span></p>
   </header>
 
   <section>
@@ -59,7 +56,6 @@
 <main id="map"></main>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="data.js"></script>
 <script src="app.js"></script>
 </body>

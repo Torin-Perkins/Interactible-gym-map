@@ -2,13 +2,11 @@
 
 Interactive map of the 24 Atlanta-area Grip PT / LA Fitness gyms and the home regions of trainer candidates.
 
-## Loading candidates
-Click **Choose spreadsheet…** (or drag the file onto the page) and pick the trainer-candidates `.xlsx`.
-The `GA` tab is used if present, otherwise the first tab. Columns are found by header text
-("Full Name", "Grade", "Status", "What part of your selected metro area…", etc.).
-
-The file is read entirely in your browser — it is never uploaded, and no candidate data is stored in this repo.
-The parsed areas are remembered in that browser until you click **Forget**; re-pick the file to refresh.
+## Data sources
+- **Candidates** load live from the `GA` tab of the trainer-candidates Google Sheet (ID in `data.js`) each time
+  the page opens or **Refresh** is clicked. The page only downloads a read-only CSV export without signing in,
+  so it cannot modify the sheet. The sheet must be shared as "Anyone with the link can view".
+- **Staff counts** (PTs, FMs, AFMs per gym) are a snapshot from the Grip PT staff list, stored in `STAFF` in `data.js`.
 
 Area answers are matched against `KNOWN_AREAS` in `data.js`; unknown ones are looked up on OpenStreetMap
 (only the area text is sent). Add entries to `KNOWN_AREAS` for better placement.

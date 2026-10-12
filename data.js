@@ -26,11 +26,30 @@ const GYMS = [
   { name: "Towne Lake", address: "2060 Eagle Drive, Woodstock, GA 30189", lat: 34.11372, lng: -84.56691 },
 ];
 
-// Candidate data comes from a spreadsheet the user picks in the page; it is
-// read in the browser and never uploaded. The tab named SHEET_TAB is used if
-// present, otherwise the first tab.
-const SHEET_TAB = "GA";
-const METRO = "Atlanta"; // only rows whose preferred metro contains this
+// Live candidate data: the GA tab of the trainer-candidates Google Sheet.
+// The sheet must be shared "Anyone with the link can view". It is only read.
+const SHEET = {
+  id: "1UYh1uadx_E8jQ8z5h0eSy7ZZRO2MJ7xZWqQJix5fev0",
+  tab: "GA",
+  metro: "Atlanta", // only rows whose preferred metro contains this
+};
+
+// Active staff per gym, counted from the Grip PT staff list (terminated excluded).
+// pt = personal trainers, fm = fitness managers (incl. senior), afm = assistant fitness managers.
+const STAFF_AS_OF = "Oct 12, 2026";
+const STAFF = {
+  "Alpharetta / Windward": { pt: 5, fm: 1, afm: 1 },
+  "Buford": { pt: 4, fm: 1, afm: 3 },
+  "Cumming": { pt: 2 },
+  "Duluth - Peachtree Industrial": { pt: 3, afm: 3 },
+  "Duluth - Pleasant Hill": { pt: 2 },
+  "Holcomb @ 400": { pt: 1 },
+  "Johns Creek": { pt: 5, fm: 1, afm: 4 },
+  "Norcross - Peachtree Corners": { pt: 2 },
+  "Roswell - Hwy 92 / Hardscrabble Road": { pt: 3, afm: 1 },
+  "Sandy Springs": { pt: 4 },
+  "Sugar Hill": { pt: 2, afm: 3 },
+};
 
 // Known answers to "what part of the metro do you live in", matched by keyword.
 // Anything not listed here is geocoded with OpenStreetMap and cached.

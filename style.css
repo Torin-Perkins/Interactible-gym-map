@@ -46,17 +46,7 @@ button {
 }
 button.link { background: none; color: var(--muted); padding: 0; text-decoration: underline; }
 .row { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
-.loader { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
-.file-btn {
-  display: inline-block; padding: 6px 12px; border: 1px dashed var(--accent); border-radius: 6px;
-  color: var(--accent); cursor: pointer; font-weight: 600;
-}
-.file-btn:hover { background: var(--accent-soft); }
-body.dragging::after {
-  content: "Drop spreadsheet to load"; position: fixed; inset: 0; z-index: 9999;
-  display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700;
-  background: rgba(214, 40, 40, .15); border: 4px dashed var(--accent); color: var(--accent);
-}
+.staff { color: var(--accent); font-weight: 600; margin-top: 2px; }
 .data-status { font-size: 12px; margin-top: 4px; }
 button:disabled { opacity: .5; cursor: default; }
 .hint { color: var(--muted); font-size: 12px; margin: 8px 0 0; }

@@ -33,6 +33,38 @@ const hasInterview = (area) => area.candidates.some((c) => /interview/i.test(c.s
 // ---------- Live candidate data from Google Sheets ----------
 let AREAS = [];
 
+// Minimal RFC 4180 CSV parser (handles quoted fields with commas/newlines).
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
+      else if (c === '"') q = false;
+      else field += c;
+    } else if (c === '"') q = true;
+    else if (c === ",") { row.push(field); field = ""; }
+    else if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(field); rows.push(row); row = []; field = "";
+    } else field += c;
+  }
+  if (field || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+// Read-only: downloads the tab as CSV through Google's public export URL.
+// No sign-in or credentials are sent, so this cannot change the sheet.
+async function fetchSheet() {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET.id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET.tab)}&_=${Date.now()}`;
+  const res = await fetch(url, { credentials: "omit" });
+  if (!res.ok) throw new Error(`Sheet request failed (${res.status})`);
+  const text = await res.text();
+  if (/^\s*</.test(text)) throw new Error("Sheet is not shared with \"Anyone with the link\"");
+  return parseCSV(text);
+}
+
 const titleCase = (s) => s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 // "Roxanne  McDonald" -> "Roxanne M."
 function shortName(full) {
@@ -91,7 +123,7 @@ async function loadCandidates(table) {
   for (const r of rows) {
     const full = get(r, C.name), where = get(r, C.area);
     if (!full) continue;
-    if (C.metro >= 0 && !new RegExp(METRO, "i").test(get(r, C.metro))) continue;
+    if (C.metro >= 0 && !new RegExp(SHEET.metro, "i").test(get(r, C.metro))) continue;
     const notes = [];
     if (/^yes/i.test(get(r, C.spanish))) notes.push("Spanish speaker");
     if (/^yes/i.test(get(r, C.sales))) notes.push("Interested in PT sales");
@@ -112,6 +144,12 @@ async function loadCandidates(table) {
 }
 
 // ---------- Gyms ----------
+const staffOf = (g) => STAFF[g.name] || {};
+function staffLine(g) {
+  const st = staffOf(g), fm = st.fm || 0, afm = st.afm || 0, pt = st.pt || 0;
+  return `${pt} PT${pt === 1 ? "" : "s"} · ${fm} FM${fm === 1 ? "" : "s"} · ${afm} AFM${afm === 1 ? "" : "s"}`;
+}
+
 function gymPopup(g) {
   const nearbyAreas = AREAS
     .map((a) => ({ a, d: miles(g, a) }))
@@ -123,13 +161,14 @@ function gymPopup(g) {
         .join("")}</ul></div>`
     : `<div style="margin-top:6px;color:#888">No candidates within ${NEARBY_MILES} mi</div>`;
   return `<b>${esc(g.name)}</b><br>${esc(g.address)}<br>
+    <div class="staff">${staffLine(g)}</div>
     <a href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(g.address)}" target="_blank" rel="noopener">Directions</a>
     ${nearbyHtml}`;
 }
 GYMS.forEach((g) => {
   g.marker = L.circleMarker([g.lat, g.lng], {
     radius: 7, color: "#fff", weight: 2, fillColor: "#d62828", fillOpacity: 1,
-  }).bindPopup(() => gymPopup(g)).bindTooltip(g.name, { direction: "top", offset: [0, -6] });
+  }).bindPopup(() => gymPopup(g)).bindTooltip(`${esc(g.name)}<br><small>${staffLine(g)}</small>`, { direction: "top", offset: [0, -6] });
   g.marker.addTo(gymLayer);
 });
 
@@ -200,7 +239,7 @@ function findNearest(point, label) {
 
   $("searchStatus").textContent = `Closest to ${label}`;
   $("results").innerHTML = ranked
-    .map(({ g, d }, i) => `<li data-i="${i}"><span class="gname">${esc(g.name)}</span><span class="dist">${d.toFixed(1)} mi</span><span class="addr">${esc(g.address)}</span></li>`)
+    .map(({ g, d }, i) => `<li data-i="${i}"><span class="gname">${esc(g.name)}</span><span class="dist">${d.toFixed(1)} mi</span><span class="addr">${esc(g.address)}</span><span class="addr staff">${staffLine(g)}</span></li>`)
     .join("");
   $("results").querySelectorAll("li").forEach((li) => {
     const { g } = ranked[+li.dataset.i];
@@ -259,49 +298,26 @@ $("showGyms").onchange = (e) => (e.target.checked ? gymLayer.addTo(map) : map.re
 $("showAreas").onchange = (e) => (e.target.checked ? areaLayer.addTo(map) : map.removeLayer(areaLayer));
 $("onlyInterview").onchange = renderAreas;
 
-// ---------- Local spreadsheet loading (file never leaves the browser) ----------
-const SAVED_KEY = "candidateAreas.v1";
-
-function showLoaded(label, unplaced = []) {
-  $("candCount").textContent = AREAS.reduce((n, a) => n + a.candidates.length, 0);
-  $("dataStatus").textContent = label + (unplaced.length ? ` · couldn't place: ${unplaced.join(", ")}` : "");
-  $("forgetBtn").hidden = !AREAS.length;
+// ---------- Load candidates ----------
+async function refresh() {
+  $("candCount").textContent = "…";
+  $("dataStatus").textContent = "Loading candidates from Google Sheet…";
+  $("refreshBtn").disabled = true;
+  try {
+    const unplaced = await loadCandidates(await fetchSheet());
+    $("candCount").textContent = AREAS.reduce((n, a) => n + a.candidates.length, 0);
+    $("dataStatus").textContent = `Live from Google Sheet · updated ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` +
+      (unplaced.length ? ` · couldn't place: ${unplaced.join(", ")}` : "");
+  } catch (err) {
+    console.error(err);
+    $("candCount").textContent = "0";
+    $("dataStatus").textContent = `Couldn't load candidates: ${err.message}`;
+  }
+  $("refreshBtn").disabled = false;
   renderAreas();
 }
 
-async function loadFile(file) {
-  $("dataStatus").textContent = `Reading ${file.name}…`;
-  try {
-    const wb = XLSX.read(await file.arrayBuffer());
-    const name = wb.SheetNames.find((n) => n.trim().toUpperCase() === SHEET_TAB.toUpperCase()) || wb.SheetNames[0];
-    const table = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: false, defval: "" });
-    const unplaced = await loadCandidates(table);
-    const label = `${file.name} › ${name} · loaded ${new Date().toLocaleString([], { dateStyle: "short", timeStyle: "short" })}`;
-    try { localStorage.setItem(SAVED_KEY, JSON.stringify({ label, unplaced, areas: AREAS })); } catch {}
-    showLoaded(label, unplaced);
-  } catch (err) {
-    console.error(err);
-    $("dataStatus").textContent = `Couldn't read ${file.name}: ${err.message}`;
-  }
-}
-
-$("fileInput").onchange = (e) => { if (e.target.files[0]) loadFile(e.target.files[0]); e.target.value = ""; };
-document.addEventListener("dragover", (e) => { e.preventDefault(); document.body.classList.add("dragging"); });
-document.addEventListener("dragleave", (e) => { if (!e.relatedTarget) document.body.classList.remove("dragging"); });
-document.addEventListener("drop", (e) => {
-  e.preventDefault();
-  document.body.classList.remove("dragging");
-  const f = e.dataTransfer.files[0];
-  if (f) loadFile(f);
-});
-$("forgetBtn").onclick = () => {
-  try { localStorage.removeItem(SAVED_KEY); } catch {}
-  AREAS = [];
-  showLoaded("No spreadsheet loaded — choose one above or drop it on the page.");
-};
-
+$("refreshBtn").onclick = refresh;
 $("gymCount").textContent = GYMS.length;
-let saved = null;
-try { saved = JSON.parse(localStorage.getItem(SAVED_KEY)); } catch {}
-if (saved && saved.areas) { AREAS = saved.areas; showLoaded(saved.label, saved.unplaced); }
-else showLoaded("No spreadsheet loaded — choose one above or drop it on the page.");
+$("staffDate").textContent = STAFF_AS_OF;
+refresh();
