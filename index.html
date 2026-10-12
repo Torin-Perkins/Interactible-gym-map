@@ -3,22 +3,37 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Grip PT Atlanta Map</title>
+<title>USA PT Gym Map</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <aside id="panel">
   <header>
-    <h1>Grip PT @ LA Fitness — Atlanta</h1>
-    <p class="sub"><span id="gymCount"></span> gyms · <span id="candCount"></span> candidates</p>
+    <h1>USA PT Gym Map</h1>
+    <p class="sub"><span id="gymCount"></span> gyms · <span id="candCount">…</span> candidates</p>
     <p class="sub data-status"><span id="dataStatus"></span> <button id="refreshBtn" type="button" class="link">Refresh</button></p>
     <p class="sub data-status">Staff counts as of <span id="staffDate"></span></p>
   </header>
 
   <section>
+    <div id="brandButtons" class="seg">
+      <button type="button" data-brand="all" class="on">All</button>
+      <button type="button" data-brand="GRIP"><i class="dot grip"></i>GRIP</button>
+      <button type="button" data-brand="Elevate"><i class="dot elevate"></i>Elevate</button>
+    </div>
+    <label class="field">Region
+      <select id="regionSelect"></select>
+    </label>
+    <label class="field">Color gyms by
+      <select id="colorBy"></select>
+    </label>
+    <div id="colorLegend" class="legend"></div>
+  </section>
+
+  <section>
     <form id="searchForm" autocomplete="off">
-      <input id="searchInput" type="search" placeholder="Search an area, e.g. Decatur, 30318, Marietta Square">
+      <input id="searchInput" type="search" placeholder="Search a place, e.g. Katy TX, 30318, Uptown Charlotte">
       <button type="submit">Find</button>
     </form>
     <div class="row">
@@ -29,9 +44,15 @@
       </label>
       <button id="clearBtn" type="button" class="link">Clear</button>
     </div>
-    <p class="hint">Tip: click anywhere on the map, or a candidate below, to find the closest gyms.</p>
+    <p class="hint">Tip: click anywhere on the map, or a candidate area, to find the closest gyms.</p>
     <div id="searchStatus" class="status"></div>
     <ol id="results"></ol>
+  </section>
+
+  <section>
+    <h2 id="tableTitle">Gyms</h2>
+    <p class="hint">Latest report from the stats sheets. Click a column to sort, a row to open the gym.</p>
+    <div class="table-wrap"><table id="gymTable" class="gym-table"></table></div>
   </section>
 
   <section>
@@ -40,11 +61,11 @@
     <label class="check"><input type="checkbox" id="showAreas" checked> Candidate regions</label>
     <label class="check"><input type="checkbox" id="onlyInterview"> Only "Interview Set"</label>
     <div class="legend">
-      <span><i class="dot gym"></i>Gym</span>
       <span><i class="sw gA"></i>A</span>
       <span><i class="sw gB"></i>B</span>
       <span><i class="sw gC"></i>C</span>
       <span><i class="sw gN"></i>Ungraded</span>
+      <span class="muted">solid outline = interview set</span>
     </div>
   </section>
 

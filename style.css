@@ -25,7 +25,7 @@ body {
   display: flex; background: var(--bg); color: var(--fg);
   font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
-#panel { width: 360px; flex: none; overflow-y: auto; border-right: 1px solid var(--line); padding: 16px; }
+#panel { width: 410px; flex: none; overflow-y: auto; border-right: 1px solid var(--line); padding: 16px; }
 #map { flex: 1; height: 100%; }
 
 h1 { font-size: 18px; margin: 0; }
@@ -64,7 +64,8 @@ button:disabled { opacity: .5; cursor: default; }
 .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; color: var(--muted); font-size: 12px; }
 .legend span { display: inline-flex; align-items: center; gap: 4px; }
 .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-.dot.gym { background: var(--accent); border: 2px solid #fff; box-shadow: 0 0 0 1px var(--accent); }
+.dot.grip { background: #d62828; } .dot.elevate { background: #6a3fb5; }
+.muted { color: var(--muted); font-size: 12px; font-weight: normal; }
 .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; opacity: .7; }
 .gA { background: var(--gA); } .gB { background: var(--gB); } .gC { background: var(--gC); } .gN { background: var(--gN); }
 
@@ -89,6 +90,40 @@ button:disabled { opacity: .5; cursor: default; }
   text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff;
 }
 .area-label::before { display: none; }
+
+/* Brand toggle + filters */
+.seg { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { flex: 1; background: none; color: var(--fg); border-radius: 0; padding: 7px 6px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button.on { background: var(--fg); color: var(--bg); }
+.field { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; }
+.field select { flex: 1; max-width: 250px; }
+.ramp { width: 90px; height: 10px; border-radius: 5px; background: linear-gradient(90deg, rgb(214,40,40), rgb(240,170,30), rgb(42,157,75)); }
+
+/* Gym table */
+.table-wrap { max-height: 360px; overflow-y: auto; margin-top: 8px; border: 1px solid var(--line); border-radius: 6px; }
+.gym-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.gym-table th { position: sticky; top: 0; background: var(--bg); text-align: left; padding: 6px; border-bottom: 1px solid var(--line); cursor: pointer; white-space: nowrap; color: var(--muted); }
+.gym-table th.sorted { color: var(--fg); }
+.gym-table td { padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.gym-table tbody tr { cursor: pointer; }
+.gym-table tbody tr:hover { background: var(--accent-soft); }
+.gym-table .dot { margin-right: 5px; width: 8px; height: 8px; }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Gym popup */
+.popup .chip { display: inline-block; color: #fff; font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 9px; margin-bottom: 4px; }
+.popup .staff { margin: 6px 0; }
+table.stats { border-collapse: collapse; width: 100%; margin: 4px 0; }
+table.stats td { padding: 2px 4px; border-bottom: 1px solid #eee; white-space: nowrap; }
+table.stats td:first-child { white-space: normal; }
+.delta { font-size: 11px; font-weight: 600; }
+.delta.good { color: #2a9d4b; } .delta.bad { color: #d62828; } .delta.flat { color: #888; }
+.spark { display: block; }
+.popup details { margin-top: 6px; }
+.popup summary { cursor: pointer; font-weight: 600; }
+.popup .muted { color: #667085; }
+.hide-labels .area-label { display: none; }
 
 @media (max-width: 760px) {
   body { flex-direction: column-reverse; }
