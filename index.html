@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grip PT Atlanta Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<aside id="panel">
+  <header>
+    <h1>Grip PT @ LA Fitness — Atlanta</h1>
+    <p class="sub"><span id="gymCount"></span> gyms · <span id="candCount"></span> candidates</p>
+    <div class="loader">
+      <label class="file-btn">Choose spreadsheet…<input id="fileInput" type="file" accept=".xlsx,.xls,.xlsm,.csv" hidden></label>
+      <button id="forgetBtn" type="button" class="link" hidden>Forget</button>
+    </div>
+    <p class="sub data-status" id="dataStatus"></p>
+  </header>
+
+  <section>
+    <form id="searchForm" autocomplete="off">
+      <input id="searchInput" type="search" placeholder="Search an area, e.g. Decatur, 30318, Marietta Square">
+      <button type="submit">Find</button>
+    </form>
+    <div class="row">
+      <label>Show nearest
+        <select id="nearestN">
+          <option>3</option><option selected>5</option><option>8</option>
+        </select>
+      </label>
+      <button id="clearBtn" type="button" class="link">Clear</button>
+    </div>
+    <p class="hint">Tip: click anywhere on the map, or a candidate below, to find the closest gyms.</p>
+    <div id="searchStatus" class="status"></div>
+    <ol id="results"></ol>
+  </section>
+
+  <section>
+    <h2>Layers</h2>
+    <label class="check"><input type="checkbox" id="showGyms" checked> Gyms</label>
+    <label class="check"><input type="checkbox" id="showAreas" checked> Candidate regions</label>
+    <label class="check"><input type="checkbox" id="onlyInterview"> Only "Interview Set"</label>
+    <div class="legend">
+      <span><i class="dot gym"></i>Gym</span>
+      <span><i class="sw gA"></i>A</span>
+      <span><i class="sw gB"></i>B</span>
+      <span><i class="sw gC"></i>C</span>
+      <span><i class="sw gN"></i>Ungraded</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Candidates by area</h2>
+    <ul id="areaList"></ul>
+  </section>
+</aside>
+<main id="map"></main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
