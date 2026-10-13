@@ -34,7 +34,7 @@ labeled by neighborhood.
 
 ## Hiring-need model
 For each club with payroll data (`HIRING` in `data.js` holds the tunable numbers):
-- **Capacity used** = sessions per week ÷ (trainers × `trainerCapacity`, default 30 sessions/week).
+- **Capacity used** = sessions per week ÷ (trainers × `trainerCapacity`, default 80 sessions/week = 40 hrs of 30-min sessions).
 - **Net new clients/week** = change in the stats sheet's total clients over the last `lookbackWeeks` (default 4).
 - **Weeks until full** = spare capacity ÷ (new clients/week × `sessionsPerNewClient`, default 1.5).
 - **High**: capacity used ≥ 90%, full within 4 weeks, or no active trainers. **Medium**: ≥ 70% or full within 10 weeks. Otherwise **Low**.

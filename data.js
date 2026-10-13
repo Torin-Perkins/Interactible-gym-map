@@ -971,7 +971,7 @@ const PAYROLL = {
 
 // "Likelihood of needing a new trainer" model (see hiringNeed() in app.js). Tune here.
 const HIRING = {
-  trainerCapacity: 30,      // sessions/week one trainer can realistically carry
+  trainerCapacity: 80,      // sessions/week one trainer can carry (40 hrs of 30-min sessions)
   sessionsPerNewClient: 1.5, // sessions/week each net new client adds
   lookbackWeeks: 4,          // window for weekly client growth from the stats sheets
   highUtilization: 0.9,      // High if already this full ...
