@@ -84,6 +84,12 @@ function sparkline(series, color) {
   return `<svg class="spark" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><polyline points="${xy.join(" ")}" fill="none" stroke="${color}" stroke-width="1.5"/><circle cx="${last[0]}" cy="${last[1]}" r="2.2" fill="${color}"/></svg>`;
 }
 
+function bar(v) {
+  if (v == null) return "";
+  const w = Math.max(0, Math.min(1, v)) * 60;
+  return `<svg class="bar" width="60" height="8"><rect width="60" height="8" rx="4" fill="#e4e7ec"/><rect width="${w.toFixed(1)}" height="8" rx="4" fill="${scaleColor(v)}"/></svg>`;
+}
+
 // ---------- Stats ----------
 function parseNum(s) {
   s = (s || "").trim();
@@ -136,6 +142,90 @@ function staffLine(g) {
 }
 const staffTotal = (g) => { const st = staffOf(g); return (st.pt || 0) + (st.fm || 0) + (st.afm || 0); };
 
+// ---------- App adoption ----------
+// Resolves the adoption sheet's hand-typed "Club" text to a gym of that brand.
+function adoptionGym(brand, club) {
+  let c = norm(club.split("/")[0]).replace(/\.$/, "");
+  c = ADOPTION_ALIASES[c] ? norm(ADOPTION_ALIASES[c]) : c;
+  const gyms = GYMS.filter((g) => g.brand === brand);
+  return gyms.find((g) => norm(g.name).replace(/\.$/, "") === c) || gyms.find((g) => g.label && norm(g.label) === c);
+}
+
+async function loadAdoption() {
+  GYMS.forEach((g) => (g.adoption = null));
+  const unmatched = new Set();
+  const results = await Promise.allSettled(ADOPTION_SHEET.tabs.map(async ({ tab, brand }) => {
+    const [header, ...rows] = await fetchTab(ADOPTION_SHEET.id, tab);
+    const col = (name) => header.findIndex((h) => h.trim().toLowerCase() === name);
+    const C = {
+      club: col("club"), onApp: col("trainer on app"), inApp: col("clients in app #"),
+      total: col("total clients #"), completion: col("weighted completion %"),
+    };
+    rows.forEach((r) => {
+      const club = (r[C.club] || "").trim();
+      if (!club) return;
+      const g = adoptionGym(brand, club);
+      if (!g) { unmatched.add(`${club} (${tab})`); return; }
+      const a = (g.adoption ||= { trainers: 0, onApp: 0, inApp: 0, total: 0, completionSum: 0, completionN: 0 });
+      a.trainers++;
+      if (/^\s*y/i.test(r[C.onApp] || "")) a.onApp++;
+      a.inApp += parseNum(r[C.inApp]) || 0;
+      a.total += parseNum(r[C.total]) || 0;
+      const comp = parseNum(r[C.completion]);
+      if (comp != null) { a.completionSum += comp; a.completionN++; }
+    });
+  }));
+  if (unmatched.size) console.warn("Adoption rows with an unrecognized club:", [...unmatched]);
+  const failed = results.filter((r) => r.status === "rejected");
+  failed.forEach((r) => console.error(r.reason));
+  return failed.length ? failed[0].reason.message : "";
+}
+
+const adoptionPct = (g) => {
+  const a = g.adoption;
+  if (!a) return { trainer: null, client: null, completion: null };
+  return {
+    trainer: a.trainers ? a.onApp / a.trainers : null,
+    client: a.total ? a.inApp / a.total : null,
+    completion: a.completionN ? a.completionSum / a.completionN : null,
+  };
+};
+
+// ---------- Hiring need ----------
+// Net new clients per week over the last HIRING.lookbackWeeks, from the stats sheet's client counts.
+function weeklyClientGrowth(g) {
+  const s = g.stats?.clients;
+  if (!s || s.length < 2) return null;
+  const last = s[s.length - 1];
+  const cutoff = last.date - HIRING.lookbackWeeks * 7 * 864e5;
+  const base = [...s].reverse().find((p) => p.date <= cutoff) || s[0];
+  const weeks = (last.date - base.date) / (7 * 864e5);
+  return weeks > 0 ? (last.value - base.value) / weeks : null;
+}
+
+// Compares current session load (payroll) plus projected load from client growth against
+// trainer capacity. Returns null when the club has no payroll data.
+function hiringNeed(g) {
+  const p = PAYROLL[g.brand]?.[g.name];
+  if (!p) return null;
+  const growth = weeklyClientGrowth(g);
+  const capacity = p.trainers * HIRING.trainerCapacity;
+  const util = capacity ? p.sessionsPerWeek / capacity : Infinity;
+  const addedPerWeek = growth != null && growth > 0 ? growth * HIRING.sessionsPerNewClient : 0;
+  const spare = capacity - p.sessionsPerWeek;
+  const weeksToFull = spare <= 0 ? 0 : addedPerWeek > 0 ? spare / addedPerWeek : Infinity;
+  let level = "Low";
+  if (!p.trainers || util >= HIRING.highUtilization || weeksToFull <= HIRING.highWeeks) level = "High";
+  else if (util >= HIRING.mediumUtilization || weeksToFull <= HIRING.mediumWeeks) level = "Medium";
+  // Extra trainers needed to bring the load projected 8 weeks out back under capacity.
+  const projected = p.sessionsPerWeek + addedPerWeek * 8;
+  const extra = Math.max(0, Math.ceil(projected / HIRING.trainerCapacity - p.trainers));
+  return { level, util, growth, weeksToFull, extra, ...p };
+}
+const HIRE_COLORS = { High: "#d62828", Medium: "#f0aa1e", Low: "#2a9d4b" };
+const hireBadge = (h) => (h ? `<span class="hire ${h.level.toLowerCase()}">${h.level}</span>` : `<span class="muted">—</span>`);
+const pct0 = (v) => (v == null ? "—" : `${Math.round(v * 100)}%`);
+
 // ---------- Gym markers ----------
 const visibleGym = (g) =>
   (state.brand === "all" || g.brand === state.brand) &&
@@ -162,12 +252,39 @@ function gymPopup(g) {
         .join("")}</ul></details>`
     : `<div class="muted">No candidates within ${NEARBY_MILES} mi</div>`;
 
+  const h = hiringNeed(g);
+  const fmtWeeks = (w) => (w === 0 ? "already at capacity" : w === Infinity ? "not on current growth" : `in ~${Math.round(w)} week${Math.round(w) === 1 ? "" : "s"}`);
+  const hireHtml = h
+    ? `<div class="section-title">Need for a new trainer ${hireBadge(h)}</div>
+       <table class="stats">
+         <tr><td>Trainers running sessions</td><td class="num">${h.trainers}</td></tr>
+         <tr><td>Sessions / week</td><td class="num">${h.sessionsPerWeek.toLocaleString()}</td></tr>
+         <tr><td>Capacity used <span class="muted">(${HIRING.trainerCapacity}/trainer)</span></td><td class="num">${h.util === Infinity ? "—" : pct0(h.util)}</td></tr>
+         <tr><td>Net new clients / week</td><td class="num">${h.growth == null ? "—" : (h.growth > 0 ? "+" : "") + h.growth.toFixed(1)}</td></tr>
+         <tr><td>Fills capacity</td><td class="num">${fmtWeeks(h.weeksToFull)}</td></tr>
+         ${h.extra ? `<tr><td>Suggested extra trainers <span class="muted">(8-wk outlook)</span></td><td class="num"><b>+${h.extra}</b></td></tr>` : ""}
+       </table>
+       <div class="muted">Payroll ${esc(PAYROLL_PERIOD)} · busiest trainer ${h.maxTrainerLoad} sessions/wk</div>`
+    : `<div class="section-title">Need for a new trainer</div><div class="muted">No payroll data for this club.</div>`;
+
+  const ad = adoptionPct(g);
+  const adoptHtml = g.adoption
+    ? `<div class="section-title">App adoption</div>
+       <table class="stats">
+         <tr><td>Trainers on the app</td><td class="num">${g.adoption.onApp}/${g.adoption.trainers}</td><td class="num">${pct0(ad.trainer)}</td><td>${bar(ad.trainer)}</td></tr>
+         <tr><td>Clients on the app</td><td class="num">${Math.round(g.adoption.inApp)}/${Math.round(g.adoption.total)}</td><td class="num">${pct0(ad.client)}</td><td>${bar(ad.client)}</td></tr>
+         <tr><td>Avg. profile completion</td><td></td><td class="num">${pct0(ad.completion)}</td><td>${bar(ad.completion)}</td></tr>
+       </table>`
+    : `<div class="section-title">App adoption</div><div class="muted">Not in the adoption sheet.</div>`;
+
   return `<div class="popup">
     <div class="chip" style="background:${b.color}">${esc(g.brand)} · ${esc(g.region)}</div>
     <b>${esc(gymLabel(g))}</b><br>${esc(g.address)}${g.approx ? " <i>(approx. location)</i>" : ""}<br>
     <a href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(g.address)}" target="_blank" rel="noopener">Directions</a>
     <div class="staff">${staffLine(g)}</div>
     ${statsHtml}
+    ${hireHtml}
+    ${adoptHtml}
     ${nearHtml}
   </div>`;
 }
@@ -193,6 +310,9 @@ const COLOR_MODES = {
   billing: { label: "Billing health", metric: "billing" },
   late: { label: "Members with late amounts", metric: "late" },
   staff: { label: "Staff on roster (size)", size: true },
+  hiring: { label: "Need for a new trainer", category: true },
+  trainerApp: { label: "Trainers on the app %", value: (g) => adoptionPct(g).trainer, absolute: true },
+  clientApp: { label: "Clients on the app %", value: (g) => adoptionPct(g).client, absolute: true },
 };
 
 function styleGyms() {
@@ -209,7 +329,13 @@ function styleGyms() {
   GYMS.forEach((g) => {
     const brandColor = BRANDS[g.brand].color;
     let radius = 7, fill = brandColor;
-    if (state.colorBy !== "brand") {
+    if (mode.category) {
+      const h = hiringNeed(g);
+      fill = h ? HIRE_COLORS[h.level] : "#9aa0a6"; radius = h ? 8 : 4;
+    } else if (mode.value) {
+      const v = mode.value(g);
+      fill = v == null ? "#9aa0a6" : scaleColor(v); radius = v == null ? 4 : 8;
+    } else if (state.colorBy !== "brand") {
       const v = mode.metric ? latest(g, mode.metric).value : staffTotal(g);
       const r = range[g.brand];
       if (v == null || !r) { radius = 4; fill = "#9aa0a6"; }
@@ -223,7 +349,12 @@ function styleGyms() {
     g.marker.setStyle({ radius, fillColor: fill, color: state.colorBy === "brand" || !mode.size ? "#fff" : brandColor });
   });
   const legend = $("colorLegend");
-  if (state.colorBy === "brand" || mode.size) {
+  if (mode.category) {
+    legend.innerHTML = Object.entries(HIRE_COLORS).map(([k, c]) => `<span><i class="dot" style="background:${c}"></i>${k}</span>`).join("") +
+      `<span><i class="dot" style="background:#9aa0a6"></i>No payroll</span>`;
+  } else if (mode.value) {
+    legend.innerHTML = `<span class="ramp"></span><span class="muted">0% → 100% · gray = not in sheet</span>`;
+  } else if (state.colorBy === "brand" || mode.size) {
     legend.innerHTML = Object.entries(BRANDS).map(([k, b]) => `<span><i class="dot" style="background:${b.color}"></i>${esc(k)}</span>`).join("") +
       (mode.size ? `<span class="muted">bigger = more</span>` : "");
   } else {
@@ -244,6 +375,8 @@ const TABLE_COLS = [
   { key: "lostPct", label: "Lost %", get: (g) => latest(g, "lostPct").value },
   { key: "billing", label: "Billing", get: (g) => latest(g, "billing").value },
   { key: "staff", label: "PT/FM/AFM", get: (g) => staffTotal(g) },
+  { key: "clientApp", label: "Client app", get: (g) => adoptionPct(g).client },
+  { key: "hire", label: "Hire need", get: (g) => { const h = hiringNeed(g); return h ? { High: 3, Medium: 2, Low: 1 }[h.level] + Math.min(h.util, 5) / 10 : null; } },
 ];
 
 function renderTable() {
@@ -265,7 +398,9 @@ function renderTable() {
         <td class="num">${fmtVal(m("clients"), latest(g, "clients").value)}</td>
         <td class="num">${fmtVal(m("lostPct"), latest(g, "lostPct").value)}</td>
         <td class="num">${fmtVal(m("billing"), latest(g, "billing").value)}</td>
-        <td class="num">${st.pt || 0}/${st.fm || 0}/${st.afm || 0}</td></tr>`;
+        <td class="num">${st.pt || 0}/${st.fm || 0}/${st.afm || 0}</td>
+        <td class="num">${pct0(adoptionPct(g).client)}</td>
+        <td>${hireBadge(hiringNeed(g))}</td></tr>`;
     }).join("")}</tbody>`;
   $("gymTable").querySelectorAll("th").forEach((th) => (th.onclick = () => {
     const k = th.dataset.k;
@@ -506,10 +641,17 @@ $("searchForm").addEventListener("submit", async (e) => {
 });
 
 // ---------- Filters ----------
+// If the map has no size yet (e.g. loaded in a hidden tab), fit once it gets one.
+let pendingFit = false;
 function fitVisible() {
+  map.invalidateSize();
+  const size = map.getSize();
+  if (!size.x || !size.y) { pendingFit = true; return; }
+  pendingFit = false;
   const pts = GYMS.filter(visibleGym).map((g) => [g.lat, g.lng]);
   if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.15), { maxZoom: 12 });
 }
+new ResizeObserver(() => { if (pendingFit) fitVisible(); }).observe(map.getContainer());
 
 function buildRegionSelect() {
   const sel = $("regionSelect");
@@ -551,11 +693,12 @@ $("onlyInterview").onchange = renderAreas;
 async function refresh() {
   $("refreshBtn").disabled = true;
   $("dataStatus").textContent = "Loading stats and candidates from Google Sheets…";
-  const [statsErr, candErr] = await Promise.all([
+  const [statsErr, candErr, adoptErr] = await Promise.all([
     loadStats().catch((e) => e.message),
     loadCandidates((msg) => ($("dataStatus").textContent = msg)).catch((e) => e.message),
+    loadAdoption().catch((e) => e.message),
   ]);
-  const errs = [statsErr && `Stats: ${statsErr}`, candErr && `Candidates: ${candErr}`].filter(Boolean);
+  const errs = [statsErr && `Stats: ${statsErr}`, candErr && `Candidates: ${candErr}`, adoptErr && `App adoption: ${adoptErr}`].filter(Boolean);
   $("dataStatus").textContent = errs.length
     ? `⚠ ${errs.join(" · ")}`
     : `Live from Google Sheets · updated ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
@@ -565,6 +708,7 @@ async function refresh() {
 
 $("refreshBtn").onclick = refresh;
 $("staffDate").textContent = STAFF_AS_OF;
+$("payrollDate").textContent = PAYROLL_PERIOD;
 buildRegionSelect();
 renderAll();
 fitVisible();

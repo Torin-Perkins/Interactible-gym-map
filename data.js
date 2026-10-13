@@ -881,3 +881,125 @@ const CANDIDATE_GEO = {
   "wylie|Dallas, TX": [33.0152, -96.5388, 5, "Wylie"],
   "zip 77073. well within travelling distance to humble,woodlands and greenspoint|Houston, TX": [29.7604, -95.3698, 12, "Houston"],
 };
+
+// Session payroll snapshot (counts only, no names or pay), per club:
+// trainers = staff (not terminated) who ran at least one session in the period,
+// sessionsPerWeek = all sessions in the period / weeks, maxTrainerLoad = busiest trainer's sessions/week.
+const PAYROLL_PERIOD = "Sep 1 – Oct 15, 2026";
+const PAYROLL = {
+  GRIP: {
+    "Alpharetta / Windward": { trainers: 4, sessionsPerWeek: 43.2, maxTrainerLoad: 20.8 },
+    "Atlantic Beach": { trainers: 4, sessionsPerWeek: 135.5, maxTrainerLoad: 61.3 },
+    "Beavercreek": { trainers: 5, sessionsPerWeek: 145.9, maxTrainerLoad: 58.0 },
+    "Beaverton": { trainers: 4, sessionsPerWeek: 119.3, maxTrainerLoad: 59.4 },
+    "Buford": { trainers: 5, sessionsPerWeek: 30.2, maxTrainerLoad: 12.3 },
+    "Centerville": { trainers: 4, sessionsPerWeek: 126.3, maxTrainerLoad: 78.7 },
+    "Columbus-East Broad St": { trainers: 2, sessionsPerWeek: 35.3, maxTrainerLoad: 28.8 },
+    "Columbus-Goodale Blvd": { trainers: 4, sessionsPerWeek: 33.1, maxTrainerLoad: 13.7 },
+    "Columbus-Graceland Blvd.": { trainers: 4, sessionsPerWeek: 83.1, maxTrainerLoad: 34.4 },
+    "Columbus-Old Hamilton Rd": { trainers: 6, sessionsPerWeek: 76.7, maxTrainerLoad: 33.6 },
+    "Cumming": { trainers: 1, sessionsPerWeek: 3.7, maxTrainerLoad: 3.7 },
+    "Duluth - Peachtree Industrial": { trainers: 2, sessionsPerWeek: 7.0, maxTrainerLoad: 6.4 },
+    "Duluth - Pleasant Hill": { trainers: 1, sessionsPerWeek: 0.5, maxTrainerLoad: 0.5 },
+    "Gresham": { trainers: 3, sessionsPerWeek: 139.1, maxTrainerLoad: 49.8 },
+    "Hazel Dell": { trainers: 7, sessionsPerWeek: 257.3, maxTrainerLoad: 70.2 },
+    "Hillsboro": { trainers: 5, sessionsPerWeek: 146.5, maxTrainerLoad: 75.4 },
+    "Holcomb @ 400": { trainers: 1, sessionsPerWeek: 6.4, maxTrainerLoad: 6.4 },
+    "Johns Creek": { trainers: 4, sessionsPerWeek: 29.7, maxTrainerLoad: 14.6 },
+    "Kenwood": { trainers: 5, sessionsPerWeek: 111.7, maxTrainerLoad: 54.0 },
+    "Kernan": { trainers: 3, sessionsPerWeek: 78.2, maxTrainerLoad: 51.0 },
+    "Lloyd Center": { trainers: 7, sessionsPerWeek: 93.0, maxTrainerLoad: 33.9 },
+    "Norcross - Peachtree Corners": { trainers: 3, sessionsPerWeek: 33.0, maxTrainerLoad: 17.1 },
+    "Old St. Augustine": { trainers: 5, sessionsPerWeek: 99.1, maxTrainerLoad: 43.1 },
+    "Orange Park": { trainers: 2, sessionsPerWeek: 61.4, maxTrainerLoad: 31.0 },
+    "Pearl": { trainers: 7, sessionsPerWeek: 173.1, maxTrainerLoad: 48.2 },
+    "82nd": { trainers: 3, sessionsPerWeek: 70.2, maxTrainerLoad: 49.2 },
+    "Roswell - Hwy 92 / Hardscrabble Road": { trainers: 4, sessionsPerWeek: 14.9, maxTrainerLoad: 8.6 },
+    "Sandy Springs": { trainers: 5, sessionsPerWeek: 15.2, maxTrainerLoad: 8.9 },
+    "Sugar Hill": { trainers: 3, sessionsPerWeek: 19.0, maxTrainerLoad: 16.5 },
+    "Tualtin": { trainers: 6, sessionsPerWeek: 156.6, maxTrainerLoad: 61.6 },
+    "Vancouver East": { trainers: 4, sessionsPerWeek: 76.1, maxTrainerLoad: 40.1 },
+    "West Chester": { trainers: 4, sessionsPerWeek: 56.9, maxTrainerLoad: 20.1 },
+  },
+  Elevate: {
+    "Allen": { trainers: 2, sessionsPerWeek: 7.9, maxTrainerLoad: 7.6 },
+    "Baytown": { trainers: 4, sessionsPerWeek: 16.5, maxTrainerLoad: 4.5 },
+    "Bedford": { trainers: 5, sessionsPerWeek: 32.5, maxTrainerLoad: 14.5 },
+    "Bissonnet": { trainers: 5, sessionsPerWeek: 47.9, maxTrainerLoad: 23.2 },
+    "Blanco West": { trainers: 3, sessionsPerWeek: 44.2, maxTrainerLoad: 17.0 },
+    "Carrollton": { trainers: 3, sessionsPerWeek: 67.2, maxTrainerLoad: 39.0 },
+    "Champions": { trainers: 8, sessionsPerWeek: 157.7, maxTrainerLoad: 35.6 },
+    "Clear Lake": { trainers: 3, sessionsPerWeek: 28.9, maxTrainerLoad: 16.2 },
+    "Denton": { trainers: 5, sessionsPerWeek: 53.4, maxTrainerLoad: 27.7 },
+    "Eastside": { trainers: 5, sessionsPerWeek: 17.4, maxTrainerLoad: 10.9 },
+    "Fayetteville": { trainers: 2, sessionsPerWeek: 49.5, maxTrainerLoad: 24.6 },
+    "Federal": { trainers: 3, sessionsPerWeek: 55.4, maxTrainerLoad: 33.0 },
+    "Forest Hill": { trainers: 3, sessionsPerWeek: 14.6, maxTrainerLoad: 7.6 },
+    "Garland": { trainers: 4, sessionsPerWeek: 15.1, maxTrainerLoad: 10.3 },
+    "Grand Prairie": { trainers: 3, sessionsPerWeek: 39.5, maxTrainerLoad: 26.0 },
+    "Greenspoint": { trainers: 2, sessionsPerWeek: 4.7, maxTrainerLoad: 3.4 },
+    "Greenville": { trainers: 3, sessionsPerWeek: 42.3, maxTrainerLoad: 20.5 },
+    "Hulen": { trainers: 7, sessionsPerWeek: 79.8, maxTrainerLoad: 28.5 },
+    "Humble": { trainers: 2, sessionsPerWeek: 19.1, maxTrainerLoad: 14.5 },
+    "Indian Trail": { trainers: 3, sessionsPerWeek: 13.5, maxTrainerLoad: 5.0 },
+    "Irving": { trainers: 7, sessionsPerWeek: 27.5, maxTrainerLoad: 12.4 },
+    "Jones Road": { trainers: 1, sessionsPerWeek: 26.1, maxTrainerLoad: 26.1 },
+    "Katy": { trainers: 2, sessionsPerWeek: 22.6, maxTrainerLoad: 15.4 },
+    "Kietzke": { trainers: 6, sessionsPerWeek: 45.7, maxTrainerLoad: 16.8 },
+    "Lake Creek": { trainers: 5, sessionsPerWeek: 105.6, maxTrainerLoad: 40.4 },
+    "Lewisville": { trainers: 3, sessionsPerWeek: 10.4, maxTrainerLoad: 5.4 },
+    "Mesquite": { trainers: 5, sessionsPerWeek: 54.3, maxTrainerLoad: 50.6 },
+    "Mission Bend": { trainers: 2, sessionsPerWeek: 23.8, maxTrainerLoad: 12.1 },
+    "Morrow": { trainers: 5, sessionsPerWeek: 22.1, maxTrainerLoad: 10.0 },
+    "North Hills": { trainers: 4, sessionsPerWeek: 29.7, maxTrainerLoad: 23.2 },
+    "Northlake": { trainers: 1, sessionsPerWeek: 10.4, maxTrainerLoad: 10.3 },
+    "Oak Cliff": { trainers: 6, sessionsPerWeek: 26.3, maxTrainerLoad: 10.6 },
+    "Park Forest": { trainers: 4, sessionsPerWeek: 60.7, maxTrainerLoad: 40.8 },
+    "Pasadena": { trainers: 3, sessionsPerWeek: 13.1, maxTrainerLoad: 7.5 },
+    "RTP": { trainers: 1, sessionsPerWeek: 5.1, maxTrainerLoad: 5.1 },
+    "South Park Mall": { trainers: 6, sessionsPerWeek: 79.8, maxTrainerLoad: 43.2 },
+    "Sparks": { trainers: 9, sessionsPerWeek: 210.6, maxTrainerLoad: 52.7 },
+    "Stone Mountain": { trainers: 7, sessionsPerWeek: 54.9, maxTrainerLoad: 31.1 },
+    "Sugarland": { trainers: 7, sessionsPerWeek: 43.6, maxTrainerLoad: 15.9 },
+    "Tech Ridge": { trainers: 12, sessionsPerWeek: 135.6, maxTrainerLoad: 28.6 },
+    "University": { trainers: 5, sessionsPerWeek: 50.2, maxTrainerLoad: 23.2 },
+    "Watauga": { trainers: 5, sessionsPerWeek: 61.0, maxTrainerLoad: 21.6 },
+    "Westover": { trainers: 10, sessionsPerWeek: 71.9, maxTrainerLoad: 26.8 },
+    "Woodlands": { trainers: 4, sessionsPerWeek: 152.0, maxTrainerLoad: 77.6 },
+  },
+};
+
+// "Likelihood of needing a new trainer" model (see hiringNeed() in app.js). Tune here.
+const HIRING = {
+  trainerCapacity: 30,      // sessions/week one trainer can realistically carry
+  sessionsPerNewClient: 1.5, // sessions/week each net new client adds
+  lookbackWeeks: 4,          // window for weekly client growth from the stats sheets
+  highUtilization: 0.9,      // High if already this full ...
+  highWeeks: 4,              // ... or full within this many weeks
+  mediumUtilization: 0.7,    // Medium if this full ...
+  mediumWeeks: 10,           // ... or full within this many weeks
+};
+
+// Live app-adoption data: one row per trainer, tabs per region. Shared "Anyone with the link"; read-only.
+const ADOPTION_SHEET = {
+  id: "1sG9Md9EJtQjKARumiLW-Mwi3pBC_ikzG9UbxF95a6gA",
+  tabs: [
+    { tab: "Dallas FC", brand: "Elevate" },
+    { tab: "San Antonio_Austin Fc", brand: "Elevate" },
+    { tab: "Houston FC", brand: "Elevate" },
+    { tab: "Eastern FC", brand: "Elevate" },
+    { tab: "Portland Grip PT", brand: "GRIP" },
+    { tab: "Ohio Grip PT", brand: "GRIP" },
+    { tab: "Jacksonville GripPT", brand: "GRIP" },
+  ],
+};
+// The adoption sheet's "Club" column is typed by hand; map its spellings (lowercased) to gym names.
+const ADOPTION_ALIASES = {
+  "watagua": "Watauga", "park forrest": "Park Forest", "carrolton": "Carrollton",
+  "spm": "South Park Mall", "blanco": "Blanco West", "champion forest": "Champions",
+  "fayettville": "Fayetteville", "north lake": "Northlake", "university place": "University",
+  "pearl district": "Pearl", "llyod center": "Lloyd Center", "lloyd": "Lloyd Center",
+  "vancouver e": "Vancouver East", "tulutain": "Tualtin", "tualitin": "Tualtin", "tualatin": "Tualtin",
+  "se 82nd": "82nd", "portland se 82nd": "82nd", "old st": "Old St. Augustine", "old st augustine": "Old St. Augustine",
+  "westchester": "West Chester",
+};

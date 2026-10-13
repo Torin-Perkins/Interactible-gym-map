@@ -101,7 +101,7 @@ button:disabled { opacity: .5; cursor: default; }
 .ramp { width: 90px; height: 10px; border-radius: 5px; background: linear-gradient(90deg, rgb(214,40,40), rgb(240,170,30), rgb(42,157,75)); }
 
 /* Gym table */
-.table-wrap { max-height: 360px; overflow-y: auto; margin-top: 8px; border: 1px solid var(--line); border-radius: 6px; }
+.table-wrap { max-height: 360px; overflow: auto; margin-top: 8px; border: 1px solid var(--line); border-radius: 6px; }
 .gym-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .gym-table th { position: sticky; top: 0; background: var(--bg); text-align: left; padding: 6px; border-bottom: 1px solid var(--line); cursor: pointer; white-space: nowrap; color: var(--muted); }
 .gym-table th.sorted { color: var(--fg); }
@@ -124,6 +124,10 @@ table.stats td:first-child { white-space: normal; }
 .popup summary { cursor: pointer; font-weight: 600; }
 .popup .muted { color: #667085; }
 .hide-labels .area-label { display: none; }
+.section-title { font-weight: 700; margin: 10px 0 2px; padding-top: 6px; border-top: 1px solid #eee; display: flex; align-items: center; gap: 6px; }
+.hire { display: inline-block; font-size: 11px; font-weight: 700; padding: 0 7px; border-radius: 9px; color: #fff; }
+.hire.high { background: #d62828; } .hire.medium { background: #d98e04; } .hire.low { background: #2a9d4b; }
+.bar { display: block; }
 
 @media (max-width: 760px) {
   body { flex-direction: column-reverse; }
