@@ -2,3 +2,5 @@
 *.xlsx
 *.xls
 *.csv
+# Built by scripts/build_drive_data.py during deploy; holds staff names, so never committed.
+drive-data.json

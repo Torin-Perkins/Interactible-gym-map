@@ -8,12 +8,19 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<nav id="tabs" role="tablist">
+  <span class="brand">Grip PT / USAPT</span>
+  <button type="button" role="tab" class="tab" data-view="map" aria-selected="true">Candidates &amp; trainer needs</button>
+  <button type="button" role="tab" class="tab" data-view="stats" aria-selected="false">Trainer stats</button>
+</nav>
+
+<div id="view-map" class="view">
 <aside id="panel">
   <header>
     <h1>Grip PT @ LA Fitness — Atlanta</h1>
     <p class="sub"><span id="gymCount"></span> gyms · <span id="candCount"></span> candidates</p>
     <p class="sub data-status"><span id="dataStatus"></span> <button id="refreshBtn" type="button" class="link">Refresh</button></p>
-    <p class="sub data-status">Staff counts as of <span id="staffDate"></span></p>
+    <p class="sub data-status"><span id="staffStatus"></span></p>
   </header>
 
   <section>
@@ -35,12 +42,19 @@
   </section>
 
   <section>
+    <h2>Trainer needs</h2>
+    <p class="hint">Gyms with fewer than <span id="ptTarget"></span> personal trainers, fewest first, with candidates within 12 mi.</p>
+    <ul id="needsList"></ul>
+  </section>
+
+  <section>
     <h2>Layers</h2>
     <label class="check"><input type="checkbox" id="showGyms" checked> Gyms</label>
     <label class="check"><input type="checkbox" id="showAreas" checked> Candidate regions</label>
     <label class="check"><input type="checkbox" id="onlyInterview"> Only "Interview Set"</label>
     <div class="legend">
       <span><i class="dot gym"></i>Gym</span>
+      <span><i class="dot gym need"></i>Needs trainers</span>
       <span><i class="sw gA"></i>A</span>
       <span><i class="sw gB"></i>B</span>
       <span><i class="sw gC"></i>C</span>
@@ -54,9 +68,63 @@
   </section>
 </aside>
 <main id="map"></main>
+</div>
+
+<div id="view-stats" class="view" hidden>
+  <div class="stats-wrap">
+    <header class="stats-head">
+      <div>
+        <h1>Trainer stats</h1>
+        <p class="sub data-status"><span id="statsStatus">Loading…</span> <button id="statsRefresh" type="button" class="link">Refresh</button></p>
+      </div>
+      <div class="filters">
+        <label>Company <select id="fCompany"><option value="">All</option></select></label>
+        <label>Region <select id="fRegion"><option value="">All</option></select></label>
+        <label>Club <select id="fClub"><option value="">All</option></select></label>
+      </div>
+    </header>
+
+    <div id="tiles" class="tiles"></div>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Club KPIs</h2>
+        <span class="sub" id="kpiDate"></span>
+      </div>
+      <div class="table-scroll"><table id="clubTable" class="grid"></table></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Trainer tracker</h2>
+        <div class="card-tools">
+          <input id="tSearch" type="search" placeholder="Search trainer">
+          <select id="tShow">
+            <option value="">All personal trainers</option>
+            <option value="notOnboarded">Not onboarded</option>
+            <option value="noCert">No cert on file</option>
+            <option value="unlogged">Has unlogged sessions</option>
+          </select>
+          <button id="exportBtn" type="button">Export CSV</button>
+          <label class="btn-secondary">Import CSV<input id="importFile" type="file" accept=".csv,text/csv" hidden></label>
+        </div>
+      </div>
+      <p class="hint">Onboarded = on the onboarding sheet or has a certification on file (cert list or the app adoption sheet).
+        Click a checkbox to override. Lost sheep, billing health and notes are typed in here and saved in this browser — use Export CSV to back up or share.</p>
+      <div class="table-scroll"><table id="trainerTable" class="grid"></table></div>
+    </section>
+
+    <section class="card">
+      <h2>Sources</h2>
+      <ul id="sourceList" class="sources"></ul>
+    </section>
+  </div>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="data.js"></script>
+<script src="sources.js"></script>
 <script src="app.js"></script>
+<script src="stats.js"></script>
 </body>
 </html>

@@ -34,7 +34,40 @@ const SHEET = {
   metro: "Atlanta", // only rows whose preferred metro contains this
 };
 
-// Active staff per gym, counted from the Grip PT staff list (terminated excluded).
+// ---------- Trainer stats sources ----------
+// The shared "USAPT Data" Drive folder. drive-index.json lists its files (refreshed every
+// 3 hours by .github/workflows/drive-index.yml); the page downloads and reads them live.
+// Sub-folders: "Staff List" (one .xls per company) and "Unlogged Sessions"
+// (payroll "Different Rows" comparisons, one per company per pay period).
+// Any Google Sheet in the folder root with the KPI tabs below is read as club KPIs.
+const DRIVE_FOLDER = "1mLoeOAb2twG-9sC97JyXfaTElyjwoPm9";
+const KPI_TABS = {
+  clients: "Total Clients All",
+  lostSheep: "Total Lost Sheep Inc Prospects",
+  nonProspectLostSheep: "Non Prospect Lost Sheep",
+  lostSheepPct: "Lost Sheep %",
+  billingHealth: "Billing Health",
+  late: "Members With Late Amounts",
+};
+
+// App adoption sheet: one tab per region, a row per trainer.
+const ADOPTION_SHEET = "1sG9Md9EJtQjKARumiLW-Mwi3pBC_ikzG9UbxF95a6gA";
+// Onboarding sheet: everyone listed here counts as onboarded.
+// Must be shared "Anyone with the link can view" for the page to read it.
+const ONBOARDING_SHEET = { id: "1GQIwWuAYPU23wPL6TW3lp5Uv4rPX47bMEhsv5dd1tzw", gid: "830884200" };
+// Certifications: fill in once the cert list exists (a sheet with a trainer name column).
+// Anyone with a cert on file also counts as onboarded.
+const CERT_SHEET = { id: "", gid: "" };
+
+// Staff-list "Employee Type" values that count as personal trainers.
+const PT_TYPE = /personal trainer|^(pt )?trainer$/i;
+// KPI sheet club names that don't match the staff list by spelling.
+const CLUB_ALIASES = { tualtin: "tualatin", pearl: "pearl district", "82nd": "portland se 82nd" };
+
+// Trainer needs: gyms below this many personal trainers are flagged on the map tab.
+const PT_TARGET = 4;
+
+// Snapshot used only if the live staff list can't be loaded.
 // pt = personal trainers, fm = fitness managers (incl. senior), afm = assistant fitness managers.
 const STAFF_AS_OF = "Oct 12, 2026";
 const STAFF = {
