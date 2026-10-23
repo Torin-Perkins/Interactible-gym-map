@@ -1,12 +1,21 @@
 // ---------- Trainer stats tab ----------
 // Club KPIs from the Drive KPI sheets, plus a per-trainer tracker. Automatic values come from
-// the Drive / Google Sheet sources; anything typed or overridden here is saved in this browser
-// (localStorage) and can be moved between browsers with Export / Import CSV.
+// the Drive / Google Sheet sources. Anything typed or overridden here is saved to the shared
+// tracker sheet when TRACKER_DB.url is set (apps-script/Code.gs), otherwise in this browser.
 
 const TRACKER_KEY = "trainerTracker.v1";
-function loadTracker() { try { return JSON.parse(localStorage.getItem(TRACKER_KEY)) || {}; } catch { return {}; } }
-function saveTracker() { try { localStorage.setItem(TRACKER_KEY, JSON.stringify(TRACKER)); } catch {} }
-let TRACKER = loadTracker(); // userId -> { onboarded, cert, lostSheep, billing, notes }
+const SHARED = !!TRACKER_DB.url;
+function pref(k, v) {
+  try {
+    if (v === undefined) return localStorage.getItem(k) || "";
+    localStorage.setItem(k, v);
+  } catch {}
+  return "";
+}
+function loadLocalTracker() { try { return JSON.parse(localStorage.getItem(TRACKER_KEY)) || {}; } catch { return {}; } }
+function saveLocalTracker() { try { localStorage.setItem(TRACKER_KEY, JSON.stringify(TRACKER)); } catch {} }
+let TRACKER = SHARED ? {} : loadLocalTracker(); // userId -> { onboarded, cert, billing, notes }
+let TRACKER_META = {}; // userId -> { updated, by } from the shared sheet
 let MODEL = null;
 const sortState = { clubs: { key: "club", dir: 1 }, trainers: { key: "club", dir: 1 } };
 
@@ -40,14 +49,18 @@ function buildModel(data) {
     const adopt = lookupName(adoptIdx, s.name) || null;
     const onb = onbIdx && lookupName(onbIdx, s.name);
     const certRow = certIdx && lookupName(certIdx, s.name);
-    const certSources = [certRow && "cert list", adopt && adopt.cert && "app adoption sheet"].filter(Boolean);
+    const certSources = [certRow && "cert list", onb && onb.certUploaded && "onboarding form",
+      adopt && adopt.cert && "app adoption sheet"].filter(Boolean);
     const u = ul && ul.byTrainer.get(s.id);
     const hasPeriods = ul && ul.periods.some((p) => p.company === s.company);
     return {
       id: s.id, name: s.name, club: s.club, company: s.company, key,
       region: (kpiByKey.get(key) || {}).region || "",
       onbSources: [onb && "onboarding sheet", ...certSources.map((x) => `cert on ${x}`)].filter(Boolean),
-      certText: (certRow && (certRow.detail || "on cert list")) || (adopt && adopt.cert) || "",
+      certText: (certRow && (certRow.detail || "on cert list")) || (onb && onb.certUploaded && "uploaded on onboarding form")
+        || (adopt && adopt.cert) || "",
+      // Said they're certified (or working on it) on the form but didn't upload a cert.
+      certNote: onb && !onb.certUploaded && onb.certified ? `form says "${onb.certified}", no upload` : "",
       certSources, adopt,
       unlogged: u ? u.avg : hasPeriods ? 0 : null,
       unloggedPeriods: u ? u.periods : {},
@@ -73,7 +86,6 @@ function eff(t) {
   return {
     onboarded: r.onboarded ?? autoValue(t, "onboarded"),
     cert: r.cert ?? autoValue(t, "cert"),
-    lostSheep: r.lostSheep ?? null,
     billing: r.billing ?? (t.adopt ? t.adopt.billing : null),
     notes: r.notes || "",
   };
@@ -83,7 +95,97 @@ function setTracker(id, field, value) {
   if (value === undefined || value === null || value === "") delete r[field];
   else r[field] = value;
   if (!Object.keys(r).length) delete TRACKER[id];
-  saveTracker();
+  if (SHARED) queueSave(id);
+  else saveLocalTracker();
+}
+
+// ---------- Shared tracker sheet ----------
+// Reads are open; saves send the edit key (if the sheet owner set one). Edits are batched and
+// sent a moment after the last change. The last save to a trainer's row wins.
+const dirty = new Set();
+let saveTimer = null;
+function dbStatus(text, bad) {
+  $("dbStatus").textContent = text;
+  $("dbStatus").classList.toggle("bad", !!bad);
+}
+async function dbLoad() {
+  const res = await fetch(TRACKER_DB.url, { credentials: "omit" });
+  const body = await res.json();
+  if (!body.ok) throw new Error(body.error || "couldn't read the tracker");
+  const t = {}, meta = {};
+  body.records.forEach((r) => {
+    const x = {};
+    if (r.onboarded != null) x.onboarded = r.onboarded;
+    if (r.cert != null) x.cert = r.cert;
+    if (r.billing != null) x.billing = r.billing;
+    if (r.notes) x.notes = r.notes;
+    if (Object.keys(x).length) t[r.id] = x;
+    meta[r.id] = { updated: r.updated, by: r.by };
+  });
+  // Keep edits that haven't been sent yet.
+  dirty.forEach((id) => { if (TRACKER[id]) t[id] = TRACKER[id]; else delete t[id]; });
+  TRACKER = t;
+  TRACKER_META = meta;
+}
+function queueSave(id) {
+  dirty.add(id);
+  dbStatus("Unsaved changes…");
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(dbSave, 800);
+}
+async function dbSave() {
+  if (!dirty.size) return;
+  const ids = [...dirty];
+  dirty.clear();
+  const byId = new Map(MODEL.trainers.map((t) => [t.id, t]));
+  const records = ids.map((id) => {
+    const r = TRACKER[id] || {}, t = byId.get(id) || {};
+    return { id, name: t.name, club: t.club, onboarded: r.onboarded ?? null, cert: r.cert ?? null, billing: r.billing ?? null, notes: r.notes || "" };
+  });
+  dbStatus("Saving…");
+  try {
+    const res = await fetch(TRACKER_DB.url, {
+      method: "POST", credentials: "omit",
+      headers: { "Content-Type": "text/plain;charset=utf-8" }, // simple request: no CORS preflight
+      body: JSON.stringify({ key: pref("trackerEditKey"), by: pref("trackerName"), records }),
+    });
+    const body = await res.json();
+    if (!body.ok) {
+      ids.forEach((id) => dirty.add(id));
+      if (body.error === "bad key") {
+        $("dbKeyRow").hidden = false;
+        dbStatus(pref("trackerEditKey") ? "That edit key didn't work — check it and save again" : "Enter the edit key to save your changes", true);
+        $("dbKey").focus();
+      } else dbStatus(`Couldn't save: ${body.error}`, true);
+      return;
+    }
+    const by = pref("trackerName");
+    ids.forEach((id) => (TRACKER_META[id] = { updated: new Date().toISOString(), by }));
+    $("dbKeyRow").hidden = true;
+    dbStatus(`Saved to the shared tracker at ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`);
+    if (MODEL) renderTrainers();
+  } catch (err) {
+    console.error(err);
+    ids.forEach((id) => dirty.add(id));
+    dbStatus("Couldn't reach the shared tracker — your changes will retry", true);
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(dbSave, 15000);
+  }
+}
+async function dbRefresh() {
+  if (!SHARED) return;
+  dbStatus("Loading the shared tracker…");
+  try {
+    await dbLoad();
+    dbStatus(`Shared tracker · ${Object.keys(TRACKER).length} trainers with entries`);
+  } catch (err) {
+    console.error(err);
+    dbStatus(`Couldn't load the shared tracker: ${err.message}`, true);
+  }
+  // Edits saved in this browser before the shared tracker was set up.
+  const n = Object.keys(loadLocalTracker()).length;
+  $("dbMigrate").hidden = !n;
+  $("dbMigrate").textContent = `Upload ${n} edit${n === 1 ? "" : "s"} saved in this browser`;
 }
 
 // ---------- Filters ----------
@@ -203,18 +305,18 @@ function renderTrainers() {
     return true;
   });
   const manual = (t, f) => (TRACKER[t.id] || {})[f] !== undefined;
+  const byWho = (t) => { const m = TRACKER_META[t.id]; return m && m.by ? `set by ${esc(m.by)}` : "set by hand"; };
   const resetLink = (t, f) => (manual(t, f) ? ` <button type="button" class="link reset" data-reset="${f}" title="Go back to the automatic value">reset</button>` : "");
   const cols = [
     { key: "name", label: "Trainer", sort: (t) => t.name, html: (t) => `<b>${esc(t.name)}</b><span class="cell-sub">${esc(t.company)}</span>` },
     { key: "club", label: "Club", sort: (t) => `${t.club}|${t.name}`, html: (t) => `${esc(t.club)}<span class="cell-sub">${esc(t.region)}</span>` },
     { key: "onboarded", label: "Onboarded", sort: (t) => +eff(t).onboarded, html: (t) =>
       `<label class="yn"><input type="checkbox" data-f="onboarded" ${eff(t).onboarded ? "checked" : ""}> ${eff(t).onboarded ? "Yes" : "No"}</label>
-       <span class="cell-sub">${manual(t, "onboarded") ? "set by hand" : esc(t.onbSources.join(", ") || "not on onboarding sheet")}${resetLink(t, "onboarded")}</span>` },
+       <span class="cell-sub">${manual(t, "onboarded") ? byWho(t) : esc(t.onbSources.join(", ") || "not on onboarding sheet")}${resetLink(t, "onboarded")}</span>` },
     { key: "cert", label: "Cert on file", sort: (t) => +eff(t).cert, html: (t) =>
       `<label class="yn"><input type="checkbox" data-f="cert" ${eff(t).cert ? "checked" : ""}> ${eff(t).cert ? "Yes" : "No"}</label>
-       <span class="cell-sub">${manual(t, "cert") ? "set by hand" : esc(t.certText)}${resetLink(t, "cert")}</span>` },
-    { key: "lostSheep", label: "Lost sheep", num: true, sort: (t) => eff(t).lostSheep, html: (t) =>
-      `<input type="number" min="0" step="1" class="cell-input" data-f="lostSheep" value="${eff(t).lostSheep ?? ""}" placeholder="—">` },
+       <span class="cell-sub">${manual(t, "cert") ? byWho(t) : esc(t.certText || t.certNote)}${resetLink(t, "cert")}</span>` },
+    { key: "lostSheep", label: "Lost sheep", num: true, sort: () => null, html: () => `<span class="cell-sub" title="Coming from the lost sheep report">—</span>` },
     { key: "billing", label: "Billing health %", num: true, sort: (t) => eff(t).billing, html: (t) => {
       const auto = t.adopt && t.adopt.billing != null ? t.adopt.billing : "";
       const v = (TRACKER[t.id] || {}).billing;
@@ -267,7 +369,7 @@ $("exportBtn").onclick = () => {
     const e = eff(t);
     lines.push([t.id, t.name, t.company, t.region, t.club, e.onboarded ? "Yes" : "No",
       (TRACKER[t.id] || {}).onboarded !== undefined ? "set by hand" : t.onbSources.join("; "),
-      e.cert ? "Yes" : "No", t.certText, e.lostSheep ?? "", e.billing ?? "",
+      e.cert ? "Yes" : "No", t.certText || t.certNote, "", e.billing ?? "",
       t.adopt ? (t.adopt.onApp ? "Yes" : "No") : "", t.adopt && t.adopt.adoption != null ? t.adopt.adoption : "",
       t.unlogged ?? "", e.notes].map(csvCell).join(","));
   });
@@ -296,8 +398,7 @@ $("importFile").onchange = async (ev) => {
       const i = col(f === "cert" ? "Cert on file" : "Onboarded");
       if (i >= 0 && r[i]) setTracker(t.id, f, yes(r[i]) === autoValue(t, f) ? undefined : yes(r[i]));
     });
-    const ls = col("Lost sheep"), bh = col("Billing health %"), nt = col("Notes");
-    if (ls >= 0 && r[ls] !== "") setTracker(t.id, "lostSheep", +r[ls]);
+    const bh = col("Billing health %"), nt = col("Notes");
     if (bh >= 0 && r[bh] !== "" && +r[bh] !== (t.adopt && t.adopt.billing)) setTracker(t.id, "billing", +r[bh]);
     if (nt >= 0 && r[nt]) setTracker(t.id, "notes", r[nt]);
     n++;
@@ -322,9 +423,11 @@ function renderSources(data) {
     line("App adoption sheet", st.adoption && st.adoption.ok, data.adoption
       ? `${data.adoption.length} rows · ${MODEL.trainers.filter((t) => t.adopt).length} matched to current PTs` : err("adoption")),
     line("Onboarding sheet", st.onboarding && st.onboarding.ok, data.onboarding
-      ? `${data.onboarding.length} people · ${MODEL.trainers.filter((t) => t.onbSources.includes("onboarding sheet")).length} matched to current PTs`
+      ? `${data.onboarding.length} responses · ${MODEL.trainers.filter((t) => t.onbSources.includes("onboarding sheet")).length} matched to current PTs · ${data.onboarding.filter((x) => x.certUploaded).length} cert uploads`
       : /401|403|shared|failed to fetch/i.test(err("onboarding")) ? "can't read it yet — share the sheet as \"Anyone with the link can view\"" : err("onboarding")),
-    line("Certifications", !!data.certs, data.certs ? `${data.certs.length} on the cert list` : "no cert list set up yet (CERT_SHEET in data.js) — using the Cert column of the app adoption sheet"),
+    line("Certifications", !!data.certs, data.certs ? `${data.certs.length} on the cert list` : "no separate cert list (CERT_SHEET in data.js) — using onboarding form uploads and the Cert column of the app adoption sheet"),
+    line("Trainer tracker", !SHARED || !$("dbStatus").classList.contains("bad"), SHARED
+      ? esc($("dbStatus").textContent) : "saved in this browser only — set TRACKER_DB.url in data.js to share it (see apps-script/README.md)"),
   ];
   $("sourceList").innerHTML = items.join("");
 }
@@ -337,10 +440,11 @@ function renderAll() {
   renderTrainers();
 }
 
-document.addEventListener("dataloaded", (e) => {
+document.addEventListener("dataloaded", async (e) => {
   const data = e.detail;
   MODEL = buildModel(data);
   renderFilters();
+  await dbRefresh();
   renderAll();
   renderSources(data);
   const bad = Object.entries(data.status || {}).filter(([, s]) => !s.ok).map(([k]) => k);
@@ -351,6 +455,22 @@ document.addEventListener("dataloaded", (e) => {
 
 ["fCompany", "fRegion", "fClub"].forEach((id) => ($(id).onchange = () => { renderFilters(); renderAll(); }));
 $("tSearch").oninput = renderTrainers;
+$("dbBar").hidden = !SHARED;
+$("dbName").value = pref("trackerName");
+$("dbName").onchange = () => pref("trackerName", $("dbName").value.trim());
+$("dbKeySave").onclick = () => { pref("trackerEditKey", $("dbKey").value.trim()); dbSave(); };
+$("dbKey").onkeydown = (e) => { if (e.key === "Enter") $("dbKeySave").click(); };
+$("dbMigrate").onclick = () => {
+  Object.entries(loadLocalTracker()).forEach(([id, r]) => {
+    delete r.lostSheep; // now comes from the lost sheep report
+    if (Object.keys(r).length) { TRACKER[id] = { ...TRACKER[id], ...r }; dirty.add(id); }
+  });
+  try { localStorage.removeItem(TRACKER_KEY); } catch {}
+  $("dbMigrate").hidden = true;
+  renderAll();
+  dbSave();
+};
+window.addEventListener("beforeunload", (e) => { if (dirty.size) { e.preventDefault(); e.returnValue = ""; } });
 $("tShow").onchange = renderTrainers;
 $("statsRefresh").onclick = () => {
   $("statsStatus").textContent = "Reloading…";

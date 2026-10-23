@@ -158,6 +158,12 @@ table.grid { width: 100%; border-collapse: collapse; font-size: 13px; }
 }
 .cell-input.notes { width: 180px; text-align: left; }
 .cell-input.warn { background: var(--warn-bg); border-color: var(--bad); }
+.db-bar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; font-size: 12px; color: var(--muted); margin: 4px 0 6px; }
+.db-bar[hidden], .db-bar [hidden] { display: none !important; }
+.db-bar #dbStatus { font-weight: 600; color: var(--good); }
+.db-bar #dbStatus.bad { color: var(--bad); }
+.db-bar input { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 4px 6px; width: 150px; }
+.db-bar button:not(.link) { padding: 4px 10px; }
 .sources { margin: 0; padding-left: 18px; }
 .sources li { margin: 4px 0; }
 .sources li.bad b { color: var(--bad); }

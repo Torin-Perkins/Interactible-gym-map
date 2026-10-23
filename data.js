@@ -64,6 +64,10 @@ const PT_TYPE = /personal trainer|^(pt )?trainer$/i;
 // KPI sheet club names that don't match the staff list by spelling.
 const CLUB_ALIASES = { tualtin: "tualatin", pearl: "pearl district", "82nd": "portland se 82nd" };
 
+// Shared trainer tracker: the Apps Script web app URL (ends in /exec) from apps-script/README.md.
+// Leave blank to keep tracker edits in each person's browser only.
+const TRACKER_DB = { url: "" };
+
 // Trainer needs: gyms below this many personal trainers are flagged on the map tab.
 const PT_TARGET = 4;
 

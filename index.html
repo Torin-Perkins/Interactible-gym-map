@@ -109,8 +109,15 @@
           <label class="btn-secondary">Import CSV<input id="importFile" type="file" accept=".csv,text/csv" hidden></label>
         </div>
       </div>
-      <p class="hint">Onboarded = on the onboarding sheet or has a certification on file (cert list or the app adoption sheet).
-        Click a checkbox to override. Lost sheep, billing health and notes are typed in here and saved in this browser — use Export CSV to back up or share.</p>
+      <div id="dbBar" class="db-bar" hidden>
+        <span id="dbStatus"></span>
+        <label>Your name <input id="dbName" type="text" placeholder="shown on your edits" autocomplete="name"></label>
+        <span id="dbKeyRow" hidden><label>Edit key <input id="dbKey" type="password" autocomplete="off"></label>
+          <button id="dbKeySave" type="button">Save</button></span>
+        <button id="dbMigrate" type="button" class="link" hidden></button>
+      </div>
+      <p class="hint">Onboarded = on the onboarding sheet or has a certification on file (uploaded on the onboarding form, cert list, or the app adoption sheet).
+        Click a checkbox to override. Billing health and notes are typed in here. Lost sheep will come from the lost sheep report.</p>
       <div class="table-scroll"><table id="trainerTable" class="grid"></table></div>
     </section>
 

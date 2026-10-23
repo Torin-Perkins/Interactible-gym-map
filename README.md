@@ -21,20 +21,23 @@ Two tabs:
     `KPI_TABS`. The table shows the latest report and the change since the one before.
 - **App adoption sheet** (`ADOPTION_SHEET`) — one tab per region; matched to trainers by name. Its Cert and
   Billing health columns pre-fill the tracker.
-- **Onboarding sheet** (`ONBOARDING_SHEET`) — everyone listed counts as onboarded. It must be shared as
-  "Anyone with the link can view" before the page can read it.
-- **Certifications** (`CERT_SHEET`) — empty until the cert list exists. Anyone with a cert on file (cert list or
-  the adoption sheet's Cert column) also counts as onboarded.
+- **Onboarding form responses** (`ONBOARDING_SHEET`) — everyone who submitted counts as onboarded. A cert uploaded on
+  the form counts as cert on file; "Yes" / "Working on it" without an upload is flagged instead.
+- **Certifications** (`CERT_SHEET`) — optional separate cert list. Anyone with a cert on file (form upload, cert list,
+  or the adoption sheet's Cert column) also counts as onboarded.
+- **Lost sheep per trainer** — blank for now; will come from the lost sheep report.
 
 Google Sheets are read live through their public CSV export. Browsers can't download Drive files or list a
 folder without an API key, so the deploy workflow runs `scripts/build_drive_data.py` to read the folder into
 `drive-data.json`. That file keeps only names, clubs, job titles and session differences (no emails, phones or
 addresses) and is published with the site, never committed.
 
-## Trainer tracker
-Lost sheep, billing health, notes and any onboarded / cert overrides are typed into the table and saved in that
-browser (localStorage). They aren't shared between people or devices: use **Export CSV** to back them up or pass
-them on, and **Import CSV** to load them back in.
+## Trainer tracker (shared database)
+Billing health, notes and any onboarded / cert overrides are typed into the table. They're saved to a Google Sheet
+through a small Apps Script web app, so everyone sees the same data. Set it up once with
+[apps-script/README.md](apps-script/README.md), then put the web app URL in `TRACKER_DB.url` in `data.js`.
+An optional edit key limits who can save. Until the URL is set, edits stay in each person's browser.
+**Export CSV** / **Import CSV** still work for backups and bulk updates.
 
 ## Publish on GitHub Pages
 1. Repo **Settings → Pages → Source: GitHub Actions**.

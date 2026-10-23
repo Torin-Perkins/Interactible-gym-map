@@ -200,13 +200,18 @@ async function loadNameList(sheet) {
   const rows = await fetchSheet(sheet.id, { gid: sheet.gid });
   const hi = rows.findIndex((r) => r.some((v) => /name|trainer/i.test(v)));
   if (hi < 0) throw new Error("Couldn't find a name column");
-  const h = rows[hi].map((v) => v.toLowerCase());
-  const full = h.findIndex((x) => /full name|^name$|trainer name|^trainer$|employee name/.test(x));
-  const first = h.findIndex((x) => /first/.test(x)), last = h.findIndex((x) => /last/.test(x));
-  const certCol = h.findIndex((x) => /cert/.test(x));
+  const h = rows[hi].map((v) => v.toLowerCase().trim());
+  const full = h.findIndex((x) => /^(full name|name|trainer name|trainer|employee name)$/.test(x));
+  const first = h.findIndex((x) => /^first( name)?$/.test(x)), last = h.findIndex((x) => /^last( name)?$/.test(x));
+  // Cert list: a "cert..." column. Onboarding form: "I am a Certified Personal Trainer" + the upload question.
+  const certCol = h.findIndex((x) => /^cert/.test(x));
+  const certified = h.findIndex((x) => /certified personal trainer/.test(x));
+  const upload = h.findIndex((x) => /please upload/.test(x));
   return rows.slice(hi + 1).map((r) => ({
     name: (full >= 0 ? r[full] : `${r[first] || ""} ${r[last] || ""}`).trim(),
     detail: certCol >= 0 ? r[certCol] : "",
+    certified: certified >= 0 ? r[certified] : "",
+    certUploaded: upload >= 0 && !!r[upload],
   })).filter((x) => x.name);
 }
 
