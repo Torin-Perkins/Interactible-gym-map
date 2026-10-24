@@ -78,7 +78,10 @@ function buildModel(data) {
     const ts = trainers.filter((t) => t.key === c.key);
     ts.forEach((t) => (t.region = c.region));
     c.pts = ts.length;
-    c.unlogged = mean(ts.filter((t) => t.unlogged != null).map((t) => t.unlogged));
+    const withU = ts.filter((t) => t.unlogged != null);
+    c.unlogged = mean(withU.map((t) => t.unlogged));
+    // The whole club's unlogged sessions per pay period (sum of its trainers' averages).
+    c.unloggedTotal = withU.length ? withU.reduce((sum, t) => sum + t.unlogged, 0) : null;
   });
   return { data, trainers, clubs: [...clubs.values()] };
 }
@@ -228,6 +231,7 @@ function renderTiles() {
   const ls = cs.map((c) => last(c.kpi.lost)).filter(Boolean);
   const npls = cs.map((c) => last(c.kpi.lostNp)).filter(Boolean);
   const share = (x) => (n ? ` · ${Math.round((x / n) * 100)}%` : "");
+  const tagged = cs.filter((c) => tagLevel(c) > 0);
   const tiles = [
     ["Trainers", fmtNum(n), `${cs.filter((c) => c.pts).length} clubs`],
     ["Onboarded", `${onb} / ${n}`, `${n - onb} not onboarded${share(onb)}`],
@@ -237,6 +241,7 @@ function renderTiles() {
     ["On the app", `${onApp} / ${n}`, `matched on the app adoption sheet${share(onApp)}`],
     ["Billing health", fmtPct(mean(bh.map((x) => x.v))), `avg of ${bh.length} clubs · ${fmtDate(bh.length ? new Date(Math.max(...bh.map((x) => x.date))) : null)}`],
     ["Lost sheep", fmtNum(ls.reduce((s, x) => s + x.v, 0)), `${fmtNum(npls.reduce((s, x) => s + x.v, 0))} non-prospect · incl. prospects`],
+    ["Tagged clubs", `${tagged.length} / ${cs.length}`, `${tagged.filter((c) => tagLevel(c) === 2).length} with billing under ${CLUB_TAGS.billingBad}%`],
   ];
   $("tiles").innerHTML = tiles.map(([label, value, sub]) =>
     `<div class="tile"><div class="tile-label">${esc(label)}</div><div class="tile-value">${esc(value)}</div><div class="tile-sub">${esc(sub)}</div></div>`).join("");
@@ -281,16 +286,22 @@ function renderClubs() {
   const lv = (m) => (c) => (last(c.kpi[m]) || {}).v ?? null;
   const cols = [
     { key: "club", label: "Club", sort: (c) => c.club, html: (c) => `<b>${esc(c.club)}</b><span class="cell-sub">${esc([c.company, c.region].filter(Boolean).join(" · "))}</span>` },
-    { key: "pts", label: "PTs", num: true, sort: (c) => c.pts, html: (c) => fmtNum(c.pts) },
+    { key: "tags", label: "Tags", sort: (c) => tagLevel(c) * 10 + clubTags(c).length || null, html: (c) => tagsHtml(c) },
+    { key: "pts", label: "Trainers", num: true, sort: (c) => c.pts, html: (c) => fmtNum(c.pts) },
+    { key: "onboarded", label: "Onboarded", num: true, sort: (c) => (c.pts ? clubCounts(c).onboarded / c.pts : null), html: (c) =>
+      (c.pts ? `${clubCounts(c).onboarded} / ${c.pts}` : "—") },
     { key: "clients", label: "Total clients", num: true, sort: lv("clients"), html: (c) => kpiCell(c.kpi.clients) },
     { key: "lost", label: "Lost sheep<br><small>incl. prospects</small>", num: true, sort: lv("lost"), html: (c) => kpiCell(c.kpi.lost, { higherIsGood: false }) },
     { key: "lostNp", label: "Lost sheep<br><small>non-prospect</small>", num: true, sort: lv("lostNp"), html: (c) => kpiCell(c.kpi.lostNp, { higherIsGood: false }) },
     { key: "lostPct", label: "Lost sheep %", num: true, sort: lv("lostPct"), html: (c) => kpiCell(c.kpi.lostPct, { pct: true, higherIsGood: false }) },
     { key: "billing", label: "Billing health", num: true, sort: lv("billing"), html: (c) => kpiCell(c.kpi.billing, { pct: true }) },
     { key: "late", label: "Late amounts", num: true, sort: lv("late"), html: (c) => kpiCell(c.kpi.late, { higherIsGood: false }) },
+    { key: "unloggedTotal", label: "Unlogged sessions<br><small>club, per pay period</small>", num: true, sort: (c) => c.unloggedTotal, html: (c) =>
+      `<span class="${c.unloggedTotal > CLUB_TAGS.unloggedMax ? "flag" : ""}">${fmtNum(c.unloggedTotal, c.unloggedTotal % 1 ? 1 : 0)}</span>` },
     { key: "unlogged", label: "Avg unlogged<br><small>per trainer</small>", num: true, sort: (c) => c.unlogged, html: (c) => fmtNum(c.unlogged, 2) },
   ];
-  const rows = MODEL.clubs.filter((c) => inFilter(c, F()));
+  const show = $("cShow").value;
+  const rows = MODEL.clubs.filter((c) => inFilter(c, F()) && (!show || tagLevel(c) >= (show === "bad" ? 2 : 1)));
   renderTable($("clubTable"), "clubs", cols, rows);
   const dates = rows.map((c) => last(c.kpi.clients)).filter(Boolean).map((x) => +x.date);
   $("kpiDate").textContent = dates.length ? `Latest report ${fmtDate(new Date(Math.max(...dates)))} · ▲▼ = change since the report before` : "";
@@ -449,13 +460,31 @@ function clubCounts(c) {
     onApp: ts.filter((t) => t.adopt && t.adopt.onApp).length,
   };
 }
+// Tags (thresholds in CLUB_TAGS): level 2 = red "worse" tag, 1 = tag.
+function clubTags(c) {
+  const tags = [];
+  const bh = (last(c.kpi.billing) || {}).v;
+  if (bh != null && bh < CLUB_TAGS.billingBad) tags.push({ level: 2, text: `Billing < ${CLUB_TAGS.billingBad}%` });
+  else if (bh != null && bh < CLUB_TAGS.billingWarn) tags.push({ level: 1, text: `Billing < ${CLUB_TAGS.billingWarn}%` });
+  const notOnb = c.pts - clubCounts(c).onboarded;
+  if (c.pts && notOnb > 0) tags.push({ level: 1, text: notOnb === c.pts ? "None onboarded" : `${notOnb} not onboarded` });
+  if (c.unloggedTotal > CLUB_TAGS.unloggedMax) tags.push({ level: 1, text: `Unlogged > ${CLUB_TAGS.unloggedMax}` });
+  return tags;
+}
+const tagLevel = (c) => Math.max(0, ...clubTags(c).map((t) => t.level));
+const tagsHtml = (c) => clubTags(c).map((t) => `<span class="tag ${t.level === 2 ? "bad" : "warn"}">${esc(t.text)}</span>`).join("")
+  || `<span class="tag ok">none</span>`;
+
 const share = (k) => (c, n) => (c.pts ? (n[k] / c.pts) * 100 : null);
 const latestKpi = (m) => (c) => (last(c.kpi[m]) || {}).v ?? null;
 // absolute: 0-100% scale; otherwise colored relative to the other clubs shown.
 const SMAP_MODES = {
+  tags: { label: "Tags", value: (c) => tagLevel(c), tOf: (v) => 1 - v / 2, fmt: (v) => ["no tags", "tagged", "red tag"][v],
+    legend: "green = no tags · amber = tagged · red = billing under " + CLUB_TAGS.billingBad + "%" },
   onboarded: { label: "Onboarded %", value: share("onboarded"), absolute: true },
   cert: { label: "Cert on file %", value: share("cert"), absolute: true },
   onApp: { label: "Trainers on the app %", value: share("onApp"), absolute: true },
+  unloggedTotal: { label: "Unlogged sessions (club)", value: (c) => c.unloggedTotal, lowerIsBetter: true, fmt: (v) => fmtNum(v, 1) },
   unlogged: { label: "Avg unlogged sessions", value: (c) => c.unlogged, lowerIsBetter: true, fmt: (v) => fmtNum(v, 2) },
   billing: { label: "Billing health", value: latestKpi("billing"), fmt: (v) => fmtPct(v) },
   lostPct: { label: "Lost sheep %", value: latestKpi("lostPct"), lowerIsBetter: true, fmt: (v) => fmtPct(v) },
@@ -489,12 +518,14 @@ function clubPopup(c, n) {
     return `<li>${esc(t.name)} — ${yn(e.onboarded)} onboarded ${yn(e.cert)} cert${t.unlogged ? ` · ${fmtNum(t.unlogged, t.unlogged % 1 ? 1 : 0)} unlogged` : ""}</li>`;
   }).join("");
   return `<div class="club-pop"><b>${esc(c.club)}</b> <span class="muted">${esc([c.company, c.region].filter(Boolean).join(" · "))}</span>
+    <div>${tagsHtml(c)}</div>
     <table class="stats">
       ${row("Trainers", c.pts)}
       ${row("Onboarded", of(n.onboarded))}
       ${row("Cert on file", of(n.cert))}
       ${row("On the app", of(n.onApp))}
-      ${row("Avg unlogged sessions", fmtNum(c.unlogged, 2))}
+      ${row("Unlogged sessions (club, per pay period)", fmtNum(c.unloggedTotal, c.unloggedTotal % 1 ? 1 : 0))}
+      ${row("Avg unlogged per trainer", fmtNum(c.unlogged, 2))}
       ${row("Billing health", fmtPct(latestKpi("billing")(c)))}
       ${row("Lost sheep %", fmtPct(latestKpi("lostPct")(c)))}
       ${row("Total clients", fmtNum(latestKpi("clients")(c)))}
@@ -512,7 +543,7 @@ function renderStatsMap() {
   const min = Math.min(...known), max = Math.max(...known);
   smapLayer.clearLayers();
   vals.forEach(({ c, n, v }) => {
-    let t = v == null ? null : mode.absolute ? v / 100 : max > min ? (v - min) / (max - min) : 0.5;
+    let t = v == null ? null : mode.tOf ? mode.tOf(v) : mode.absolute ? v / 100 : max > min ? (v - min) / (max - min) : 0.5;
     if (t != null && mode.lowerIsBetter) t = 1 - t;
     const shownVal = v == null ? "—" : mode.fmt ? mode.fmt(v) : fmtPct(v, 0);
     L.circleMarker([c.gym.lat, c.gym.lng], {
@@ -522,7 +553,7 @@ function renderStatsMap() {
       .bindPopup(() => clubPopup(c, clubCounts(c)), { maxWidth: 340, minWidth: 260 })
       .addTo(smapLayer);
   });
-  $("sLegend").innerHTML = `<span class="ramp"></span><span class="muted">${mode.absolute ? "0% → 100%" : "worse → better, relative to the clubs shown"}
+  $("sLegend").innerHTML = `<span class="ramp"></span><span class="muted">${mode.legend || (mode.absolute ? "0% → 100%" : "worse → better, relative to the clubs shown")}
     · gray = no data · bigger = more trainers · ${MODEL.clubs.filter((c) => !c.gym && inFilter(c, F())).length || "no"} clubs without a map location</span>`;
   if (smapFit && vals.length) {
     smap.fitBounds(L.latLngBounds(vals.map(({ c }) => [c.gym.lat, c.gym.lng])).pad(0.15), { maxZoom: 11 });
@@ -583,6 +614,7 @@ $("sColorBy").onchange = () => { pref("statsColorBy", $("sColorBy").value); rend
 document.querySelectorAll("#statsViewButtons button").forEach((b) => (b.onclick = () => { smapFit = true; setStatsView(b.dataset.sview); }));
 setStatsView(statsView);
 $("tSearch").oninput = renderTrainers;
+$("cShow").onchange = renderClubs;
 $("dbBar").hidden = !SHARED;
 $("dbName").value = pref("trackerName");
 $("dbName").onchange = () => pref("trackerName", $("dbName").value.trim());

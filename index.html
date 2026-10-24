@@ -120,7 +120,14 @@
     <section class="card table-only">
       <div class="card-head">
         <h2>Club KPIs</h2>
-        <span class="sub" id="kpiDate"></span>
+        <div class="card-tools">
+          <span class="sub" id="kpiDate"></span>
+          <select id="cShow">
+            <option value="">All clubs</option>
+            <option value="tagged">Tagged clubs only</option>
+            <option value="bad">Red tags only</option>
+          </select>
+        </div>
       </div>
       <div class="table-scroll"><table id="clubTable" class="grid"></table></div>
     </section>

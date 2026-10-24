@@ -1024,6 +1024,11 @@ const PT_TYPE = /^(?!.*compliance).*trainer/i;
 // Club names that are spelled differently in the stats sheets and the staff lists.
 const CLUB_ALIASES = { tualtin: "tualatin", pearl: "pearl district", "82nd": "portland se 82nd" };
 
+// Club tags on the Trainer stats tab: billing health below billingWarn (and the red "worse" tag
+// below billingBad), trainers not onboarded, and more than unloggedMax unlogged sessions per pay
+// period for the whole club.
+const CLUB_TAGS = { billingWarn: 94, billingBad: 90, unloggedMax: 10 };
+
 // Shared trainer tracker: the Apps Script web app URL (ends in /exec) from apps-script/README.md.
 // Leave blank to keep tracker edits in each person's browser only.
 const TRACKER_DB = { url: "https://script.google.com/macros/s/AKfycbzVnvAUwMKs1_iUUPHEFUIVhyx9yAGVxPwKFnbPKxJCbqohSVb6RRME9MZbhw5sk90xqg/exec" };

@@ -45,6 +45,9 @@ Every active trainer on the staff lists (any "Employee Type" with "Trainer" in i
 login — `PT_TYPE` in `data.js`), with club KPIs from the stats sheets. Two views:
 - **Table** — club KPI table plus the trainer tracker: onboarded, cert on file, lost sheep (blank until the
   lost sheep report is added), billing health, app adoption, average unlogged sessions, notes.
+- **Club tags** (thresholds in `CLUB_TAGS`): billing health under 94%, a red tag under 90%, trainers not
+  onboarded, and more than 10 unlogged sessions per pay period for the whole club. Filter the club table to
+  tagged clubs, or color the map by tags.
 - **Map** — each club at its gym's location, sized by trainers and colored by onboarded %, cert on file %,
   trainers on the app, unlogged sessions, billing health, or lost sheep %. Click a club for its trainers.
 

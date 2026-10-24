@@ -198,6 +198,14 @@ table.grid { width: 100%; border-collapse: collapse; font-size: 13px; }
 .sources li { margin: 4px 0; }
 .sources li.bad b { color: var(--bad); }
 
+/* Club tags */
+.tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 9px; margin: 1px 3px 1px 0; white-space: nowrap; }
+.tag.warn { background: #fdf0d5; color: #8a5a00; }
+.tag.bad { background: #d62828; color: #fff; }
+.tag.ok { background: none; color: var(--muted); font-weight: 400; padding-left: 0; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tag.warn { background: #4a3812; color: #ffd27a; } }
+:root[data-theme="dark"] .tag.warn { background: #4a3812; color: #ffd27a; }
+
 /* Stats map view */
 .view-toggle { display: flex; margin-bottom: 12px; }
 .view-toggle .seg { width: 220px; }
