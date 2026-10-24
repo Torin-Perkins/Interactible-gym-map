@@ -231,7 +231,6 @@ function renderTiles() {
   const ls = cs.map((c) => last(c.kpi.lost)).filter(Boolean);
   const npls = cs.map((c) => last(c.kpi.lostNp)).filter(Boolean);
   const share = (x) => (n ? ` · ${Math.round((x / n) * 100)}%` : "");
-  const tagged = cs.filter((c) => tagLevel(c) > 0);
   const tiles = [
     ["Trainers", fmtNum(n), `${cs.filter((c) => c.pts).length} clubs`],
     ["Onboarded", `${onb} / ${n}`, `${n - onb} not onboarded${share(onb)}`],
@@ -241,7 +240,6 @@ function renderTiles() {
     ["On the app", `${onApp} / ${n}`, `matched on the app adoption sheet${share(onApp)}`],
     ["Billing health", fmtPct(mean(bh.map((x) => x.v))), `avg of ${bh.length} clubs · ${fmtDate(bh.length ? new Date(Math.max(...bh.map((x) => x.date))) : null)}`],
     ["Lost sheep", fmtNum(ls.reduce((s, x) => s + x.v, 0)), `${fmtNum(npls.reduce((s, x) => s + x.v, 0))} non-prospect · incl. prospects`],
-    ["Tagged clubs", `${tagged.length} / ${cs.length}`, `${tagged.filter((c) => tagLevel(c) === 2).length} with billing under ${CLUB_TAGS.billingBad}%`],
   ];
   $("tiles").innerHTML = tiles.map(([label, value, sub]) =>
     `<div class="tile"><div class="tile-label">${esc(label)}</div><div class="tile-value">${esc(value)}</div><div class="tile-sub">${esc(sub)}</div></div>`).join("");
