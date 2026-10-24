@@ -466,8 +466,9 @@ function clubTags(c) {
   const bh = (last(c.kpi.billing) || {}).v;
   if (bh != null && bh < CLUB_TAGS.billingBad) tags.push({ level: 2, text: `Billing < ${CLUB_TAGS.billingBad}%` });
   else if (bh != null && bh < CLUB_TAGS.billingWarn) tags.push({ level: 1, text: `Billing < ${CLUB_TAGS.billingWarn}%` });
-  const notOnb = c.pts - clubCounts(c).onboarded;
-  if (c.pts && notOnb > 0) tags.push({ level: 1, text: notOnb === c.pts ? "None onboarded" : `${notOnb} not onboarded` });
+  if (c.pts && !clubCounts(c).onboarded) tags.push({ level: 1, text: "None onboarded" });
+  const lp = (last(c.kpi.lostPct) || {}).v;
+  if (lp != null && lp > CLUB_TAGS.lostPctMax) tags.push({ level: 1, text: `Lost sheep > ${CLUB_TAGS.lostPctMax}%` });
   if (c.unloggedTotal > CLUB_TAGS.unloggedMax) tags.push({ level: 1, text: `Unlogged > ${CLUB_TAGS.unloggedMax}` });
   return tags;
 }

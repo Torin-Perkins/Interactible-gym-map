@@ -1025,9 +1025,9 @@ const PT_TYPE = /^(?!.*compliance).*trainer/i;
 const CLUB_ALIASES = { tualtin: "tualatin", pearl: "pearl district", "82nd": "portland se 82nd" };
 
 // Club tags on the Trainer stats tab: billing health below billingWarn (and the red "worse" tag
-// below billingBad), trainers not onboarded, and more than unloggedMax unlogged sessions per pay
-// period for the whole club.
-const CLUB_TAGS = { billingWarn: 94, billingBad: 90, unloggedMax: 10 };
+// below billingBad), no trainers onboarded, lost sheep % above lostPctMax, and more than
+// unloggedMax unlogged sessions per pay period for the whole club.
+const CLUB_TAGS = { billingWarn: 94, billingBad: 90, lostPctMax: 25, unloggedMax: 10 };
 
 // Shared trainer tracker: the Apps Script web app URL (ends in /exec) from apps-script/README.md.
 // Leave blank to keep tracker edits in each person's browser only.
