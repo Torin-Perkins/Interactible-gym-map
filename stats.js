@@ -112,6 +112,7 @@ function setTracker(id, field, value) {
 // sent a moment after the last change. The last save to a trainer's row wins.
 const dirty = new Set();
 let saveTimer = null;
+let retryBy = ""; // label of a save that's waiting on the edit key or a retry
 function dbStatus(text, bad) {
   $("dbStatus").textContent = text;
   $("dbStatus").classList.toggle("bad", !!bad);
@@ -142,6 +143,7 @@ function queueSave(id) {
   saveTimer = setTimeout(dbSave, 800);
 }
 async function dbSave(byOverride) {
+  byOverride = byOverride || retryBy;
   if (!dirty.size) return;
   const ids = [...dirty];
   dirty.clear();
@@ -160,6 +162,7 @@ async function dbSave(byOverride) {
     const body = await res.json();
     if (!body.ok) {
       ids.forEach((id) => dirty.add(id));
+      retryBy = byOverride || "";
       if (body.error === "bad key") {
         $("dbKeyRow").hidden = false;
         dbStatus(pref("trackerEditKey") ? "That edit key didn't work — check it and save again" : "Enter the edit key to save your changes", true);
@@ -169,12 +172,14 @@ async function dbSave(byOverride) {
     }
     const by = byOverride || pref("trackerName");
     ids.forEach((id) => (TRACKER_META[id] = { updated: new Date().toISOString(), by }));
+    retryBy = "";
     $("dbKeyRow").hidden = true;
     dbStatus(`Saved to the shared tracker at ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`);
     if (MODEL) renderTrainers();
   } catch (err) {
     console.error(err);
     ids.forEach((id) => dirty.add(id));
+    retryBy = byOverride || "";
     dbStatus("Couldn't reach the shared tracker — your changes will retry", true);
     clearTimeout(saveTimer);
     saveTimer = setTimeout(dbSave, 15000);
