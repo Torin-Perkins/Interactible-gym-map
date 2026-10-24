@@ -61,7 +61,9 @@ const num = (v) => {
 
 // Name lookup keys: full name and "first last-word" (drops middle names / suffix spacing).
 function nameKeys(name) {
-  const parts = norm(name).split(" ").filter(Boolean);
+  // Drop quoted nicknames ("Q") and suffixes (Jr., III) so reports and staff lists line up.
+  const parts = norm(String(name ?? "").replace(/["“”][^"“”]*["“”]/g, " ")).split(" ")
+    .filter((p, i, all) => p && !(i > 1 && i === all.length - 1 && /^(jr|sr|ii|iii|iv)$/.test(p)));
   if (!parts.length) return [];
   const keys = [parts.join(" ")];
   if (parts.length > 2) keys.push(`${parts[0]} ${parts[parts.length - 1]}`);

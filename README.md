@@ -70,6 +70,10 @@ Onboarded / cert overrides, billing health and notes typed into the tracker save
 small Apps Script web app (`apps-script/`, URL in `TRACKER_DB.url`), so everyone sees the same data. Set an
 `EDIT_KEY` script property to limit who can save. **Export CSV** / **Import CSV** work for backups and bulk updates.
 
+**Import billing report** loads a client-level billing report (Client Name, Trainer, Status, Days Overdue, …,
+Location): each trainer's billing health = clients with status "Good" ÷ all their clients, matched by name within
+the same brand. Only the per-trainer percentages are saved; client names stay in the file.
+
 ## Publish on GitHub Pages
 1. Repo **Settings → Pages → Source: GitHub Actions**.
 2. `.github/workflows/deploy.yml` deploys on every push to `main`, every 3 hours (to pick up new Drive files),

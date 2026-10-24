@@ -141,7 +141,7 @@ function queueSave(id) {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(dbSave, 800);
 }
-async function dbSave() {
+async function dbSave(byOverride) {
   if (!dirty.size) return;
   const ids = [...dirty];
   dirty.clear();
@@ -155,7 +155,7 @@ async function dbSave() {
     const res = await fetch(TRACKER_DB.url, {
       method: "POST", credentials: "omit",
       headers: { "Content-Type": "text/plain;charset=utf-8" }, // simple request: no CORS preflight
-      body: JSON.stringify({ key: pref("trackerEditKey"), by: pref("trackerName"), records }),
+      body: JSON.stringify({ key: pref("trackerEditKey"), by: byOverride || pref("trackerName"), records }),
     });
     const body = await res.json();
     if (!body.ok) {
@@ -167,7 +167,7 @@ async function dbSave() {
       } else dbStatus(`Couldn't save: ${body.error}`, true);
       return;
     }
-    const by = pref("trackerName");
+    const by = byOverride || pref("trackerName");
     ids.forEach((id) => (TRACKER_META[id] = { updated: new Date().toISOString(), by }));
     $("dbKeyRow").hidden = true;
     dbStatus(`Saved to the shared tracker at ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`);
@@ -334,7 +334,9 @@ function renderTrainers() {
     { key: "billing", label: "Billing health %", num: true, sort: (t) => eff(t).billing, html: (t) => {
       const auto = t.adopt && t.adopt.billing != null ? t.adopt.billing : "";
       const v = (TRACKER[t.id] || {}).billing;
-      return `<input type="number" min="0" max="100" step="0.1" class="cell-input${eff(t).billing != null && eff(t).billing < 90 ? " warn" : ""}" data-f="billing" value="${v ?? ""}" placeholder="${auto === "" ? "—" : auto}"${auto === "" ? "" : ` title="From the app adoption sheet: ${auto}%"`}>`;
+      const m = TRACKER_META[t.id];
+      return `<input type="number" min="0" max="100" step="0.1" class="cell-input${eff(t).billing != null && eff(t).billing < 90 ? " warn" : ""}" data-f="billing" value="${v ?? ""}" placeholder="${auto === "" ? "—" : auto}"${auto === "" ? "" : ` title="From the app adoption sheet: ${auto}%"`}>`
+        + (v != null && m && /billing report/i.test(m.by) ? `<span class="cell-sub">${esc(m.by.replace(/^.*?(billing report)/i, "$1"))}</span>` : "");
     } },
     { key: "app", label: "App", sort: (t) => (t.adopt ? t.adopt.adoption ?? (t.adopt.onApp ? 0 : -1) : null), html: (t) => t.adopt
       ? `${t.adopt.onApp ? "On app" : "Not on app"}<span class="cell-sub">${fmtPct(t.adopt.adoption, 0)} clients · ${fmtPct(t.adopt.completion, 0)} complete</span>`
@@ -419,6 +421,57 @@ $("importFile").onchange = async (ev) => {
   });
   renderAll();
   $("statsStatus").textContent = `Imported ${n} trainer${n === 1 ? "" : "s"} from ${file.name}`;
+};
+
+// ---------- Billing report ----------
+// Client-level report (Client Name, Trainer, Status, Days Overdue, …, Location). A trainer's billing
+// health = clients with status "Good" ÷ all their clients. Only the per-trainer percentage is kept;
+// client names are never stored or sent anywhere.
+async function importBillingReport(file) {
+  const [head, ...rows] = parseCSV(await file.text());
+  const h = (head || []).map((x) => x.replace(/^\uFEFF/, "").trim().toLowerCase());
+  const C = { trainer: h.indexOf("trainer"), status: h.indexOf("status"), loc: h.indexOf("location") };
+  if (C.trainer < 0 || C.status < 0) throw new Error("expected Trainer and Status columns");
+  // Grouped by brand (from Location) as well as name: other brands in the report can share names.
+  const per = new Map();
+  rows.forEach((r) => {
+    const name = (r[C.trainer] || "").trim();
+    const company = companyOf(C.loc >= 0 ? r[C.loc] || "" : "");
+    if (!name || /^unassigned$/i.test(name) || (C.loc >= 0 && company === "Other")) return;
+    const key = `${company}|${name}`;
+    const p = per.get(key) || { name, company, total: 0, good: 0 };
+    p.total++;
+    if (/^good$/i.test((r[C.status] || "").trim())) p.good++;
+    per.set(key, p);
+  });
+  const byCompany = {};
+  const unmatched = [];
+  let matched = 0;
+  per.forEach((p) => {
+    const pool = C.loc >= 0 ? MODEL.trainers.filter((t) => t.company === p.company) : MODEL.trainers;
+    const t = lookupName((byCompany[p.company] ||= nameIndex(pool)), p.name);
+    if (!t) { unmatched.push(p.name); return; }
+    setTracker(t.id, "billing", Math.round((p.good / p.total) * 1000) / 10);
+    matched++;
+  });
+  const date = (file.name.match(/\d{4}-\d{2}-\d{2}/) || [new Date().toISOString().slice(0, 10)])[0];
+  if (SHARED) { clearTimeout(saveTimer); await dbSave(`Billing report ${date}`); }
+  renderAll();
+  return { matched, unmatched, trainers: per.size };
+}
+
+$("billingFile").onchange = async (ev) => {
+  const file = ev.target.files[0];
+  ev.target.value = "";
+  if (!file || !MODEL) return;
+  try {
+    const r = await importBillingReport(file);
+    $("statsStatus").textContent = `Billing report: updated ${r.matched} of ${r.trainers} trainers` +
+      (r.unmatched.length ? ` · not on the current staff lists: ${r.unmatched.length} (see console)` : "");
+    if (r.unmatched.length) console.info("Billing report trainers not matched to a current trainer:", r.unmatched);
+  } catch (err) {
+    $("statsStatus").textContent = `Couldn't read the billing report: ${err.message}`;
+  }
 };
 
 // ---------- Sources ----------
