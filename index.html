@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Grip PT Atlanta Map</title>
+<title>USA PT Gym Map</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <nav id="tabs" role="tablist">
-  <span class="brand">Grip PT / USAPT</span>
+  <span class="brand">USA PT</span>
   <button type="button" role="tab" class="tab" data-view="map" aria-selected="true">Candidates &amp; trainer needs</button>
   <button type="button" role="tab" class="tab" data-view="stats" aria-selected="false">Trainer stats</button>
 </nav>
@@ -17,15 +17,30 @@
 <div id="view-map" class="view">
 <aside id="panel">
   <header>
-    <h1>Grip PT @ LA Fitness — Atlanta</h1>
-    <p class="sub"><span id="gymCount"></span> gyms · <span id="candCount"></span> candidates</p>
+    <h1>USA PT Gym Map</h1>
+    <p class="sub"><span id="gymCount"></span> gyms · <span id="candCount">…</span> candidates</p>
     <p class="sub data-status"><span id="dataStatus"></span> <button id="refreshBtn" type="button" class="link">Refresh</button></p>
-    <p class="sub data-status"><span id="staffStatus"></span></p>
+    <p class="sub data-status">Staff counts <span id="staffDate"></span> · payroll <span id="payrollDate"></span></p>
   </header>
 
   <section>
+    <div id="brandButtons" class="seg">
+      <button type="button" data-brand="all" class="on">All</button>
+      <button type="button" data-brand="GRIP"><i class="dot grip"></i>GRIP</button>
+      <button type="button" data-brand="Elevate"><i class="dot elevate"></i>Elevate</button>
+    </div>
+    <label class="field">Region
+      <select id="regionSelect"></select>
+    </label>
+    <label class="field">Color gyms by
+      <select id="colorBy"></select>
+    </label>
+    <div id="colorLegend" class="legend"></div>
+  </section>
+
+  <section>
     <form id="searchForm" autocomplete="off">
-      <input id="searchInput" type="search" placeholder="Search an area, e.g. Decatur, 30318, Marietta Square">
+      <input id="searchInput" type="search" placeholder="Search a place, e.g. Katy TX, 30318, Uptown Charlotte">
       <button type="submit">Find</button>
     </form>
     <div class="row">
@@ -36,15 +51,15 @@
       </label>
       <button id="clearBtn" type="button" class="link">Clear</button>
     </div>
-    <p class="hint">Tip: click anywhere on the map, or a candidate below, to find the closest gyms.</p>
+    <p class="hint">Tip: click anywhere on the map, or a candidate area, to find the closest gyms.</p>
     <div id="searchStatus" class="status"></div>
     <ol id="results"></ol>
   </section>
 
   <section>
-    <h2>Trainer needs</h2>
-    <p class="hint">Gyms with fewer than <span id="ptTarget"></span> personal trainers, fewest first, with candidates within 12 mi.</p>
-    <ul id="needsList"></ul>
+    <h2 id="tableTitle">Gyms</h2>
+    <p class="hint">Latest report from the stats sheets. Click a column to sort, a row to open the gym.</p>
+    <div class="table-wrap"><table id="gymTable" class="gym-table"></table></div>
   </section>
 
   <section>
@@ -53,12 +68,11 @@
     <label class="check"><input type="checkbox" id="showAreas" checked> Candidate regions</label>
     <label class="check"><input type="checkbox" id="onlyInterview"> Only "Interview Set"</label>
     <div class="legend">
-      <span><i class="dot gym"></i>Gym</span>
-      <span><i class="dot gym need"></i>Needs trainers</span>
       <span><i class="sw gA"></i>A</span>
       <span><i class="sw gB"></i>B</span>
       <span><i class="sw gC"></i>C</span>
       <span><i class="sw gN"></i>Ungraded</span>
+      <span class="muted">solid outline = interview set</span>
     </div>
   </section>
 
@@ -86,7 +100,24 @@
 
     <div id="tiles" class="tiles"></div>
 
-    <section class="card">
+    <div class="view-toggle">
+      <div id="statsViewButtons" class="seg">
+        <button type="button" data-sview="table" class="on">Table</button>
+        <button type="button" data-sview="map">Map</button>
+      </div>
+    </div>
+
+    <section class="card" id="statsMapCard" hidden>
+      <div class="card-head">
+        <h2>Clubs on the map</h2>
+        <label class="inline-field">Color clubs by <select id="sColorBy"></select></label>
+      </div>
+      <div id="sLegend" class="legend"></div>
+      <div id="statsMap"></div>
+      <p class="hint">Bigger circle = more trainers. Click a club for its stats and trainers.</p>
+    </section>
+
+    <section class="card table-only">
       <div class="card-head">
         <h2>Club KPIs</h2>
         <span class="sub" id="kpiDate"></span>
@@ -94,13 +125,13 @@
       <div class="table-scroll"><table id="clubTable" class="grid"></table></div>
     </section>
 
-    <section class="card">
+    <section class="card table-only">
       <div class="card-head">
         <h2>Trainer tracker</h2>
         <div class="card-tools">
           <input id="tSearch" type="search" placeholder="Search trainer">
           <select id="tShow">
-            <option value="">All personal trainers</option>
+            <option value="">All trainers</option>
             <option value="notOnboarded">Not onboarded</option>
             <option value="noCert">No cert on file</option>
             <option value="unlogged">Has unlogged sessions</option>

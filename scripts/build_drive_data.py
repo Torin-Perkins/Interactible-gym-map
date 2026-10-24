@@ -5,7 +5,7 @@ without an API key, so the deploy workflow runs this every few hours instead and
 result with the site. It uses only the public "Anyone with the link" views (no credentials)
 and keeps just what the page needs: names, clubs and job titles from the staff lists (no
 emails, phones, addresses or birthdays) and the per-trainer session differences from the
-payroll comparisons. Google Sheets in the folder are only listed; the page reads them live.
+payroll comparisons. Google Sheets (stats, adoption) are read live by the page instead.
 
 Usage: python scripts/build_drive_data.py [output path]
 Needs: pip install xlrd openpyxl
@@ -22,8 +22,6 @@ import openpyxl
 import xlrd
 
 ROOT_FOLDER = "1mLoeOAb2twG-9sC97JyXfaTElyjwoPm9"
-# Sheets outside the folder whose tab names the page needs (app adoption).
-EXTRA_SHEETS = ["1sG9Md9EJtQjKARumiLW-Mwi3pBC_ikzG9UbxF95a6gA"]
 # Staff-list rows worth shipping: trainers and fitness managers (the page narrows this
 # further with PT_TYPE in data.js). Everyone else, and terminated staff, is left out.
 KEEP_STAFF = re.compile(r"trainer|fitness manager", re.I)
@@ -51,15 +49,6 @@ def list_folder(folder_id, path):
     return files
 
 
-def sheet_info(sheet_id):
-    page = get(f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit")
-    m = re.search(r"<title>(.*?) - Google Sheets", page)
-    return {
-        "name": html.unescape(m.group(1)) if m else sheet_id,
-        "tabs": [html.unescape(t) for t in re.findall(r'docs-sheet-tab-caption">([^<]*)<', page)],
-    }
-
-
 def read_workbook(file_id, name):
     """Returns {sheet name: rows} for a shared .xls or .xlsx file."""
     data = get(f"https://drive.usercontent.google.com/download?id={file_id}&export=download", binary=True)
@@ -77,10 +66,6 @@ def read_workbook(file_id, name):
         for r in rows:
             r.extend([None] * (width - len(r)))
     return sheets
-    if data[:4] == b"\xd0\xcf\x11\xe0":  # legacy .xls
-        wb = xlrd.open_workbook(file_contents=data)
-        return {s.name: [s.row_values(i) for i in range(s.nrows)] for s in wb.sheets()}
-    raise ValueError(f"{name}: not an Excel file")
 
 
 def text(v):
@@ -159,7 +144,6 @@ def read_unlogged(f):
 def main():
     out = sys.argv[1] if len(sys.argv) > 1 else "drive-data.json"
     files = list_folder(ROOT_FOLDER, [])
-    sheets = [{**f, **sheet_info(f["id"])} for f in files if f["kind"] == "sheet"]
     staff, unlogged, errors = [], [], []
     for f in files:
         if f["kind"] != "file":
@@ -177,8 +161,6 @@ def main():
     data = {
         "generated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "folder": ROOT_FOLDER,
-        "sheets": sheets,
-        "extraSheets": {sid: sheet_info(sid) for sid in EXTRA_SHEETS},
         "staffFiles": sorted({s["file"] for s in staff}),
         "staff": staff,
         "unlogged": unlogged,
@@ -186,7 +168,7 @@ def main():
     }
     with open(out, "w", encoding="utf-8") as fh:
         json.dump(data, fh, separators=(",", ":"))
-    print(f"Wrote {out}: {len(staff)} staff, {len(unlogged)} payroll comparisons, {len(sheets)} sheets, {len(errors)} errors")
+    print(f"Wrote {out}: {len(staff)} staff, {len(unlogged)} payroll comparisons, {len(errors)} errors")
 
 
 if __name__ == "__main__":

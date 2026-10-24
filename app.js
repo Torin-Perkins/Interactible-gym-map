@@ -1,8 +1,12 @@
-const ATL = [33.85, -84.35];
+// Candidates & trainer needs tab: the all-regions gym map. Wrapped in a function so its helpers
+// ($, esc, norm, parseCSV...) stay separate from the shared ones in sources.js.
+(() => {
 const GRADE_COLORS = { A: "#2a9d4b", B: "#2b6cb0", C: "#e07a1f", N: "#8a8f98" };
 const NEARBY_MILES = 12;
+const REGION_REACH_MILES = 60; // candidate areas this close to a region's gyms belong to it
+const MIN_LABEL_ZOOM = 10;
 
-const map = L.map("map", { zoomControl: true }).setView(ATL, 10);
+const map = L.map("map", { zoomControl: true }).setView([36.5, -92], 5);
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19,
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -12,6 +16,14 @@ const gymLayer = L.layerGroup().addTo(map);
 const areaLayer = L.layerGroup().addTo(map);
 const searchLayer = L.layerGroup().addTo(map);
 
+const state = { brand: "all", region: "", colorBy: "brand", sort: { key: "clients", dir: -1 } };
+let AREAS = [];
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const gymLabel = (g) => g.label || g.name;
+const norm = (s) => s.toLowerCase().replace(/\s+/g, " ").trim().replace(/[.,]+$/, "");
+
 // Great-circle distance in miles.
 function miles(a, b) {
   const R = 3958.8, rad = Math.PI / 180;
@@ -20,18 +32,401 @@ function miles(a, b) {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-// Best grade letter among an area's candidates (A beats B beats C).
+// Minimal RFC 4180 CSV parser (handles quoted fields with commas/newlines).
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
+      else if (c === '"') q = false;
+      else field += c;
+    } else if (c === '"') q = true;
+    else if (c === ",") { row.push(field); field = ""; }
+    else if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(field); rows.push(row); row = []; field = "";
+    } else field += c;
+  }
+  if (field || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+// Read-only: downloads one tab as CSV through Google's public export URL.
+// No sign-in or credentials are sent, so this cannot change the sheet.
+async function fetchTab(sheetId, tab, headerRows) {
+  const params = new URLSearchParams({ tqx: "out:csv", sheet: tab, _: Date.now() });
+  if (headerRows != null) params.set("headers", headerRows);
+  const res = await fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?${params}`, { credentials: "omit" });
+  if (!res.ok) throw new Error(`"${tab.trim()}" request failed (${res.status})`);
+  const text = await res.text();
+  if (/^\s*</.test(text)) throw new Error(`Sheet with "${tab.trim()}" is not shared with "Anyone with the link"`);
+  return parseCSV(text);
+}
+
+// ---------- Formatting ----------
+const fmtVal = (m, v) => (v == null ? "—" : m.pct ? `${(v * 100).toFixed(1)}%` : Math.round(v).toLocaleString());
+function fmtDelta(m, cur, prev) {
+  if (cur == null || prev == null) return "";
+  const d = cur - prev;
+  if (Math.abs(d) < (m.pct ? 0.0005 : 0.5)) return `<span class="delta flat">±0</span>`;
+  const good = (d > 0) === (m.better === "up");
+  const txt = m.pct ? `${(Math.abs(d) * 100).toFixed(1)} pts` : Math.round(Math.abs(d)).toLocaleString();
+  return `<span class="delta ${good ? "good" : "bad"}">${d > 0 ? "▲" : "▼"} ${txt}</span>`;
+}
+const fmtDate = (d) => d.toLocaleDateString([], { month: "short", day: "numeric" });
+
+function sparkline(series, color) {
+  const pts = series.filter((p) => p.value != null);
+  if (pts.length < 2) return "";
+  const W = 90, H = 22, vals = pts.map((p) => p.value);
+  const min = Math.min(...vals), max = Math.max(...vals), span = max - min || 1;
+  const xy = pts.map((p, i) => `${((i / (pts.length - 1)) * (W - 4) + 2).toFixed(1)},${(H - 2 - ((p.value - min) / span) * (H - 4)).toFixed(1)}`);
+  const last = xy[xy.length - 1].split(",");
+  return `<svg class="spark" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><polyline points="${xy.join(" ")}" fill="none" stroke="${color}" stroke-width="1.5"/><circle cx="${last[0]}" cy="${last[1]}" r="2.2" fill="${color}"/></svg>`;
+}
+
+function bar(v) {
+  if (v == null) return "";
+  const w = Math.max(0, Math.min(1, v)) * 60;
+  return `<svg class="bar" width="60" height="8"><rect width="60" height="8" rx="4" fill="#e4e7ec"/><rect width="${w.toFixed(1)}" height="8" rx="4" fill="${scaleColor(v)}"/></svg>`;
+}
+
+// ---------- Stats ----------
+function parseNum(s) {
+  s = (s || "").trim();
+  if (!s) return null;
+  const pct = s.endsWith("%");
+  const n = parseFloat(s.replace(/[,%$]/g, ""));
+  return isNaN(n) ? null : pct ? n / 100 : n;
+}
+
+async function loadStats() {
+  GYMS.forEach((g) => (g.stats = {}));
+  const jobs = [];
+  for (const [brand, sheetId] of Object.entries(STATS_SHEETS)) {
+    const gyms = GYMS.filter((g) => g.brand === brand);
+    for (const m of METRICS) {
+      jobs.push(fetchTab(sheetId, m.tab, 2).then((rows) => {
+        const [header, ...data] = rows;
+        header.forEach((h, col) => {
+          if (col === 0) return;
+          h = h.trim();
+          const g = gyms.find((x) => x.name === h) || gyms.find((x) => h.endsWith(" " + x.name));
+          if (!g) return;
+          const byDate = new Map();
+          data.forEach((r) => {
+            const d = new Date(r[0]);
+            const v = parseNum(r[col]);
+            if (!isNaN(d) && v != null) byDate.set(d.getTime(), v);
+          });
+          g.stats[m.key] = [...byDate].sort((a, b) => a[0] - b[0]).map(([t, value]) => ({ date: new Date(t), value }));
+        });
+      }));
+    }
+  }
+  const results = await Promise.allSettled(jobs);
+  const failed = results.filter((r) => r.status === "rejected");
+  failed.forEach((r) => console.error(r.reason));
+  return failed.length ? failed[0].reason.message : "";
+}
+
+function latest(g, key) {
+  const s = g.stats?.[key];
+  if (!s || !s.length) return { value: null, prev: null, date: null };
+  return { value: s[s.length - 1].value, prev: s.length > 1 ? s[s.length - 2].value : null, date: s[s.length - 1].date };
+}
+
+const staffOf = (g) => STAFF[g.brand]?.[g.name] || {};
+function staffLine(g) {
+  const st = staffOf(g), pt = st.pt || 0, fm = st.fm || 0, afm = st.afm || 0;
+  return `${pt} PT${pt === 1 ? "" : "s"} · ${fm} FM${fm === 1 ? "" : "s"} · ${afm} AFM${afm === 1 ? "" : "s"}`;
+}
+const staffTotal = (g) => { const st = staffOf(g); return (st.pt || 0) + (st.fm || 0) + (st.afm || 0); };
+
+// ---------- App adoption ----------
+// Resolves the adoption sheet's hand-typed "Club" text to a gym of that brand.
+function adoptionGym(brand, club) {
+  let c = norm(club.split("/")[0]).replace(/\.$/, "");
+  c = ADOPTION_ALIASES[c] ? norm(ADOPTION_ALIASES[c]) : c;
+  const gyms = GYMS.filter((g) => g.brand === brand);
+  return gyms.find((g) => norm(g.name).replace(/\.$/, "") === c) || gyms.find((g) => g.label && norm(g.label) === c);
+}
+
+async function loadAdoption() {
+  GYMS.forEach((g) => (g.adoption = null));
+  const unmatched = new Set();
+  const results = await Promise.allSettled(ADOPTION_SHEET.tabs.map(async ({ tab, brand }) => {
+    const [header, ...rows] = await fetchTab(ADOPTION_SHEET.id, tab);
+    const col = (name) => header.findIndex((h) => h.trim().toLowerCase() === name);
+    const C = {
+      club: col("club"), onApp: col("trainer on app"), inApp: col("clients in app #"),
+      total: col("total clients #"), completion: col("weighted completion %"),
+    };
+    rows.forEach((r) => {
+      const club = (r[C.club] || "").trim();
+      if (!club) return;
+      const g = adoptionGym(brand, club);
+      if (!g) { unmatched.add(`${club} (${tab})`); return; }
+      const a = (g.adoption ||= { trainers: 0, onApp: 0, inApp: 0, total: 0, completionSum: 0, completionN: 0 });
+      a.trainers++;
+      if (/^\s*y/i.test(r[C.onApp] || "")) a.onApp++;
+      a.inApp += parseNum(r[C.inApp]) || 0;
+      a.total += parseNum(r[C.total]) || 0;
+      const comp = parseNum(r[C.completion]);
+      if (comp != null) { a.completionSum += comp; a.completionN++; }
+    });
+  }));
+  if (unmatched.size) console.warn("Adoption rows with an unrecognized club:", [...unmatched]);
+  const failed = results.filter((r) => r.status === "rejected");
+  failed.forEach((r) => console.error(r.reason));
+  return failed.length ? failed[0].reason.message : "";
+}
+
+const adoptionPct = (g) => {
+  const a = g.adoption;
+  if (!a) return { trainer: null, client: null, completion: null };
+  return {
+    trainer: a.trainers ? a.onApp / a.trainers : null,
+    client: a.total ? a.inApp / a.total : null,
+    completion: a.completionN ? a.completionSum / a.completionN : null,
+  };
+};
+
+// ---------- Hiring need ----------
+// Net new clients per week over the last HIRING.lookbackWeeks, from the stats sheet's client counts.
+function weeklyClientGrowth(g) {
+  const s = g.stats?.clients;
+  if (!s || s.length < 2) return null;
+  const last = s[s.length - 1];
+  const cutoff = last.date - HIRING.lookbackWeeks * 7 * 864e5;
+  const base = [...s].reverse().find((p) => p.date <= cutoff) || s[0];
+  const weeks = (last.date - base.date) / (7 * 864e5);
+  return weeks > 0 ? (last.value - base.value) / weeks : null;
+}
+
+// Compares current session load (payroll) plus projected load from client growth against
+// trainer capacity. Returns null when the club has no payroll data.
+function hiringNeed(g) {
+  const p = PAYROLL[g.brand]?.[g.name];
+  if (!p) return null;
+  const growth = weeklyClientGrowth(g);
+  const capacity = p.trainers * HIRING.trainerCapacity;
+  const util = capacity ? p.sessionsPerWeek / capacity : Infinity;
+  const addedPerWeek = growth != null && growth > 0 ? growth * HIRING.sessionsPerNewClient : 0;
+  const spare = capacity - p.sessionsPerWeek;
+  const weeksToFull = spare <= 0 ? 0 : addedPerWeek > 0 ? spare / addedPerWeek : Infinity;
+  let level = "Low";
+  if (!p.trainers || util >= HIRING.highUtilization || weeksToFull <= HIRING.highWeeks) level = "High";
+  else if (util >= HIRING.mediumUtilization || weeksToFull <= HIRING.mediumWeeks) level = "Medium";
+  // Extra trainers needed to bring the load projected 8 weeks out back under capacity.
+  const projected = p.sessionsPerWeek + addedPerWeek * 8;
+  const extra = Math.max(0, Math.ceil(projected / HIRING.trainerCapacity - p.trainers));
+  return { level, util, growth, weeksToFull, extra, ...p };
+}
+const HIRE_COLORS = { High: "#d62828", Medium: "#f0aa1e", Low: "#2a9d4b" };
+const hireBadge = (h) => (h ? `<span class="hire ${h.level.toLowerCase()}">${h.level}</span>` : `<span class="muted">—</span>`);
+const pct0 = (v) => (v == null ? "—" : `${Math.round(v * 100)}%`);
+
+// ---------- Gym markers ----------
+const visibleGym = (g) =>
+  (state.brand === "all" || g.brand === state.brand) &&
+  (!state.region || `${g.brand}|${g.region}` === state.region);
+const brandGym = (g) => state.brand === "all" || g.brand === state.brand;
+
+function gymPopup(g) {
+  const b = BRANDS[g.brand];
+  const statRows = METRICS.map((m) => {
+    const l = latest(g, m.key);
+    if (l.value == null) return "";
+    return `<tr><td>${esc(m.label)}</td><td class="num">${fmtVal(m, l.value)}</td><td>${fmtDelta(m, l.value, l.prev)}</td><td>${sparkline(g.stats[m.key], b.color)}</td></tr>`;
+  }).join("");
+  const asOf = latest(g, "clients").date;
+  const statsHtml = statRows
+    ? `<table class="stats">${statRows}</table><div class="muted">Latest: ${asOf ? fmtDate(asOf) : "—"} · change vs previous report</div>`
+    : `<div class="muted">No stats in the ${esc(g.brand)} sheet for this gym.</div>`;
+
+  const near = AREAS.map((a) => ({ a, d: miles(g, a) })).filter((x) => x.d <= NEARBY_MILES).sort((x, y) => x.d - y.d);
+  const n = near.reduce((s, x) => s + x.a.candidates.length, 0);
+  const nearHtml = near.length
+    ? `<details><summary>${n} candidate${n === 1 ? "" : "s"} within ${NEARBY_MILES} mi</summary><ul>${near
+        .map((x) => `<li>${esc(x.a.area)} (${x.d.toFixed(1)} mi): ${x.a.candidates.map((c) => esc(c.name)).join(", ")}</li>`)
+        .join("")}</ul></details>`
+    : `<div class="muted">No candidates within ${NEARBY_MILES} mi</div>`;
+
+  const h = hiringNeed(g);
+  const fmtWeeks = (w) => (w === 0 ? "already at capacity" : w === Infinity ? "not on current growth" : `in ~${Math.round(w)} week${Math.round(w) === 1 ? "" : "s"}`);
+  const hireHtml = h
+    ? `<div class="section-title">Need for a new trainer ${hireBadge(h)}</div>
+       <table class="stats">
+         <tr><td>Trainers running sessions</td><td class="num">${h.trainers}</td></tr>
+         <tr><td>Sessions / week</td><td class="num">${h.sessionsPerWeek.toLocaleString()}</td></tr>
+         <tr><td>Capacity used <span class="muted">(${HIRING.trainerCapacity}/trainer)</span></td><td class="num">${h.util === Infinity ? "—" : pct0(h.util)}</td></tr>
+         <tr><td>Net new clients / week</td><td class="num">${h.growth == null ? "—" : (h.growth > 0 ? "+" : "") + h.growth.toFixed(1)}</td></tr>
+         <tr><td>Fills capacity</td><td class="num">${fmtWeeks(h.weeksToFull)}</td></tr>
+         ${h.extra ? `<tr><td>Suggested extra trainers <span class="muted">(8-wk outlook)</span></td><td class="num"><b>+${h.extra}</b></td></tr>` : ""}
+       </table>
+       <div class="muted">Payroll ${esc(PAYROLL_PERIOD)} · busiest trainer ${h.maxTrainerLoad} sessions/wk</div>`
+    : `<div class="section-title">Need for a new trainer</div><div class="muted">No payroll data for this club.</div>`;
+
+  const ad = adoptionPct(g);
+  const adoptHtml = g.adoption
+    ? `<div class="section-title">App adoption</div>
+       <table class="stats">
+         <tr><td>Trainers on the app</td><td class="num">${g.adoption.onApp}/${g.adoption.trainers}</td><td class="num">${pct0(ad.trainer)}</td><td>${bar(ad.trainer)}</td></tr>
+         <tr><td>Clients on the app</td><td class="num">${Math.round(g.adoption.inApp)}/${Math.round(g.adoption.total)}</td><td class="num">${pct0(ad.client)}</td><td>${bar(ad.client)}</td></tr>
+         <tr><td>Avg. profile completion</td><td></td><td class="num">${pct0(ad.completion)}</td><td>${bar(ad.completion)}</td></tr>
+       </table>`
+    : `<div class="section-title">App adoption</div><div class="muted">Not in the adoption sheet.</div>`;
+
+  return `<div class="popup">
+    <div class="chip" style="background:${b.color}">${esc(g.brand)} · ${esc(g.region)}</div>
+    <b>${esc(gymLabel(g))}</b><br>${esc(g.address)}${g.approx ? " <i>(approx. location)</i>" : ""}<br>
+    <a href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(g.address)}" target="_blank" rel="noopener">Directions</a>
+    <div class="staff">${staffLine(g)}</div>
+    ${statsHtml}
+    ${hireHtml}
+    ${adoptHtml}
+    ${nearHtml}
+  </div>`;
+}
+
+GYMS.forEach((g) => {
+  g.marker = L.circleMarker([g.lat, g.lng], { color: "#fff", weight: 2, fillOpacity: 1, bubblingMouseEvents: false })
+    .bindPopup(() => gymPopup(g), { maxWidth: 380, minWidth: 300 })
+    .bindTooltip(() => `<b>${esc(gymLabel(g))}</b> <small>(${esc(g.brand)})</small><br><small>${staffLine(g)}</small>`, { direction: "top", offset: [0, -6] });
+});
+
+// Red (bad) -> amber -> green (good)
+function scaleColor(t) {
+  const stops = [[214, 40, 40], [240, 170, 30], [42, 157, 75]];
+  const x = Math.max(0, Math.min(1, t)) * 2, i = Math.min(1, Math.floor(x)), f = x - i;
+  const c = stops[i].map((v, k) => Math.round(v + (stops[i + 1][k] - v) * f));
+  return `rgb(${c.join(",")})`;
+}
+
+const COLOR_MODES = {
+  brand: { label: "Brand" },
+  clients: { label: "Total clients (size)", metric: "clients", size: true },
+  lostPct: { label: "Lost sheep %", metric: "lostPct" },
+  billing: { label: "Billing health", metric: "billing" },
+  late: { label: "Members with late amounts", metric: "late" },
+  staff: { label: "Staff on roster (size)", size: true },
+  hiring: { label: "Need for a new trainer", category: true },
+  trainerApp: { label: "Trainers on the app %", value: (g) => adoptionPct(g).trainer, absolute: true },
+  clientApp: { label: "Clients on the app %", value: (g) => adoptionPct(g).client, absolute: true },
+};
+
+function styleGyms() {
+  const mode = COLOR_MODES[state.colorBy];
+  const metric = METRICS.find((m) => m.key === mode.metric);
+  // Scales are per brand: the brands report on different bases.
+  const range = {};
+  GYMS.forEach((g) => {
+    const v = mode.metric ? latest(g, mode.metric).value : state.colorBy === "staff" ? staffTotal(g) : null;
+    if (v == null) return;
+    const r = (range[g.brand] ||= { min: Infinity, max: -Infinity });
+    r.min = Math.min(r.min, v); r.max = Math.max(r.max, v);
+  });
+  GYMS.forEach((g) => {
+    const brandColor = BRANDS[g.brand].color;
+    let radius = 7, fill = brandColor;
+    if (mode.category) {
+      const h = hiringNeed(g);
+      fill = h ? HIRE_COLORS[h.level] : "#9aa0a6"; radius = h ? 8 : 4;
+    } else if (mode.value) {
+      const v = mode.value(g);
+      fill = v == null ? "#9aa0a6" : scaleColor(v); radius = v == null ? 4 : 8;
+    } else if (state.colorBy !== "brand") {
+      const v = mode.metric ? latest(g, mode.metric).value : staffTotal(g);
+      const r = range[g.brand];
+      if (v == null || !r) { radius = 4; fill = "#9aa0a6"; }
+      else if (mode.size) radius = 4 + Math.sqrt(r.max ? v / r.max : 0) * 12;
+      else {
+        let t = r.max > r.min ? (v - r.min) / (r.max - r.min) : 0.5;
+        if (metric.better === "down") t = 1 - t;
+        fill = scaleColor(t); radius = 8;
+      }
+    }
+    g.marker.setStyle({ radius, fillColor: fill, color: state.colorBy === "brand" || !mode.size ? "#fff" : brandColor });
+  });
+  const legend = $("colorLegend");
+  if (mode.category) {
+    legend.innerHTML = Object.entries(HIRE_COLORS).map(([k, c]) => `<span><i class="dot" style="background:${c}"></i>${k}</span>`).join("") +
+      `<span><i class="dot" style="background:#9aa0a6"></i>No payroll</span>`;
+  } else if (mode.value) {
+    legend.innerHTML = `<span class="ramp"></span><span class="muted">0% → 100% · gray = not in sheet</span>`;
+  } else if (state.colorBy === "brand" || mode.size) {
+    legend.innerHTML = Object.entries(BRANDS).map(([k, b]) => `<span><i class="dot" style="background:${b.color}"></i>${esc(k)}</span>`).join("") +
+      (mode.size ? `<span class="muted">bigger = more</span>` : "");
+  } else {
+    legend.innerHTML = `<span class="ramp"></span><span class="muted">worse → better (relative within each brand)</span>`;
+  }
+}
+
+function renderGyms() {
+  gymLayer.clearLayers();
+  GYMS.filter(visibleGym).forEach((g) => g.marker.addTo(gymLayer));
+  $("gymCount").textContent = GYMS.filter(visibleGym).length;
+}
+
+// ---------- Gym table ----------
+const TABLE_COLS = [
+  { key: "name", label: "Gym", get: (g) => gymLabel(g) },
+  { key: "clients", label: "Clients", get: (g) => latest(g, "clients").value },
+  { key: "lostPct", label: "Lost %", get: (g) => latest(g, "lostPct").value },
+  { key: "billing", label: "Billing", get: (g) => latest(g, "billing").value },
+  { key: "staff", label: "PT/FM/AFM", get: (g) => staffTotal(g) },
+  { key: "clientApp", label: "Client app", get: (g) => adoptionPct(g).client },
+  { key: "hire", label: "Hire need", get: (g) => { const h = hiringNeed(g); return h ? { High: 3, Medium: 2, Low: 1 }[h.level] + Math.min(h.util, 5) / 10 : null; } },
+];
+
+function renderTable() {
+  const gyms = GYMS.filter(visibleGym);
+  const col = TABLE_COLS.find((c) => c.key === state.sort.key);
+  gyms.sort((a, b) => {
+    const x = col.get(a), y = col.get(b);
+    if (x == null) return 1;
+    if (y == null) return -1;
+    return (typeof x === "string" ? x.localeCompare(y) : x - y) * state.sort.dir;
+  });
+  const m = (k) => METRICS.find((x) => x.key === k);
+  $("gymTable").innerHTML = `<thead><tr>${TABLE_COLS.map((c) =>
+    `<th data-k="${c.key}" class="${c.key === state.sort.key ? "sorted" : ""}">${c.label}${c.key === state.sort.key ? (state.sort.dir > 0 ? " ▲" : " ▼") : ""}</th>`).join("")}</tr></thead>
+    <tbody>${gyms.map((g) => {
+      const st = staffOf(g);
+      return `<tr data-i="${GYMS.indexOf(g)}">
+        <td><i class="dot" style="background:${BRANDS[g.brand].color}"></i>${esc(gymLabel(g))}${state.region ? "" : `<div class="muted">${esc(g.region)}</div>`}</td>
+        <td class="num">${fmtVal(m("clients"), latest(g, "clients").value)}</td>
+        <td class="num">${fmtVal(m("lostPct"), latest(g, "lostPct").value)}</td>
+        <td class="num">${fmtVal(m("billing"), latest(g, "billing").value)}</td>
+        <td class="num">${st.pt || 0}/${st.fm || 0}/${st.afm || 0}</td>
+        <td class="num">${pct0(adoptionPct(g).client)}</td>
+        <td>${hireBadge(hiringNeed(g))}</td></tr>`;
+    }).join("")}</tbody>`;
+  $("gymTable").querySelectorAll("th").forEach((th) => (th.onclick = () => {
+    const k = th.dataset.k;
+    state.sort = { key: k, dir: state.sort.key === k ? -state.sort.dir : k === "name" ? 1 : -1 };
+    renderTable();
+  }));
+  $("gymTable").querySelectorAll("tbody tr").forEach((tr) => (tr.onclick = () => {
+    const g = GYMS[+tr.dataset.i];
+    map.setView([g.lat, g.lng], Math.max(map.getZoom(), 12));
+    g.marker.openPopup();
+  }));
+  $("tableTitle").textContent = state.region ? state.region.split("|")[1] + " gyms" : (state.brand === "all" ? "All gyms" : `All ${state.brand} gyms`);
+}
+
+// ---------- Candidates ----------
 function bestGrade(area) {
-  const letters = area.candidates.map((c) => (c.grade || "").trim().charAt(0).toUpperCase()).filter((g) => "ABC".includes(g) && g);
+  const letters = area.candidates.map((c) => (c.grade || "").charAt(0)).filter((g) => "ABC".includes(g) && g);
   return letters.sort()[0] || "N";
 }
-const hasInterview = (area) => area.candidates.some((c) => /interview/i.test(c.status));
-
-// ---------- Live candidate data from Google Sheets ----------
-let AREAS = [];
+const isInterview = (c) => /interview/i.test(c.status);
+const hasInterview = (area) => area.candidates.some(isInterview);
 
 const titleCase = (s) => s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
-// "Roxanne  McDonald" -> "Roxanne M."
 function shortName(full) {
   const parts = full.trim().split(/\s+/).filter((p, i) => p && !(i > 1 && /^(jr|sr|ii|iii|iv)\.?$/i.test(p)));
   if (!parts.length) return "";
@@ -39,148 +434,104 @@ function shortName(full) {
   return parts.length > 1 ? `${first} ${parts[parts.length - 1][0].toUpperCase()}.` : first;
 }
 
-// Pick the known area whose keyword appears earliest in the answer
-// ("Loganville (close to Lawrenceville)" -> Loganville).
-function matchKnownArea(text) {
-  const t = text.toLowerCase();
-  let best = null;
-  KNOWN_AREAS.forEach((a) => a.keys.forEach((k) => {
-    const i = t.indexOf(k);
-    if (i >= 0 && (!best || i < best.i || (i === best.i && k.length > best.k.length))) best = { a, i, k };
-  }));
-  return best && best.a;
-}
-
-const GEO_CACHE_KEY = "areaGeocodeCache.v1";
+const GEO_CACHE_KEY = "areaGeocodeCache.v2";
 function loadGeoCache() { try { return JSON.parse(localStorage.getItem(GEO_CACHE_KEY)) || {}; } catch { return {}; } }
 function saveGeoCache(c) { try { localStorage.setItem(GEO_CACHE_KEY, JSON.stringify(c)); } catch {} }
 
-async function resolveArea(text, cache) {
-  const known = matchKnownArea(text);
-  if (known) return known;
-  const key = text.toLowerCase().trim();
-  if (!(key in cache)) {
-    try {
-      const hit = await geocode(text);
-      cache[key] = hit ? { area: titleCase(text.replace(/,?\s*(ga|georgia)\b.*$/i, "").trim()) || text, lat: hit.lat, lng: hit.lng, radiusKm: 4 } : null;
-      saveGeoCache(cache);
-      await new Promise((r) => setTimeout(r, 1100)); // Nominatim: max 1 request/sec
-    } catch { return null; }
-  }
-  return cache[key];
+// Locates an answer not in CANDIDATE_GEO, near its metro; falls back to the metro center.
+async function locateNew(answer, metro, cache) {
+  const key = `${norm(answer)}|${metro}`;
+  if (key in cache) return cache[key];
+  const [lat, lng] = METROS[metro];
+  let res = [lat, lng, 12, metro.split(",")[0]];
+  try {
+    const params = new URLSearchParams({
+      q: `${answer}, ${metro.split(", ")[1]}`, format: "json", limit: "1", countrycodes: "us",
+      viewbox: `${lng - 0.9},${lat + 0.9},${lng + 0.9},${lat - 0.9}`, bounded: "1",
+    });
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?${params}`);
+    const hit = r.ok ? (await r.json())[0] : null;
+    if (hit) res = [+(+hit.lat).toFixed(4), +(+hit.lon).toFixed(4), /city|town|municipality/.test(hit.addresstype) ? 6 : 3.5, hit.name || titleCase(answer)];
+    await new Promise((ok) => setTimeout(ok, 1100)); // Nominatim: max 1 request/sec
+  } catch {}
+  cache[key] = res;
+  saveGeoCache(cache);
+  return res;
 }
 
-// Builds AREAS from spreadsheet rows (first row = headers).
-async function loadCandidates(table) {
-  const [header, ...rows] = table.map((r) => r.map((v) => String(v ?? "")));
-  const col = (re) => header.findIndex((h) => re.test(h));
-  const C = {
-    name: col(/full name/i), grade: col(/^grade/i), status: col(/^status/i),
-    metro: col(/metro area would you prefer/i), area: col(/what part of your/i),
-    spanish: col(/speak spanish/i), sales: col(/sales manager/i), transport: col(/transportation/i),
-  };
-  if (C.name < 0 || C.area < 0) throw new Error("Couldn't find the name / area columns in the sheet");
-  const get = (r, i) => (i >= 0 && r[i] ? r[i].trim() : "");
+async function loadCandidates(onProgress) {
+  const tabs = await Promise.all(CANDIDATE_SHEET.tabs.map((t) => fetchTab(CANDIDATE_SHEET.id, t).catch((e) => { console.error(e); return null; })));
+  const seen = new Set(), rows = [];
+  let failedTabs = 0;
+  tabs.forEach((table) => {
+    if (!table) { failedTabs++; return; }
+    const [header, ...data] = table;
+    const col = (re) => header.findIndex((h) => re.test(h));
+    const C = {
+      name: col(/full name/i), grade: col(/^grade/i), status: col(/^status/i),
+      metro: col(/metro area would you prefer/i), area: col(/what part of your/i),
+      spanish: col(/speak spanish/i), sales: col(/sales manager/i), transport: col(/transportation/i),
+    };
+    const get = (r, i) => (i >= 0 && r[i] ? r[i].trim() : "");
+    data.forEach((r) => {
+      const full = get(r, C.name), metro = get(r, C.metro);
+      if (!full || !METROS[metro]) return;
+      const id = `${norm(full)}|${metro}`;
+      if (seen.has(id)) return; // same person listed on two tabs
+      seen.add(id);
+      const notes = [];
+      if (/^yes/i.test(get(r, C.spanish))) notes.push("Spanish speaker");
+      if (/^yes/i.test(get(r, C.sales))) notes.push("Interested in PT sales");
+      if (/transit/i.test(get(r, C.transport))) notes.push("Public transit");
+      rows.push({
+        where: get(r, C.area), metro,
+        cand: {
+          name: shortName(full), metro,
+          grade: get(r, C.grade).split(/\s+/)[0].toUpperCase().replace(/[^ABC+\-]/g, ""),
+          status: get(r, C.status),
+          note: [get(r, C.area) && `Lives: ${get(r, C.area)}`, ...notes].filter(Boolean).join(" · "),
+        },
+      });
+    });
+  });
 
   const cache = loadGeoCache();
+  const unknown = rows.filter((x) => !CANDIDATE_GEO[`${norm(x.where)}|${x.metro}`]);
+  let done = 0;
   const byArea = new Map();
-  const unplaced = [];
-  for (const r of rows) {
-    const full = get(r, C.name), where = get(r, C.area);
-    if (!full) continue;
-    if (C.metro >= 0 && !new RegExp(SHEET.metro, "i").test(get(r, C.metro))) continue;
-    const notes = [];
-    if (/^yes/i.test(get(r, C.spanish))) notes.push("Spanish speaker");
-    if (/^yes/i.test(get(r, C.sales))) notes.push("Interested in PT sales");
-    if (/transit/i.test(get(r, C.transport))) notes.push("Public transit");
-    const cand = {
-      name: shortName(full),
-      grade: get(r, C.grade).split(/\s+/)[0].toUpperCase().replace(/[^ABC+\-]/g, ""),
-      status: get(r, C.status),
-      note: [where && `Lives: ${where}`, ...notes].filter(Boolean).join(" · "),
-    };
-    const a = where && (await resolveArea(where, cache));
-    if (!a) { unplaced.push(cand.name); continue; }
-    if (!byArea.has(a.area)) byArea.set(a.area, { area: a.area, lat: a.lat, lng: a.lng, radiusKm: a.radiusKm, candidates: [] });
-    byArea.get(a.area).candidates.push(cand);
+  for (const x of rows) {
+    const key = `${norm(x.where)}|${x.metro}`;
+    let loc = CANDIDATE_GEO[key];
+    if (!loc) { onProgress?.(`Locating new areas… ${++done}/${unknown.length}`); loc = await locateNew(x.where || x.metro, x.metro, cache); }
+    const [lat, lng, radiusKm, label] = loc;
+    const areaKey = `${label}|${x.metro}`;
+    if (!byArea.has(areaKey)) byArea.set(areaKey, { area: label, metro: x.metro, lat, lng, radiusKm, candidates: [] });
+    byArea.get(areaKey).candidates.push(x.cand);
   }
   AREAS = [...byArea.values()];
-  return unplaced;
+  return failedTabs ? `${failedTabs} candidate tab(s) failed to load` : "";
 }
 
-// ---------- Gyms ----------
-// Live counts from the staff list in Drive (see sources.js); STAFF in data.js until then.
-let STAFF_LIVE = null;
-const staffOf = (g) => (STAFF_LIVE ? STAFF_LIVE[g.name] : STAFF[g.name]) || {};
-const needsTrainers = (g) => (staffOf(g).pt || 0) < PT_TARGET;
-function staffLine(g) {
-  const st = staffOf(g), fm = st.fm || 0, afm = st.afm || 0, pt = st.pt || 0;
-  return `${pt} PT${pt === 1 ? "" : "s"} · ${fm} FM${fm === 1 ? "" : "s"} · ${afm} AFM${afm === 1 ? "" : "s"}`;
+// Candidate areas near the gyms currently shown.
+function areaInScope(a) {
+  if (!state.region && state.brand === "all") return true;
+  return GYMS.some((g) => visibleGym(g) && miles(g, a) <= REGION_REACH_MILES);
 }
 
-function gymPopup(g) {
-  const nearbyAreas = AREAS
-    .map((a) => ({ a, d: miles(g, a) }))
-    .filter((x) => x.d <= NEARBY_MILES)
-    .sort((x, y) => x.d - y.d);
-  const nearbyHtml = nearbyAreas.length
-    ? `<div style="margin-top:6px">Candidates within ${NEARBY_MILES} mi:<ul>${nearbyAreas
-        .map((x) => `<li>${esc(x.a.area)} (${x.d.toFixed(1)} mi): ${x.a.candidates.map((c) => esc(c.name)).join(", ")}</li>`)
-        .join("")}</ul></div>`
-    : `<div style="margin-top:6px;color:#888">No candidates within ${NEARBY_MILES} mi</div>`;
-  return `<b>${esc(g.name)}</b><br>${esc(g.address)}<br>
-    <div class="staff">${staffLine(g)}</div>
-    <a href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(g.address)}" target="_blank" rel="noopener">Directions</a>
-    ${nearbyHtml}`;
-}
-const gymColor = (g) => (needsTrainers(g) ? "#7a1010" : "#d62828");
-GYMS.forEach((g) => {
-  g.marker = L.circleMarker([g.lat, g.lng], {
-    radius: 7, color: "#fff", weight: 2, fillColor: gymColor(g), fillOpacity: 1,
-  }).bindPopup(() => gymPopup(g)).bindTooltip(() => `${esc(g.name)}<br><small>${staffLine(g)}</small>`, { direction: "top", offset: [0, -6] });
-  g.marker.addTo(gymLayer);
-});
-
-// ---------- Trainer needs ----------
-const candidatesNear = (g) => AREAS.filter((a) => miles(g, a) <= NEARBY_MILES).reduce((n, a) => n + a.candidates.length, 0);
-function renderNeeds() {
-  GYMS.forEach((g) => g.marker.setStyle({ fillColor: gymColor(g) }));
-  const needs = GYMS.filter(needsTrainers)
-    .map((g) => ({ g, pt: staffOf(g).pt || 0, near: candidatesNear(g) }))
-    .sort((a, b) => a.pt - b.pt || b.near - a.near || a.g.name.localeCompare(b.g.name));
-  $("needsList").innerHTML = needs.length
-    ? needs.map(({ g, pt, near }, i) => `<li data-i="${i}"><span class="gname">${esc(g.name)}</span>
-        <span class="need-pt${pt ? "" : " zero"}">${pt} PT${pt === 1 ? "" : "s"}</span>
-        <span class="addr">Needs ${PT_TARGET - pt} · ${near} candidate${near === 1 ? "" : "s"} within ${NEARBY_MILES} mi</span></li>`).join("")
-    : `<li class="hint">Every gym has at least ${PT_TARGET} PTs.</li>`;
-  $("needsList").querySelectorAll("li[data-i]").forEach((li) => {
-    const { g } = needs[+li.dataset.i];
-    li.onclick = () => { map.setView([g.lat, g.lng], 13); g.marker.openPopup(); };
-  });
-}
-
-// ---------- Candidate regions ----------
 function renderAreas() {
   areaLayer.clearLayers();
   const onlyIv = $("onlyInterview").checked;
-  const list = $("areaList");
-  list.innerHTML = "";
-  AREAS.slice().sort((a, b) => a.area.localeCompare(b.area)).forEach((a) => {
-    if (onlyIv && !hasInterview(a)) return;
+  const shown = AREAS.filter((a) => areaInScope(a) && (!onlyIv || hasInterview(a)));
+  shown.forEach((a) => {
     const color = GRADE_COLORS[bestGrade(a)];
-    const people = a.candidates
-      .filter((c) => !onlyIv || /interview/i.test(c.status))
-      .map((c) => `${esc(c.name)}${c.grade ? ` (${esc(c.grade)})` : ""}${/interview/i.test(c.status) ? '<span class="badge iv">Interview</span>' : ""}`);
     const detail = a.candidates.map((c) =>
-      `<li><b style="font-size:13px">${esc(c.name)}</b>${c.grade ? ` · Grade ${esc(c.grade)}` : ""}${c.status ? ` · ${esc(c.status)}` : ""}${c.note ? `<br><i>${esc(c.note)}</i>` : ""}</li>`
-    ).join("");
-
+      `<li><b>${esc(c.name)}</b>${c.grade ? ` · Grade ${esc(c.grade)}` : ""}${c.status ? ` · ${esc(c.status)}` : ""}${c.note ? `<br><i>${esc(c.note)}</i>` : ""}</li>`).join("");
     a.circle = L.circle([a.lat, a.lng], {
-      radius: a.radiusKm * 1000, color, weight: 2, fillColor: color, fillOpacity: 0.22,
+      radius: a.radiusKm * 1000, color, weight: 2, fillColor: color, fillOpacity: 0.2, bubblingMouseEvents: false,
       dashArray: hasInterview(a) ? null : "5 4",
     })
-      .bindTooltip(`${a.area} · ${a.candidates.length}`, { permanent: true, direction: "center", className: "area-label" })
-      .bindPopup(`<b>${esc(a.area)}</b><ul>${detail}</ul><a href="#" class="nearest-link">Show nearest gyms</a>`)
+      .bindTooltip(`${esc(a.area)} · ${a.candidates.length}`, { permanent: true, direction: "center", className: "area-label" })
+      .bindPopup(`<b>${esc(a.area)}</b> <span class="muted">${esc(a.metro)}</span><ul>${detail}</ul><a href="#" class="nearest-link">Show nearest gyms</a>`, { maxWidth: 320 })
       .on("popupopen", (e) => {
         e.popup.getElement().querySelector(".nearest-link").onclick = (ev) => {
           ev.preventDefault();
@@ -189,9 +540,21 @@ function renderAreas() {
         };
       })
       .addTo(areaLayer);
+  });
 
+  const list = $("areaList");
+  $("candCount").textContent = shown.reduce((n, a) => n + a.candidates.length, 0);
+  if (!state.region) {
+    list.innerHTML = `<li class="muted">Pick a region above to list its candidates.</li>`;
+    return;
+  }
+  list.innerHTML = "";
+  shown.sort((a, b) => b.candidates.length - a.candidates.length || a.area.localeCompare(b.area)).forEach((a) => {
+    const people = a.candidates
+      .filter((c) => !onlyIv || isInterview(c))
+      .map((c) => `${esc(c.name)}${c.grade ? ` (${esc(c.grade)})` : ""}${isInterview(c) ? '<span class="badge iv">Interview</span>' : ""}`);
     const li = document.createElement("li");
-    li.innerHTML = `<span class="sw" style="background:${color}"></span> <span class="aname">${esc(a.area)}</span><div class="people">${people.join(", ")}</div>`;
+    li.innerHTML = `<span class="sw" style="background:${GRADE_COLORS[bestGrade(a)]}"></span> <span class="aname">${esc(a.area)}</span> <span class="muted">${esc(a.metro.split(",")[0])}</span><div class="people">${people.join(", ")}</div>`;
     li.onclick = () => {
       document.querySelectorAll("#areaList li.active").forEach((x) => x.classList.remove("active"));
       li.classList.add("active");
@@ -199,34 +562,38 @@ function renderAreas() {
     };
     list.appendChild(li);
   });
-  if (!$("showAreas").checked) map.removeLayer(areaLayer);
 }
+
+// Area labels only once zoomed in, so the national view stays readable.
+const syncLabels = () => map.getContainer().classList.toggle("hide-labels", map.getZoom() < MIN_LABEL_ZOOM);
+map.on("zoomend", syncLabels);
+syncLabels();
 
 // ---------- Nearest-gym search ----------
 function resetGymStyles() {
-  GYMS.forEach((g) => g.marker.setStyle({ radius: 7, fillOpacity: 1, opacity: 1 }));
+  GYMS.forEach((g) => g.marker.setStyle({ fillOpacity: 1, opacity: 1 }));
 }
 
 function findNearest(point, label) {
   const n = parseInt($("nearestN").value, 10);
-  const ranked = GYMS.map((g) => ({ g, d: miles(point, g) })).sort((a, b) => a.d - b.d).slice(0, n);
+  const ranked = GYMS.filter(brandGym).map((g) => ({ g, d: miles(point, g) })).sort((a, b) => a.d - b.d).slice(0, n);
 
   searchLayer.clearLayers();
-  resetGymStyles();
   GYMS.forEach((g) => g.marker.setStyle({ fillOpacity: 0.35, opacity: 0.35 }));
+  searchLayer.point = point;
 
   L.marker([point.lat, point.lng]).bindPopup(`<b>${esc(label)}</b>`).addTo(searchLayer);
   ranked.forEach(({ g }, i) => {
-    L.polyline([[point.lat, point.lng], [g.lat, g.lng]], { color: "#d62828", weight: 2, dashArray: "4 6", opacity: 0.8 }).addTo(searchLayer);
+    L.polyline([[point.lat, point.lng], [g.lat, g.lng]], { color: BRANDS[g.brand].color, weight: 2, dashArray: "4 6", opacity: 0.8 }).addTo(searchLayer);
     L.marker([g.lat, g.lng], {
-      icon: L.divIcon({ className: "", html: `<div class="rank-icon">${i + 1}</div>`, iconSize: [26, 26], iconAnchor: [13, 13] }),
+      icon: L.divIcon({ className: "", html: `<div class="rank-icon" style="background:${BRANDS[g.brand].color}">${i + 1}</div>`, iconSize: [26, 26], iconAnchor: [13, 13] }),
       zIndexOffset: 1000 - i,
-    }).bindPopup(() => gymPopup(g)).addTo(searchLayer);
+    }).bindPopup(() => gymPopup(g), { maxWidth: 380, minWidth: 300 }).addTo(searchLayer);
   });
 
   $("searchStatus").textContent = `Closest to ${label}`;
   $("results").innerHTML = ranked
-    .map(({ g, d }, i) => `<li data-i="${i}"><span class="gname">${esc(g.name)}</span><span class="dist">${d.toFixed(1)} mi</span><span class="addr">${esc(g.address)}</span><span class="addr staff">${staffLine(g)}</span></li>`)
+    .map(({ g, d }, i) => `<li data-i="${i}"><span class="gname">${esc(gymLabel(g))}</span> <span class="muted">${esc(g.brand)}</span><span class="dist">${d.toFixed(1)} mi</span><span class="addr">${esc(g.address)}</span><span class="addr staff">${staffLine(g)}</span></li>`)
     .join("");
   $("results").querySelectorAll("li").forEach((li) => {
     const { g } = ranked[+li.dataset.i];
@@ -239,6 +606,7 @@ function findNearest(point, label) {
 
 function clearSearch() {
   searchLayer.clearLayers();
+  searchLayer.point = null;
   resetGymStyles();
   $("results").innerHTML = "";
   $("searchStatus").textContent = "";
@@ -246,12 +614,12 @@ function clearSearch() {
   document.querySelectorAll("#areaList li.active").forEach((x) => x.classList.remove("active"));
 }
 
-// Geocode with OpenStreetMap Nominatim, biased to metro Atlanta.
+// Geocode with OpenStreetMap Nominatim, biased to the current view.
 async function geocode(q) {
+  const b = map.getBounds();
   const params = new URLSearchParams({
-    q: /\b(ga|georgia)\b/i.test(q) ? q : `${q}, Georgia`,
-    format: "json", limit: "1", countrycodes: "us",
-    viewbox: "-85.4,34.6,-83.3,33.2", bounded: "0",
+    q, format: "json", limit: "1", countrycodes: "us",
+    viewbox: `${b.getWest()},${b.getNorth()},${b.getEast()},${b.getSouth()}`, bounded: "0",
   });
   const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, { headers: { Accept: "application/json" } });
   if (!res.ok) throw new Error(`Geocoder error ${res.status}`);
@@ -275,72 +643,105 @@ $("searchForm").addEventListener("submit", async (e) => {
   }
 });
 
+// ---------- Filters ----------
+// If the map has no size yet (e.g. loaded in a hidden tab), fit once it gets one.
+let pendingFit = false;
+function fitVisible() {
+  map.invalidateSize();
+  const size = map.getSize();
+  if (!size.x || !size.y) { pendingFit = true; return; }
+  pendingFit = false;
+  const pts = GYMS.filter(visibleGym).map((g) => [g.lat, g.lng]);
+  if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.15), { maxZoom: 12 });
+}
+new ResizeObserver(() => { if (pendingFit) fitVisible(); }).observe(map.getContainer());
+
+function buildRegionSelect() {
+  const sel = $("regionSelect");
+  const groups = Object.keys(BRANDS).filter((b) => state.brand === "all" || b === state.brand);
+  sel.innerHTML = `<option value="">All regions</option>` + groups.map((b) =>
+    `<optgroup label="${esc(BRANDS[b].label)}">${[...new Set(GYMS.filter((g) => g.brand === b).map((g) => g.region))]
+      .map((r) => `<option value="${esc(`${b}|${r}`)}">${esc(r)} (${GYMS.filter((g) => g.brand === b && g.region === r).length})</option>`).join("")}</optgroup>`).join("");
+  sel.value = state.region;
+}
+
+function renderAll() {
+  renderGyms();
+  styleGyms();
+  renderTable();
+  renderAreas();
+}
+
+document.querySelectorAll("#brandButtons button").forEach((btn) => (btn.onclick = () => {
+  state.brand = btn.dataset.brand;
+  if (state.brand !== "all" && state.region && !state.region.startsWith(state.brand + "|")) state.region = "";
+  document.querySelectorAll("#brandButtons button").forEach((b) => b.classList.toggle("on", b === btn));
+  buildRegionSelect();
+  clearSearch();
+  renderAll();
+  fitVisible();
+}));
+$("regionSelect").onchange = (e) => { state.region = e.target.value; clearSearch(); renderAll(); fitVisible(); };
+$("colorBy").innerHTML = Object.entries(COLOR_MODES).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`).join("");
+$("colorBy").onchange = (e) => { state.colorBy = e.target.value; styleGyms(); };
+
 map.on("click", (e) => findNearest({ lat: e.latlng.lat, lng: e.latlng.lng }, "selected point"));
 $("clearBtn").onclick = clearSearch;
-$("nearestN").onchange = () => {
-  const m = searchLayer.getLayers().find((l) => l instanceof L.Marker && !l.options.icon?.options?.html);
-  if (m) findNearest(m.getLatLng(), $("searchStatus").textContent.replace(/^Closest to /, ""));
-};
+$("nearestN").onchange = () => { if (searchLayer.point) findNearest(searchLayer.point, $("searchStatus").textContent.replace(/^Closest to /, "")); };
 $("showGyms").onchange = (e) => (e.target.checked ? gymLayer.addTo(map) : map.removeLayer(gymLayer));
 $("showAreas").onchange = (e) => (e.target.checked ? areaLayer.addTo(map) : map.removeLayer(areaLayer));
 $("onlyInterview").onchange = renderAreas;
 
-// ---------- Load candidates ----------
-async function refresh() {
-  $("candCount").textContent = "…";
-  $("dataStatus").textContent = "Loading candidates from Google Sheet…";
-  $("refreshBtn").disabled = true;
-  try {
-    const unplaced = await loadCandidates(await fetchSheet(SHEET.id, { tab: SHEET.tab }));
-    $("candCount").textContent = AREAS.reduce((n, a) => n + a.candidates.length, 0);
-    $("dataStatus").textContent = `Live from Google Sheet · updated ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` +
-      (unplaced.length ? ` · couldn't place: ${unplaced.join(", ")}` : "");
-  } catch (err) {
-    console.error(err);
-    $("candCount").textContent = "0";
-    $("dataStatus").textContent = `Couldn't load candidates: ${err.message}`;
-  }
-  $("refreshBtn").disabled = false;
-  renderAreas();
-  renderNeeds();
-}
-
-// Staff counts per Atlanta gym from the live GRIP staff list.
-function applyStaffCounts(data) {
-  if (!data.staff.length) {
-    $("staffStatus").textContent = `Staff counts as of ${STAFF_AS_OF} (couldn't load the live staff list)`;
-    return;
-  }
-  STAFF_LIVE = {};
-  const gymByClub = new Map(GYMS.map((g) => [norm(g.name), g]));
-  data.staff.forEach((s) => {
-    const g = s.company === "GRIP" && !s.terminated && s.role !== "other" && gymByClub.get(norm(s.club));
+// ---------- Live staff counts ----------
+// Once the live staff lists load (sources.js, shared with the Trainer stats tab), they replace
+// the STAFF snapshot: pt = trainers (PT_TYPE), fm = fitness managers, afm = assistant FMs.
+document.addEventListener("dataloaded", (e) => {
+  const staff = (e.detail.staff || []).filter((s) => !s.terminated && s.role !== "other");
+  if (!staff.length) return;
+  const clubsBy = {};
+  staff.forEach((s) => (clubsBy[s.company] ||= new Set()).add(s.club));
+  const gymFor = new Map();
+  GYMS.forEach((g) => {
+    const clubs = [...(clubsBy[g.brand] || [])];
+    const club = matchClub(g.name, clubs) || (g.label && matchClub(g.label, clubs));
+    if (club) gymFor.set(`${g.brand}|${club}`, g);
+  });
+  const counts = {};
+  staff.forEach((s) => {
+    const g = gymFor.get(`${s.company}|${s.club}`);
     if (!g) return;
-    const c = (STAFF_LIVE[g.name] ||= {});
+    const c = ((counts[g.brand] ||= {})[g.name] ||= {});
     c[s.role] = (c[s.role] || 0) + 1;
   });
-  $("staffStatus").textContent = `Staff counts live from ${data.staffFiles.filter((f) => /grip/i.test(f)).join(", ") || "the staff list"}`;
-  renderNeeds();
-}
-document.addEventListener("dataloaded", (e) => applyStaffCounts(e.detail));
-function loadStaffCounts(force) {
-  $("staffStatus").textContent = "Loading staff counts from Drive…";
-  loadAllData(force);
+  Object.keys(STAFF).forEach((b) => delete STAFF[b]);
+  Object.assign(STAFF, counts);
+  $("staffDate").textContent = "live from the staff lists";
+  renderAll();
+});
+document.addEventListener("viewchange", (e) => { if (e.detail === "map") { map.invalidateSize(); if (pendingFit) fitVisible(); } });
+
+// ---------- Load ----------
+async function refresh() {
+  $("refreshBtn").disabled = true;
+  $("dataStatus").textContent = "Loading stats and candidates from Google Sheets…";
+  const [statsErr, candErr, adoptErr] = await Promise.all([
+    loadStats().catch((e) => e.message),
+    loadCandidates((msg) => ($("dataStatus").textContent = msg)).catch((e) => e.message),
+    loadAdoption().catch((e) => e.message),
+  ]);
+  const errs = [statsErr && `Stats: ${statsErr}`, candErr && `Candidates: ${candErr}`, adoptErr && `App adoption: ${adoptErr}`].filter(Boolean);
+  $("dataStatus").textContent = errs.length
+    ? `⚠ ${errs.join(" · ")}`
+    : `Live from Google Sheets · updated ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  $("refreshBtn").disabled = false;
+  renderAll();
 }
 
-// ---------- Tabs ----------
-function showView(name) {
-  document.querySelectorAll("#tabs .tab").forEach((t) => t.setAttribute("aria-selected", t.dataset.view === name));
-  document.querySelectorAll(".view").forEach((v) => (v.hidden = v.id !== `view-${name}`));
-  if (name === "map") map.invalidateSize();
-  try { localStorage.setItem("activeTab", name); } catch {}
-  document.dispatchEvent(new CustomEvent("viewchange", { detail: name }));
-}
-document.querySelectorAll("#tabs .tab").forEach((t) => (t.onclick = () => showView(t.dataset.view)));
-try { if (localStorage.getItem("activeTab") === "stats") showView("stats"); } catch {}
-
-$("refreshBtn").onclick = () => { refresh(); loadStaffCounts(true); };
-$("gymCount").textContent = GYMS.length;
-$("ptTarget").textContent = PT_TARGET;
+$("refreshBtn").onclick = () => { refresh(); loadAllData(true); };
+$("staffDate").textContent = `as of ${STAFF_AS_OF}`;
+$("payrollDate").textContent = PAYROLL_PERIOD;
+buildRegionSelect();
+renderAll();
+fitVisible();
 refresh();
-loadStaffCounts();
+})();

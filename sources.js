@@ -92,7 +92,8 @@ function staffRole(type) {
 }
 
 function loadStaff(drive) {
-  const staff = drive.staff.map((r) => ({
+  // The "Demo" club holds test logins, not real staff.
+  const staff = drive.staff.filter((r) => !/ - demo$/i.test(r.location)).map((r) => ({
     id: r.id, type: r.type, location: r.location, first: r.first, last: r.last,
     name: `${r.first} ${r.last}`.trim(),
     club: clubFromLocation(r.location), company: companyOf(r.location || r.file),
@@ -135,24 +136,23 @@ function loadUnlogged(drive, staffById) {
 }
 
 // ---------- Club KPIs ----------
-// KPI sheets: row 1 = region (only on the first club of each region), row 2 = club names,
-// then one row per date. Read as two requests so the header text isn't dropped by type guessing.
-async function loadKPIs(drive) {
-  const sheets = drive.sheets.filter((f) => Object.values(KPI_TABS).every((t) => (f.tabs || []).includes(t)));
+// The stats sheets (STATS_SHEETS / METRICS in data.js): row 1 = region (only on the first club of
+// each region), row 2 = club names, then one row per date. Read as two requests so the header
+// text isn't dropped by type guessing. Percentages are kept on a 0-100 scale.
+async function loadKPIs() {
   const clubs = new Map(); // company|club -> { company, region, club, kpi: {metric: [{date, v}]} }
-  await Promise.all(sheets.flatMap((s) => Object.entries(KPI_TABS).map(async ([metric, tab]) => {
+  await Promise.all(Object.entries(STATS_SHEETS).flatMap(([company, id]) => METRICS.map(async ({ tab, key: metric }) => {
     const [head, body] = await Promise.all([
-      fetchSheet(s.id, { tab, range: "A1:ZZ2", headers: 0 }),
-      fetchSheet(s.id, { tab, range: "A3:ZZ", headers: 0 }),
+      fetchSheet(id, { tab, range: "A1:ZZ2", headers: 0 }),
+      fetchSheet(id, { tab, range: "A3:ZZ", headers: 0 }),
     ]);
     const [regions = [], names = []] = head;
     let region = "";
-    const company = companyOf(s.name);
     names.forEach((club, i) => {
       if (regions[i]) region = regions[i];
       if (!i || !club) return;
       const key = `${company}|${club}`;
-      if (!clubs.has(key)) clubs.set(key, { company, region, club, sheet: s.name, kpi: {} });
+      if (!clubs.has(key)) clubs.set(key, { company, region, club, kpi: {} });
       const series = body
         .filter((r) => r[0] && !isNaN(Date.parse(r[0])) && num(r[i]) != null)
         .map((r) => ({ date: new Date(r[0]), v: num(r[i]) }))
@@ -160,16 +160,14 @@ async function loadKPIs(drive) {
       clubs.get(key).kpi[metric] = series;
     });
   })));
-  if (!sheets.length) throw new Error("No KPI sheets found in the Drive folder");
   return [...clubs.values()];
 }
 
 // ---------- App adoption ----------
-async function loadAdoption(drive) {
-  const tabs = ((drive.extraSheets || {})[ADOPTION_SHEET] || {}).tabs || [];
+async function loadAdoption() {
   const out = [];
-  await Promise.all(tabs.filter((t) => !/overview/i.test(t)).map(async (tab) => {
-    const rows = await fetchSheet(ADOPTION_SHEET, { tab });
+  await Promise.all(ADOPTION_SHEET.tabs.map(async ({ tab }) => {
+    const rows = await fetchSheet(ADOPTION_SHEET.id, { tab });
     const h = (rows[0] || []).map((v) => v.toLowerCase());
     if (!/^trainer/.test(h[0] || "")) return; // tabs without a header row aren't trainer lists
     const col = (re) => h.findIndex((x) => re.test(x));
@@ -234,8 +232,8 @@ function loadAllData(force) {
     const staff = staffRes ? staffRes.staff : [];
     const staffById = new Map(staff.map((s) => [s.id, s]));
     const [kpis, adoption, onboarding, certs, unlogged] = await Promise.all([
-      settle("kpis", () => loadKPIs(drive)),
-      settle("adoption", () => loadAdoption(drive)),
+      settle("kpis", loadKPIs),
+      settle("adoption", loadAdoption),
       settle("onboarding", () => loadNameList(ONBOARDING_SHEET)),
       settle("certs", () => loadNameList(CERT_SHEET)),
       settle("unlogged", () => loadUnlogged(drive, staffById)),
