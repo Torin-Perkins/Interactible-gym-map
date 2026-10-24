@@ -66,7 +66,7 @@ const CLUB_ALIASES = { tualtin: "tualatin", pearl: "pearl district", "82nd": "po
 
 // Shared trainer tracker: the Apps Script web app URL (ends in /exec) from apps-script/README.md.
 // Leave blank to keep tracker edits in each person's browser only.
-const TRACKER_DB = { url: "" };
+const TRACKER_DB = { url: "https://script.google.com/macros/s/AKfycbzVnvAUwMKs1_iUUPHEFUIVhyx9yAGVxPwKFnbPKxJCbqohSVb6RRME9MZbhw5sk90xqg/exec" };
 
 // Trainer needs: gyms below this many personal trainers are flagged on the map tab.
 const PT_TARGET = 4;
