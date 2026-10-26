@@ -43,6 +43,7 @@ function buildModel(data) {
   const onbIdx = data.onboarding ? nameIndex(data.onboarding) : null;
   const certIdx = data.certs ? nameIndex(data.certs) : null;
   const ul = data.unlogged;
+  const ls = data.lostSheep;
 
   const trainers = staff.filter((s) => s.role === "pt" && !s.terminated).map((s) => {
     const key = `${s.company}|${s.club}`;
@@ -53,6 +54,8 @@ function buildModel(data) {
       adopt && adopt.cert && "app adoption sheet"].filter(Boolean);
     const u = ul && ul.byTrainer.get(s.id);
     const hasPeriods = ul && ul.periods.some((p) => p.company === s.company);
+    const lost = ls && ls.index[s.company] && lookupName(ls.index[s.company], s.name);
+    const hasLostReport = ls && ls.reports.some((r) => r.company === s.company);
     return {
       id: s.id, name: s.name, club: s.club, company: s.company, key,
       onbSources: [onb && "onboarding sheet", ...certSources.map((x) => `cert on ${x}`)].filter(Boolean),
@@ -63,6 +66,9 @@ function buildModel(data) {
       certSources, adopt,
       unlogged: u ? u.avg : hasPeriods ? 0 : null,
       unloggedPeriods: u ? u.periods : {},
+      // Lost sheep whose last session was with this trainer (0 when their brand has a report but they're not on it).
+      lostSheep: lost ? lost.count : hasLostReport ? 0 : null,
+      lostSheepClubs: lost ? lost.clubs : {},
     };
   });
 
@@ -232,6 +238,8 @@ function renderTiles() {
   const ul = ts.filter((t) => t.unlogged != null);
   const periods = ((MODEL.data.unlogged || {}).periods || []).filter((p) => !f.company || p.company === f.company);
   const onApp = ts.filter((t) => t.adopt && t.adopt.onApp).length;
+  const tls = ts.filter((t) => t.lostSheep != null);
+  const lsRanges = [...new Set(((MODEL.data.lostSheep || {}).reports || []).filter((r) => !f.company || r.company === f.company).map((r) => r.range))].join(", ");
   const bh = cs.map((c) => last(c.kpi.billing)).filter(Boolean);
   const ls = cs.map((c) => last(c.kpi.lost)).filter(Boolean);
   const npls = cs.map((c) => last(c.kpi.lostNp)).filter(Boolean);
@@ -245,6 +253,8 @@ function renderTiles() {
     ["Cert on file", `${cert} / ${n}`, `${n - cert} missing${share(cert)}`],
     ["Avg unlogged sessions", fmtNum(mean(ul.map((t) => t.unlogged)), 2),
       `per trainer per pay period · ${[...new Set(periods.map((p) => p.label))].join(", ") || "no payroll files"}`],
+    ["Lost sheep by trainer", fmtNum(tls.reduce((s, t) => s + t.lostSheep, 0)),
+      `last session with ${tls.filter((t) => t.lostSheep).length} of ${n} trainers · ${lsRanges || "no lost sheep report"}`],
     ["On the app", `${onApp} / ${n}`, `matched on the app adoption sheet${share(onApp)}`],
     ["Billing health", fmtPct(mean(bh.map((x) => x.v))), `avg of ${bh.length} clubs · ${fmtDate(bh.length ? new Date(Math.max(...bh.map((x) => x.date))) : null)}`, "gyms"],
     ["Lost sheep", fmtNum(ls.reduce((s, x) => s + x.v, 0)), `${fmtNum(npls.reduce((s, x) => s + x.v, 0))} non-prospect · incl. prospects`, "gyms"],
@@ -324,6 +334,7 @@ function renderTrainers() {
     if (show === "notOnboarded" && e.onboarded) return false;
     if (show === "noCert" && e.cert) return false;
     if (show === "unlogged" && !(t.unlogged > 0)) return false;
+    if (show === "lostSheep" && !(t.lostSheep > 0)) return false;
     return true;
   });
   const manual = (t, f) => (TRACKER[t.id] || {})[f] !== undefined;
@@ -338,7 +349,8 @@ function renderTrainers() {
     { key: "cert", label: "Cert on file", sort: (t) => +eff(t).cert, html: (t) =>
       `<label class="yn"><input type="checkbox" data-f="cert" ${eff(t).cert ? "checked" : ""}> ${eff(t).cert ? "Yes" : "No"}</label>
        <span class="cell-sub">${manual(t, "cert") ? byWho(t) : esc(t.certText || t.certNote)}${resetLink(t, "cert")}</span>` },
-    { key: "lostSheep", label: "Lost sheep", num: true, sort: () => null, html: () => `<span class="cell-sub" title="Coming from the lost sheep report">—</span>` },
+    { key: "lostSheep", label: "Lost sheep<br><small>last session with them</small>", num: true, sort: (t) => t.lostSheep, html: (t) =>
+      `<span title="${esc(Object.entries(t.lostSheepClubs).map(([c, n]) => `${c}: ${n}`).join(", ") || "none on the lost sheep report")}">${fmtNum(t.lostSheep)}</span>` },
     { key: "billing", label: "Billing health %", num: true, sort: (t) => eff(t).billing, html: (t) => {
       const auto = t.adopt && t.adopt.billing != null ? t.adopt.billing : "";
       const v = (TRACKER[t.id] || {}).billing;
@@ -393,7 +405,7 @@ $("exportBtn").onclick = () => {
     const e = eff(t);
     lines.push([t.id, t.name, t.company, t.region, t.club, e.onboarded ? "Yes" : "No",
       (TRACKER[t.id] || {}).onboarded !== undefined ? "set by hand" : t.onbSources.join("; "),
-      e.cert ? "Yes" : "No", t.certText || t.certNote, "", e.billing ?? "",
+      e.cert ? "Yes" : "No", t.certText || t.certNote, t.lostSheep ?? "", e.billing ?? "",
       t.adopt ? (t.adopt.onApp ? "Yes" : "No") : "", t.adopt && t.adopt.adoption != null ? t.adopt.adoption : "",
       t.unlogged ?? "", e.notes].map(csvCell).join(","));
   });
@@ -495,6 +507,8 @@ function renderSources(data) {
     line("Club KPI sheets", st.kpis && st.kpis.ok, data.kpis ? `${data.kpis.length} clubs from the ${esc(Object.keys(STATS_SHEETS).join(" and "))} stats sheets` : err("kpis")),
     line("Unlogged sessions", st.unlogged && st.unlogged.ok, ul ? ul.periods.map((p) =>
       `${esc(p.company)} ${esc(p.label)}: ${p.total} sessions across ${p.trainers} PTs`).join(" · ") || "no payroll comparison files" : err("unlogged")),
+    line("Lost sheep reports", st.lostSheep && st.lostSheep.ok, data.lostSheep ? data.lostSheep.reports.map((r) =>
+      `${esc(r.company)}${r.range ? ` ${esc(r.range)}` : ""}: ${fmtNum(r.total)} lost sheep · ${fmtNum(r.total - r.noBooking)} with a last session, across ${r.trainers} trainers · ${MODEL.trainers.filter((t) => t.company === r.company && t.lostSheep).length} matched to current PTs`).join(" · ") || "no lost sheep reports" : err("lostSheep")),
     line("App adoption sheet", st.adoption && st.adoption.ok, data.adoption
       ? `${data.adoption.length} rows · ${MODEL.trainers.filter((t) => t.adopt).length} matched to current PTs` : err("adoption")),
     line("Onboarding sheet", st.onboarding && st.onboarding.ok, data.onboarding

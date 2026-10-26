@@ -4,8 +4,8 @@ Google blocks browsers from downloading Drive files cross-site and from listing 
 without an API key, so the deploy workflow runs this every few hours instead and ships the
 result with the site. It uses only the public "Anyone with the link" views (no credentials)
 and keeps just what the page needs: names, clubs and job titles from the staff lists (no
-emails, phones, addresses or birthdays) and the per-trainer session differences from the
-payroll comparisons. Google Sheets (stats, adoption) are read live by the page instead.
+emails, phones, addresses or birthdays), the per-trainer session differences from the
+payroll comparisons, and per-trainer lost sheep counts (no client names). Google Sheets (stats, adoption) are read live by the page instead.
 
 Usage: python scripts/build_drive_data.py [output path]
 Needs: pip install xlrd openpyxl
@@ -141,10 +141,36 @@ def read_unlogged(f):
     return {"file": f["name"], "period": m.group(1) if m else re.sub(r"\.\w+$", "", f["name"]), "rows": out}
 
 
+def read_lost_sheep(f):
+    """Lost sheep report: one row per member without a completed booking in the report window.
+    A lost sheep belongs to the trainer of their last session ("Last Booking With"). The report is
+    full of client contact details, so only per-trainer counts are kept."""
+    sheets = read_workbook(f["id"], f["name"])
+    rows = next(iter(sheets.values()))
+    hi, h = header_index(rows, "last booking with")
+    if hi is None:
+        return None
+    c = {k: h.index(k) for k in ("location name", "user id", "last booking with")}
+    counts, total, no_booking = {}, 0, 0
+    for r in rows[hi + 1:]:
+        loc = text(r[c["location name"]])
+        if not text(r[c["user id"]]) or re.search(r" - demo$", loc, re.I):  # Demo = test logins
+            continue
+        total += 1
+        trainer = text(r[c["last booking with"]])
+        if not trainer:
+            no_booking += 1
+            continue
+        counts[(trainer, loc)] = counts.get((trainer, loc), 0) + 1
+    notes = [text(r[0]) for r in rows[:hi] if text(r[0])]
+    return {"file": f["name"], "title": " ".join(notes), "total": total, "noBooking": no_booking,
+            "rows": [{"trainer": t, "location": loc, "count": n} for (t, loc), n in sorted(counts.items())]}
+
+
 def main():
     out = sys.argv[1] if len(sys.argv) > 1 else "drive-data.json"
     files = list_folder(ROOT_FOLDER, [])
-    staff, unlogged, errors = [], [], []
+    staff, unlogged, lost_sheep, errors = [], [], [], []
     for f in files:
         if f["kind"] != "file":
             continue
@@ -155,6 +181,10 @@ def main():
                 u = read_unlogged(f)
                 if u:
                     unlogged.append(u)
+            elif re.search(r"lost sheep", f["folder"], re.I):
+                ls = read_lost_sheep(f)
+                if ls:
+                    lost_sheep.append(ls)
         except Exception as e:  # keep going; the page shows what failed
             errors.append(f"{f['name']}: {e}")
             print("ERROR", f["name"], e, file=sys.stderr)
@@ -164,11 +194,13 @@ def main():
         "staffFiles": sorted({s["file"] for s in staff}),
         "staff": staff,
         "unlogged": unlogged,
+        "lostSheep": lost_sheep,
         "errors": errors,
     }
     with open(out, "w", encoding="utf-8") as fh:
         json.dump(data, fh, separators=(",", ":"))
-    print(f"Wrote {out}: {len(staff)} staff, {len(unlogged)} payroll comparisons, {len(errors)} errors")
+    print(f"Wrote {out}: {len(staff)} staff, {len(unlogged)} payroll comparisons, "
+          f"{len(lost_sheep)} lost sheep reports, {len(errors)} errors")
 
 
 if __name__ == "__main__":

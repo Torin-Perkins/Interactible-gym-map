@@ -137,6 +137,30 @@ function loadUnlogged(drive, staffById) {
   return { periods, byTrainer, periodCount };
 }
 
+// ---------- Lost sheep reports ----------
+// One report per brand: members without a completed booking in the report window. A lost sheep
+// counts against the trainer of their last session; ones with no last session aren't anyone's.
+function loadLostSheep(drive) {
+  const reports = [];
+  const byCompany = {}; // company -> Map(trainer name -> { name, count, clubs: {club: n} })
+  for (const file of drive.lostSheep || []) {
+    const company = companyOf(file.title + " " + ((file.rows[0] || {}).location || ""));
+    const range = (file.title.match(/from\s+(\S+\s*-\s*\S+)/i) || [])[1] || "";
+    const per = (byCompany[company] ||= new Map());
+    file.rows.forEach((r) => {
+      const t = per.get(r.trainer) || { name: r.trainer, count: 0, clubs: {} };
+      t.count += r.count;
+      const club = clubFromLocation(r.location);
+      t.clubs[club] = (t.clubs[club] || 0) + r.count;
+      per.set(r.trainer, t);
+    });
+    reports.push({ company, file: file.file, range, total: file.total, noBooking: file.noBooking,
+      trainers: new Set(file.rows.map((r) => r.trainer)).size });
+  }
+  const index = Object.fromEntries(Object.entries(byCompany).map(([c, m]) => [c, nameIndex([...m.values()])]));
+  return { reports, byCompany, index };
+}
+
 // ---------- Club KPIs ----------
 // The stats sheets (STATS_SHEETS / METRICS in data.js): row 1 = region (only on the first club of
 // each region), row 2 = club names, then one row per date. Read as two requests so the header
@@ -233,14 +257,15 @@ function loadAllData(force) {
     const staffRes = await settle("staff", () => loadStaff(drive));
     const staff = staffRes ? staffRes.staff : [];
     const staffById = new Map(staff.map((s) => [s.id, s]));
-    const [kpis, adoption, onboarding, certs, unlogged] = await Promise.all([
+    const [kpis, adoption, onboarding, certs, unlogged, lostSheep] = await Promise.all([
       settle("kpis", loadKPIs),
       settle("adoption", loadAdoption),
       settle("onboarding", () => loadNameList(ONBOARDING_SHEET)),
       settle("certs", () => loadNameList(CERT_SHEET)),
       settle("unlogged", () => loadUnlogged(drive, staffById)),
+      settle("lostSheep", () => loadLostSheep(drive)),
     ]);
-    return { status, drive, staff, staffFiles: staffRes && staffRes.files, staffById, kpis, adoption, onboarding, certs, unlogged, loaded: new Date() };
+    return { status, drive, staff, staffFiles: staffRes && staffRes.files, staffById, kpis, adoption, onboarding, certs, unlogged, lostSheep, loaded: new Date() };
   })();
   DATA_PROMISE.then((data) => {
     if (typeof CustomEvent === "function") document.dispatchEvent(new CustomEvent("dataloaded", { detail: data }));

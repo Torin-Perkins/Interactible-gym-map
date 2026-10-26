@@ -54,13 +54,16 @@ Two tabs over the same data, sharing the Company / Region / Club filters.
 
 **Trainer stats** — every active trainer on the staff lists (any "Employee Type" with "Trainer" in it except
 the Trainer Compliance login — `PT_TYPE` in `data.js`) in the trainer tracker: onboarded, cert on file, lost
-sheep (blank until the lost sheep report is added), billing health, app adoption, average unlogged sessions, notes.
+sheep, billing health, app adoption, average unlogged sessions, notes.
 
 Sources:
 - **Shared "USAPT Data" Drive folder** (`DRIVE_FOLDER`): `Staff List/` (one staff-list `.xls` per brand) and
   `Unlogged Sessions/` (payroll "Different Rows" comparisons, one per brand per pay period). A trainer's unlogged
   sessions for a period = the difference in Total Sessions between the two payroll runs; the average is the
   total ÷ pay periods on file for that brand.
+- **`Lost Sheep Reports/`** in the same folder (one report per brand): each lost sheep counts against the trainer
+  of their last session ("Last Booking With"), matched by name within the same brand. Lost sheep with no last
+  session aren't counted against anyone. Only the per-trainer counts are published, never client details.
 - **Onboarding form responses** (`ONBOARDING_SHEET`) — everyone who submitted counts as onboarded; a cert
   uploaded there counts as cert on file ("Yes" / "Working on it" without an upload is flagged).
 - **Certifications** (`CERT_SHEET`, optional) and the adoption sheet's Cert column also count as cert on file,
