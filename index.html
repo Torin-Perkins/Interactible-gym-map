@@ -11,7 +11,8 @@
 <nav id="tabs" role="tablist">
   <span class="brand">USA PT</span>
   <button type="button" role="tab" class="tab" data-view="map" aria-selected="true">Candidates &amp; trainer needs</button>
-  <button type="button" role="tab" class="tab" data-view="stats" aria-selected="false">Trainer stats</button>
+  <button type="button" role="tab" class="tab" data-view="gyms" aria-selected="false">Gym stats</button>
+  <button type="button" role="tab" class="tab" data-view="trainers" aria-selected="false">Trainer stats</button>
 </nav>
 
 <div id="view-map" class="view">
@@ -88,7 +89,7 @@
   <div class="stats-wrap">
     <header class="stats-head">
       <div>
-        <h1>Trainer stats</h1>
+        <h1 id="statsTitle">Trainer stats</h1>
         <p class="sub data-status"><span id="statsStatus">Loading…</span> <button id="statsRefresh" type="button" class="link">Refresh</button></p>
       </div>
       <div class="filters">
@@ -100,14 +101,14 @@
 
     <div id="tiles" class="tiles"></div>
 
-    <div class="view-toggle">
+    <div class="view-toggle gyms-only">
       <div id="statsViewButtons" class="seg">
         <button type="button" data-sview="table" class="on">Table</button>
         <button type="button" data-sview="map">Map</button>
       </div>
     </div>
 
-    <section class="card" id="statsMapCard" hidden>
+    <section class="card gyms-only" id="statsMapCard" hidden>
       <div class="card-head">
         <h2>Clubs on the map</h2>
         <label class="inline-field">Color clubs by <select id="sColorBy"></select></label>
@@ -117,7 +118,7 @@
       <p class="hint">Bigger circle = more trainers. Click a club for its stats and trainers.</p>
     </section>
 
-    <section class="card table-only">
+    <section class="card table-only gyms-only">
       <div class="card-head">
         <h2>Club KPIs</h2>
         <div class="card-tools">
@@ -132,7 +133,7 @@
       <div class="table-scroll"><table id="clubTable" class="grid"></table></div>
     </section>
 
-    <section class="card table-only">
+    <section class="card trainers-only">
       <div class="card-head">
         <h2>Trainer tracker</h2>
         <div class="card-tools">

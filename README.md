@@ -1,7 +1,7 @@
 # USA PT Gym Map
 
 Internal map of every **GRIP (LA Fitness)** and **Elevate (Fitness Connection)** gym, with live per-gym stats,
-staff counts, and the home areas of trainer candidates, plus a **Trainer stats** tab that tracks every trainer.
+staff counts, and the home areas of trainer candidates, plus **Gym stats** and **Trainer stats** tabs.
 
 ## Candidates & trainer needs tab
 - **Brand + region filters** — All / GRIP / Elevate, and a region dropdown that zooms to that region.
@@ -40,16 +40,21 @@ For each club with payroll data (`HIRING` in `data.js` holds the tunable numbers
 - **High**: capacity used ≥ 90%, full within 4 weeks, or no active trainers. **Medium**: ≥ 70% or full within 10 weeks. Otherwise **Low**.
 - **Suggested extra trainers**: trainers needed to cover the projected load 8 weeks out.
 
-## Trainer stats tab
-Every active trainer on the staff lists (any "Employee Type" with "Trainer" in it except the Trainer Compliance
-login — `PT_TYPE` in `data.js`), with club KPIs from the stats sheets. Two views:
-- **Table** — club KPI table plus the trainer tracker: onboarded, cert on file, lost sheep (blank until the
-  lost sheep report is added), billing health, app adoption, average unlogged sessions, notes.
+## Gym stats and Trainer stats tabs
+Two tabs over the same data, sharing the Company / Region / Club filters.
+
+**Gym stats** — club KPIs from the stats sheets, with a Table / Map switch:
+- **Table** — clients, lost sheep, billing health, late amounts, trainers onboarded, and unlogged sessions per club.
 - **Club tags** (thresholds in `CLUB_TAGS`): billing health under 94%, a red tag under 90%, no trainers
   onboarded, lost sheep over 25%, and more than 10 unlogged sessions per pay period for the whole club. Filter the club table to
   tagged clubs, or color the map by tags.
-- **Map** — each club at its gym's location, sized by trainers and colored by onboarded %, cert on file %,
-  trainers on the app, unlogged sessions, billing health, or lost sheep %. Click a club for its trainers.
+- **Map** — each club at its gym's location, sized by trainers and colored by tags, onboarded %, cert on file %,
+  trainers on the app, unlogged sessions, billing health, or lost sheep %. Click a club for its trainers;
+  "Open in the table" jumps to them on the Trainer stats tab.
+
+**Trainer stats** — every active trainer on the staff lists (any "Employee Type" with "Trainer" in it except
+the Trainer Compliance login — `PT_TYPE` in `data.js`) in the trainer tracker: onboarded, cert on file, lost
+sheep (blank until the lost sheep report is added), billing health, app adoption, average unlogged sessions, notes.
 
 Sources:
 - **Shared "USAPT Data" Drive folder** (`DRIVE_FOLDER`): `Staff List/` (one staff-list `.xls` per brand) and

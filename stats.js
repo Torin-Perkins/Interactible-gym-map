@@ -236,18 +236,21 @@ function renderTiles() {
   const ls = cs.map((c) => last(c.kpi.lost)).filter(Boolean);
   const npls = cs.map((c) => last(c.kpi.lostNp)).filter(Boolean);
   const share = (x) => (n ? ` · ${Math.round((x / n) * 100)}%` : "");
+  const clients = cs.map((c) => last(c.kpi.clients)).filter(Boolean);
+  // [label, value, sub, tab]: each tab shows its own tiles.
   const tiles = [
+    ["Clubs", fmtNum(cs.length), `${fmtNum(clients.reduce((s, x) => s + x.v, 0))} total clients`, "gyms"],
     ["Trainers", fmtNum(n), `${cs.filter((c) => c.pts).length} clubs`],
     ["Onboarded", `${onb} / ${n}`, `${n - onb} not onboarded${share(onb)}`],
     ["Cert on file", `${cert} / ${n}`, `${n - cert} missing${share(cert)}`],
     ["Avg unlogged sessions", fmtNum(mean(ul.map((t) => t.unlogged)), 2),
       `per trainer per pay period · ${[...new Set(periods.map((p) => p.label))].join(", ") || "no payroll files"}`],
     ["On the app", `${onApp} / ${n}`, `matched on the app adoption sheet${share(onApp)}`],
-    ["Billing health", fmtPct(mean(bh.map((x) => x.v))), `avg of ${bh.length} clubs · ${fmtDate(bh.length ? new Date(Math.max(...bh.map((x) => x.date))) : null)}`],
-    ["Lost sheep", fmtNum(ls.reduce((s, x) => s + x.v, 0)), `${fmtNum(npls.reduce((s, x) => s + x.v, 0))} non-prospect · incl. prospects`],
+    ["Billing health", fmtPct(mean(bh.map((x) => x.v))), `avg of ${bh.length} clubs · ${fmtDate(bh.length ? new Date(Math.max(...bh.map((x) => x.date))) : null)}`, "gyms"],
+    ["Lost sheep", fmtNum(ls.reduce((s, x) => s + x.v, 0)), `${fmtNum(npls.reduce((s, x) => s + x.v, 0))} non-prospect · incl. prospects`, "gyms"],
   ];
-  $("tiles").innerHTML = tiles.map(([label, value, sub]) =>
-    `<div class="tile"><div class="tile-label">${esc(label)}</div><div class="tile-value">${esc(value)}</div><div class="tile-sub">${esc(sub)}</div></div>`).join("");
+  $("tiles").innerHTML = tiles.map(([label, value, sub, tab = "trainers"]) =>
+    `<div class="tile ${tab}-only"><div class="tile-label">${esc(label)}</div><div class="tile-value">${esc(value)}</div><div class="tile-sub">${esc(sub)}</div></div>`).join("");
 }
 
 // ---------- Sortable tables ----------
@@ -624,7 +627,7 @@ function setStatsView(v) {
   document.querySelectorAll("#statsViewButtons button").forEach((b) => b.classList.toggle("on", b.dataset.sview === v));
   $("view-stats").classList.toggle("stats-mapmode", v === "map");
   $("statsMapCard").hidden = v !== "map";
-  if (v === "map" && MODEL && !$("view-stats").hidden) {
+  if (v === "map" && MODEL && statsTab() === "gyms") {
     ensureStatsMap();
     smap.invalidateSize();
     renderStatsMap();
@@ -637,7 +640,8 @@ function openClubInTable(key) {
   $("fCompany").value = c.company; renderFilters();
   $("fRegion").value = c.region; renderFilters();
   $("fClub").value = c.key; renderFilters();
-  setStatsView("table");
+  smapFit = true;
+  showView("trainers");
   renderAll();
   $("trainerTable").scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -696,14 +700,23 @@ $("statsRefresh").onclick = () => {
 };
 
 // ---------- Tabs ----------
+// "gyms" and "trainers" are two tabs over the same stats page (shared filters and data).
+const STATS_TABS = { gyms: "Gym stats", trainers: "Trainer stats" };
+const statsTab = () => (!$("view-stats").hidden && ["gyms", "trainers"].find((t) => $("view-stats").classList.contains(`mode-${t}`))) || "";
 function showView(name) {
   document.querySelectorAll("#tabs .tab").forEach((t) => t.setAttribute("aria-selected", t.dataset.view === name));
-  document.querySelectorAll(".view").forEach((v) => (v.hidden = v.id !== `view-${name}`));
+  const view = STATS_TABS[name] ? "stats" : name;
+  document.querySelectorAll(".view").forEach((v) => (v.hidden = v.id !== `view-${view}`));
+  Object.keys(STATS_TABS).forEach((t) => $("view-stats").classList.toggle(`mode-${t}`, t === name));
+  if (STATS_TABS[name]) $("statsTitle").textContent = STATS_TABS[name];
   pref("activeTab", name);
   document.dispatchEvent(new CustomEvent("viewchange", { detail: name }));
-  if (name === "stats" && statsView === "map") setStatsView("map");
+  if (name === "gyms" && statsView === "map") setStatsView("map");
 }
 document.querySelectorAll("#tabs .tab").forEach((t) => (t.onclick = () => showView(t.dataset.view)));
-if (pref("activeTab") === "stats") showView("stats");
+{
+  const saved = pref("activeTab") === "stats" ? "trainers" : pref("activeTab"); // "stats" = the old combined tab
+  if (STATS_TABS[saved]) showView(saved);
+}
 
 loadAllData();

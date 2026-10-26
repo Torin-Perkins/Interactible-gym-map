@@ -210,6 +210,8 @@ table.grid { width: 100%; border-collapse: collapse; font-size: 13px; }
 .view-toggle { display: flex; margin-bottom: 12px; }
 .view-toggle .seg { width: 220px; }
 .stats-mapmode .table-only { display: none; }
+/* Gym stats and Trainer stats tabs share one page; each shows only its own sections. */
+#view-stats.mode-gyms .trainers-only, #view-stats.mode-trainers .gyms-only { display: none !important; }
 .inline-field { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
 #statsMap { height: 560px; border-radius: 6px; border: 1px solid var(--line); margin-top: 8px; }
 .club-pop .trainers { max-height: 180px; overflow-y: auto; margin: 4px 0 0; padding-left: 0; list-style: none; font-size: 12px; }
