@@ -13,6 +13,7 @@
   <button type="button" role="tab" class="tab" data-view="map" aria-selected="true">Candidates &amp; trainer needs</button>
   <button type="button" role="tab" class="tab" data-view="gyms" aria-selected="false">Gym stats</button>
   <button type="button" role="tab" class="tab" data-view="trainers" aria-selected="false">Trainer stats</button>
+  <button type="button" role="tab" class="tab" data-view="rates" aria-selected="false">Rates <span aria-hidden="true">🔒</span></button>
 </nav>
 
 <div id="view-map" class="view">
@@ -169,10 +170,56 @@
   </div>
 </div>
 
+<div id="view-rates" class="view" hidden>
+  <div class="stats-wrap">
+    <header class="stats-head">
+      <div>
+        <h1>Rates</h1>
+        <p class="sub data-status"><span id="ratesStatus"></span></p>
+      </div>
+    </header>
+
+    <section class="card rates-lock" id="ratesLock">
+      <h2 id="ratesLockTitle">Rates are password protected</h2>
+      <p class="hint" id="ratesLockHint">Enter the rates password to view and edit trainer pay rates.</p>
+      <form id="ratesLockForm" autocomplete="off">
+        <label class="field">Password <input id="ratesPw" type="password" autocomplete="current-password" required></label>
+        <label class="field" id="ratesPw2Row" hidden>Confirm password <input id="ratesPw2" type="password" autocomplete="new-password"></label>
+        <button type="submit" id="ratesUnlock">Unlock</button>
+        <p class="status bad" id="ratesLockMsg"></p>
+      </form>
+    </section>
+
+    <section class="card" id="ratesCard" hidden>
+      <div class="card-head">
+        <h2>Trainer pay rates</h2>
+        <div class="card-tools">
+          <input id="rSearch" type="search" placeholder="Search">
+          <button id="rAdd" type="button">Add rate</button>
+          <button id="rExport" type="button" class="btn-secondary">Export CSV</button>
+          <label class="btn-secondary">Import CSV<input id="rImport" type="file" accept=".csv,text/csv" hidden></label>
+          <button id="rChangePw" type="button" class="btn-secondary">Change password</button>
+          <button id="rLock" type="button" class="btn-secondary">Lock</button>
+        </div>
+      </div>
+      <div class="db-bar">
+        <span id="rSaveStatus"></span>
+        <span id="rKeyRow" hidden><label>Edit key <input id="rKey" type="password" autocomplete="off"></label>
+          <button id="rKeySave" type="button">Save</button></span>
+      </div>
+      <p class="hint">Rates are encrypted with the password in your browser before they're saved, so the shared sheet only holds scrambled text.
+        Leave Trainer blank for a default rate that applies to everyone in that role. Changes save automatically.</p>
+      <div class="table-scroll"><table id="ratesTable" class="grid rates-grid"></table></div>
+      <datalist id="rTrainerList"></datalist>
+    </section>
+  </div>
+</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="data.js"></script>
 <script src="sources.js"></script>
 <script src="app.js"></script>
 <script src="stats.js"></script>
+<script src="rates.js"></script>
 </body>
 </html>
