@@ -28,3 +28,6 @@ URL stays the same.
 The **Rates** page stores its encrypted rates in a "Rates" tab of the same sheet (created on the first save).
 It needs the current `Code.gs`: if your deployment is older than the Rates page, paste in the new `Code.gs` and
 deploy a new version as above. Until then the Rates page says the Apps Script needs updating.
+
+The tracker also stores each trainer's **certification link** and **expiration date** (columns J and K of the
+Tracker tab, added automatically). This also needs the current `Code.gs` deployed as a new version.
