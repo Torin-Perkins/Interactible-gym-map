@@ -361,13 +361,13 @@ function renderTrainers() {
        <span class="cell-sub">${manual(t, "onboarded") ? byWho(t) : esc(t.onbSources.join(", ") || "not on onboarding sheet")}${resetLink(t, "onboarded")}</span>` },
     { key: "cert", label: "Cert on file", sort: (t) => +eff(t).cert, html: (t) =>
       `<label class="yn"><input type="checkbox" data-f="cert" ${eff(t).cert ? "checked" : ""}> ${eff(t).cert ? "Yes" : "No"}</label>
+       ${eff(t).certLink ? `<a class="cert-link" href="${esc(eff(t).certLink)}" target="_blank" rel="noopener">View cert ↗</a>` : ""}
        <span class="cell-sub">${manual(t, "cert") ? byWho(t) : esc(t.certText || t.certNote)}${resetLink(t, "cert")}</span>` },
     { key: "certExpires", label: "Cert expires<br><small>and link</small>", sort: (t) => eff(t).certExpires || null, html: (t) => {
       const e = eff(t), x = certExpiry(e.certExpires);
       return `<input type="date" class="cell-input${x ? " warn" : ""}" data-f="certExpires" value="${esc(e.certExpires)}" title="Certification expiration date">`
         + (x ? `<span class="tag ${x === "expired" ? "bad" : "warn"}">${x === "expired" ? "Expired" : "Expires soon"}</span>` : "")
-        + `<span class="cell-sub">${e.certLink ? `<a href="${esc(e.certLink)}" target="_blank" rel="noopener">View cert</a> · ` : ""}`
-        + `<button type="button" class="link" data-certlink>${e.certLink ? "change link" : "add link"}</button></span>`;
+        + `<span class="cell-sub"><button type="button" class="link" data-certlink>${e.certLink ? "change cert link" : "add cert link"}</button></span>`;
     } },
     { key: "lostSheep", label: "Lost sheep<br><small>last session with them</small>", num: true, sort: (t) => t.lostSheep, html: (t) =>
       `<span title="${esc(Object.entries(t.lostSheepClubs).map(([c, n]) => `${c}: ${n}`).join(", ") || "none on the lost sheep report")}">${fmtNum(t.lostSheep)}</span>` },
@@ -623,7 +623,7 @@ function clubPopup(c, n) {
   const of = (x) => `${x} / ${c.pts}`;
   const trainers = n.ts.slice().sort((a, b) => a.name.localeCompare(b.name)).map((t) => {
     const e = eff(t);
-    return `<li>${esc(t.name)} — ${yn(e.onboarded)} onboarded ${yn(e.cert)} cert${t.unlogged ? ` · ${fmtNum(t.unlogged, t.unlogged % 1 ? 1 : 0)} unlogged` : ""}</li>`;
+    return `<li>${esc(t.name)} — ${yn(e.onboarded)} onboarded ${yn(e.cert)} ${e.certLink ? `<a href="${esc(e.certLink)}" target="_blank" rel="noopener">cert</a>` : "cert"}${t.unlogged ? ` · ${fmtNum(t.unlogged, t.unlogged % 1 ? 1 : 0)} unlogged` : ""}</li>`;
   }).join("");
   return `<div class="club-pop"><b>${esc(c.club)}</b> <span class="muted">${esc([c.company, c.region].filter(Boolean).join(" · "))}</span>
     <div>${tagsHtml(c)}</div>
