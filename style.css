@@ -228,3 +228,23 @@ table.grid { width: 100%; border-collapse: collapse; font-size: 13px; }
   .card-tools input[type=search] { width: 100%; flex: 1 1 100%; }
   #statsMap { height: 420px; }
 }
+
+/* Rates tab */
+.rates-lock { max-width: 420px; margin: 40px auto; }
+.rates-lock form { flex-direction: column; gap: 4px; }
+.rates-lock .field input { flex: 1; max-width: 240px; }
+.rates-lock button[type=submit] { align-self: flex-start; margin-top: 10px; }
+.rates-lock .field input, .rates-grid input, .rates-grid select {
+  font: inherit; color: var(--fg); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 5px; padding: 5px 7px;
+}
+.rates-grid td { padding: 4px 6px; }
+.rates-grid input, .rates-grid select { width: 100%; min-width: 90px; box-sizing: border-box; }
+.rates-grid input[data-f=trainer] { min-width: 170px; }
+.rates-grid input[data-f=notes] { min-width: 200px; }
+.rates-grid input[data-f=rate] { min-width: 90px; text-align: right; }
+.rates-grid input:not(:focus):not(:hover), .rates-grid select:not(:focus):not(:hover) { border-color: transparent; background: transparent; }
+#rSaveStatus { font-weight: 600; color: var(--good); }
+#rSaveStatus.bad { color: var(--bad); }
+.db-bar #rKeyRow[hidden] { display: none; }
+button.btn-secondary { background: none; }

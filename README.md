@@ -82,6 +82,13 @@ small Apps Script web app (`apps-script/`, URL in `TRACKER_DB.url`), so everyone
 Location): each trainer's billing health = clients with status "Good" ÷ all their clients, matched by name within
 the same brand. Only the per-trainer percentages are saved; client names stay in the file.
 
+### Rates (password protected)
+The **Rates** tab holds trainer pay rates (per trainer, or a default for a role when Trainer is blank). The first
+person to open it sets the rates password. Rates are encrypted in the browser with that password (AES-256-GCM,
+key from PBKDF2-SHA-256) and only the ciphertext is saved, as a new row in the **Rates** tab of the tracker sheet
+each time, so older versions stay as history. The password isn't stored anywhere and can't be recovered: if it's
+lost, delete the rows in the Rates tab and set a new one. Saving also needs the tracker's `EDIT_KEY`, if one is set.
+
 ## Publish on GitHub Pages
 1. Repo **Settings → Pages → Source: GitHub Actions**.
 2. `.github/workflows/deploy.yml` deploys on every push to `main`, every 3 hours (to pick up new Drive files),

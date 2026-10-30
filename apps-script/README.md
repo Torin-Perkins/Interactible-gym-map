@@ -24,3 +24,7 @@ directly too; the page picks up changes on refresh.
 
 If you change `Code.gs` later, use **Deploy → Manage deployments → Edit → New version** so the
 URL stays the same.
+
+The **Rates** page stores its encrypted rates in a "Rates" tab of the same sheet (created on the first save).
+It needs the current `Code.gs`: if your deployment is older than the Rates page, paste in the new `Code.gs` and
+deploy a new version as above. Until then the Rates page says the Apps Script needs updating.

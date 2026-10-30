@@ -730,7 +730,7 @@ function showView(name) {
 document.querySelectorAll("#tabs .tab").forEach((t) => (t.onclick = () => showView(t.dataset.view)));
 {
   const saved = pref("activeTab") === "stats" ? "trainers" : pref("activeTab"); // "stats" = the old combined tab
-  if (STATS_TABS[saved]) showView(saved);
+  if (STATS_TABS[saved] || saved === "rates") showView(saved);
 }
 
 loadAllData();
