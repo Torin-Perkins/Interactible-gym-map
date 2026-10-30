@@ -248,3 +248,5 @@ table.grid { width: 100%; border-collapse: collapse; font-size: 13px; }
 #rSaveStatus.bad { color: var(--bad); }
 .db-bar #rKeyRow[hidden] { display: none; }
 button.btn-secondary { background: none; }
+.cell-input[type=date] { width: 135px; }
+.cert-link { display: inline-block; margin-left: 4px; font-size: 12px; font-weight: 600; white-space: nowrap; }

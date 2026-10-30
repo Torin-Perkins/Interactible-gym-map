@@ -14,7 +14,7 @@ function pref(k, v) {
 }
 function loadLocalTracker() { try { return JSON.parse(localStorage.getItem(TRACKER_KEY)) || {}; } catch { return {}; } }
 function saveLocalTracker() { try { localStorage.setItem(TRACKER_KEY, JSON.stringify(TRACKER)); } catch {} }
-let TRACKER = SHARED ? {} : loadLocalTracker(); // userId -> { onboarded, cert, billing, notes }
+let TRACKER = SHARED ? {} : loadLocalTracker(); // userId -> { onboarded, cert, billing, notes, certLink, certExpires }
 let TRACKER_META = {}; // userId -> { updated, by } from the shared sheet
 let MODEL = null;
 const sortState = { clubs: { key: "club", dir: 1 }, trainers: { key: "club", dir: 1 } };
@@ -102,7 +102,16 @@ function eff(t) {
     cert: r.cert ?? autoValue(t, "cert"),
     billing: r.billing ?? (t.adopt ? t.adopt.billing : null),
     notes: r.notes || "",
+    certLink: r.certLink || "",
+    certExpires: r.certExpires || "",
   };
+}
+// "expired" / "soon" (within CERT_SOON_DAYS) / "" for a YYYY-MM-DD expiry date.
+const CERT_SOON_DAYS = 60;
+function certExpiry(d) {
+  if (!d) return "";
+  const days = (new Date(`${d}T23:59:59`) - new Date()) / 864e5;
+  return days < 0 ? "expired" : days <= CERT_SOON_DAYS ? "soon" : "";
 }
 function setTracker(id, field, value) {
   const r = (TRACKER[id] ||= {});
@@ -134,6 +143,8 @@ async function dbLoad() {
     if (r.cert != null) x.cert = r.cert;
     if (r.billing != null) x.billing = r.billing;
     if (r.notes) x.notes = r.notes;
+    if (r.certLink) x.certLink = r.certLink;
+    if (r.certExpires) x.certExpires = r.certExpires;
     if (Object.keys(x).length) t[r.id] = x;
     meta[r.id] = { updated: r.updated, by: r.by };
   });
@@ -156,7 +167,8 @@ async function dbSave(byOverride) {
   const byId = new Map(MODEL.trainers.map((t) => [t.id, t]));
   const records = ids.map((id) => {
     const r = TRACKER[id] || {}, t = byId.get(id) || {};
-    return { id, name: t.name, club: t.club, onboarded: r.onboarded ?? null, cert: r.cert ?? null, billing: r.billing ?? null, notes: r.notes || "" };
+    return { id, name: t.name, club: t.club, onboarded: r.onboarded ?? null, cert: r.cert ?? null, billing: r.billing ?? null, notes: r.notes || "",
+      certLink: r.certLink || "", certExpires: r.certExpires || "" };
   });
   dbStatus("Saving…");
   try {
@@ -333,6 +345,7 @@ function renderTrainers() {
     const e = eff(t);
     if (show === "notOnboarded" && e.onboarded) return false;
     if (show === "noCert" && e.cert) return false;
+    if (show === "certExpiring" && !certExpiry(e.certExpires)) return false;
     if (show === "unlogged" && !(t.unlogged > 0)) return false;
     if (show === "lostSheep" && !(t.lostSheep > 0)) return false;
     return true;
@@ -348,7 +361,14 @@ function renderTrainers() {
        <span class="cell-sub">${manual(t, "onboarded") ? byWho(t) : esc(t.onbSources.join(", ") || "not on onboarding sheet")}${resetLink(t, "onboarded")}</span>` },
     { key: "cert", label: "Cert on file", sort: (t) => +eff(t).cert, html: (t) =>
       `<label class="yn"><input type="checkbox" data-f="cert" ${eff(t).cert ? "checked" : ""}> ${eff(t).cert ? "Yes" : "No"}</label>
+       ${eff(t).certLink ? `<a class="cert-link" href="${esc(eff(t).certLink)}" target="_blank" rel="noopener">View cert ↗</a>` : ""}
        <span class="cell-sub">${manual(t, "cert") ? byWho(t) : esc(t.certText || t.certNote)}${resetLink(t, "cert")}</span>` },
+    { key: "certExpires", label: "Cert expires<br><small>and link</small>", sort: (t) => eff(t).certExpires || null, html: (t) => {
+      const e = eff(t), x = certExpiry(e.certExpires);
+      return `<input type="date" class="cell-input${x ? " warn" : ""}" data-f="certExpires" value="${esc(e.certExpires)}" title="Certification expiration date">`
+        + (x ? `<span class="tag ${x === "expired" ? "bad" : "warn"}">${x === "expired" ? "Expired" : "Expires soon"}</span>` : "")
+        + `<span class="cell-sub"><button type="button" class="link" data-certlink>${e.certLink ? "change cert link" : "add cert link"}</button></span>`;
+    } },
     { key: "lostSheep", label: "Lost sheep<br><small>last session with them</small>", num: true, sort: (t) => t.lostSheep, html: (t) =>
       `<span title="${esc(Object.entries(t.lostSheepClubs).map(([c, n]) => `${c}: ${n}`).join(", ") || "none on the lost sheep report")}">${fmtNum(t.lostSheep)}</span>` },
     { key: "billing", label: "Billing health %", num: true, sort: (t) => eff(t).billing, html: (t) => {
@@ -378,6 +398,9 @@ $("trainerTable").addEventListener("change", (e) => {
     // Store an override only when it differs from the automatic value.
     setTracker(t.id, f, el.checked === autoValue(t, f) ? undefined : el.checked);
     renderTrainers();
+  } else if (el.type === "date") {
+    setTracker(t.id, f, el.value || undefined);
+    renderTrainers();
   } else if (el.type === "number") {
     setTracker(t.id, f, el.value === "" ? undefined : +el.value);
     if (f === "billing") el.classList.toggle("warn", eff(t).billing != null && eff(t).billing < 90);
@@ -387,6 +410,14 @@ $("trainerTable").addEventListener("change", (e) => {
   renderTiles();
 });
 $("trainerTable").addEventListener("click", (e) => {
+  if (e.target.closest("[data-certlink]")) {
+    const id = e.target.closest("tr").dataset.id;
+    const v = prompt("Link to this trainer's certification (e.g. its Google Drive link). Leave blank to remove it.", (TRACKER[id] || {}).certLink || "");
+    if (v === null) return;
+    if (v.trim() && !/^https:\/\//.test(v.trim())) return alert("The link should start with https://");
+    setTracker(id, "certLink", v.trim() || undefined);
+    return renderTrainers();
+  }
   const b = e.target.closest("[data-reset]");
   if (!b) return;
   setTracker(b.closest("tr").dataset.id, b.dataset.reset, undefined);
@@ -396,7 +427,7 @@ $("trainerTable").addEventListener("click", (e) => {
 
 // ---------- Export / import ----------
 const CSV_COLS = ["User ID", "Trainer", "Company", "Region", "Club", "Onboarded", "Onboarded via", "Cert on file", "Cert",
-  "Lost sheep", "Billing health %", "On app", "Client adoption %", "Avg unlogged sessions", "Notes"];
+  "Cert expires", "Cert link", "Lost sheep", "Billing health %", "On app", "Client adoption %", "Avg unlogged sessions", "Notes"];
 const csvCell = (v) => (/[",\n]/.test(String(v ?? "")) ? `"${String(v).replace(/"/g, '""')}"` : String(v ?? ""));
 
 $("exportBtn").onclick = () => {
@@ -405,7 +436,7 @@ $("exportBtn").onclick = () => {
     const e = eff(t);
     lines.push([t.id, t.name, t.company, t.region, t.club, e.onboarded ? "Yes" : "No",
       (TRACKER[t.id] || {}).onboarded !== undefined ? "set by hand" : t.onbSources.join("; "),
-      e.cert ? "Yes" : "No", t.certText || t.certNote, t.lostSheep ?? "", e.billing ?? "",
+      e.cert ? "Yes" : "No", t.certText || t.certNote, e.certExpires, e.certLink, t.lostSheep ?? "", e.billing ?? "",
       t.adopt ? (t.adopt.onApp ? "Yes" : "No") : "", t.adopt && t.adopt.adoption != null ? t.adopt.adoption : "",
       t.unlogged ?? "", e.notes].map(csvCell).join(","));
   });
@@ -437,6 +468,9 @@ $("importFile").onchange = async (ev) => {
     const bh = col("Billing health %"), nt = col("Notes");
     if (bh >= 0 && r[bh] !== "" && +r[bh] !== (t.adopt && t.adopt.billing)) setTracker(t.id, "billing", +r[bh]);
     if (nt >= 0 && r[nt]) setTracker(t.id, "notes", r[nt]);
+    const ce = col("Cert expires"), cl = col("Cert link");
+    if (ce >= 0 && /^\d{4}-\d{2}-\d{2}$/.test((r[ce] || "").trim())) setTracker(t.id, "certExpires", r[ce].trim());
+    if (cl >= 0 && /^https:\/\//.test((r[cl] || "").trim())) setTracker(t.id, "certLink", r[cl].trim());
     n++;
   });
   renderAll();
@@ -589,7 +623,7 @@ function clubPopup(c, n) {
   const of = (x) => `${x} / ${c.pts}`;
   const trainers = n.ts.slice().sort((a, b) => a.name.localeCompare(b.name)).map((t) => {
     const e = eff(t);
-    return `<li>${esc(t.name)} — ${yn(e.onboarded)} onboarded ${yn(e.cert)} cert${t.unlogged ? ` · ${fmtNum(t.unlogged, t.unlogged % 1 ? 1 : 0)} unlogged` : ""}</li>`;
+    return `<li>${esc(t.name)} — ${yn(e.onboarded)} onboarded ${yn(e.cert)} ${e.certLink ? `<a href="${esc(e.certLink)}" target="_blank" rel="noopener">cert</a>` : "cert"}${t.unlogged ? ` · ${fmtNum(t.unlogged, t.unlogged % 1 ? 1 : 0)} unlogged` : ""}</li>`;
   }).join("");
   return `<div class="club-pop"><b>${esc(c.club)}</b> <span class="muted">${esc([c.company, c.region].filter(Boolean).join(" · "))}</span>
     <div>${tagsHtml(c)}</div>

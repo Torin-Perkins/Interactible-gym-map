@@ -5,9 +5,9 @@
  * billing health, notes) in a "Tracker" tab of the Google Sheet this script is attached to.
  * The sheet itself can stay private: the web app runs as you and only exposes these two calls.
  *
- *   GET  <web app url>                -> { ok, records: [{ id, onboarded, cert, billing, notes, updated, by }] }
+ *   GET  <web app url>                -> { ok, records: [{ id, onboarded, cert, billing, notes, certLink, certExpires, updated, by }] }
  *   POST <web app url>  body (JSON as text/plain):
- *        { key, by, records: [{ id, name, club, onboarded, cert, billing, notes }] }
+ *        { key, by, records: [{ id, name, club, onboarded, cert, billing, notes, certLink, certExpires }] }
  *        Each record replaces that trainer's row; a blank / null value means "use the automatic value".
  *
  * Rates page (trainer pay rates): the page encrypts the rates with the rates password before
@@ -21,7 +21,7 @@
  */
 
 const TAB = "Tracker";
-const HEADERS = ["User ID", "Trainer", "Club", "Onboarded", "Cert on file", "Billing health %", "Notes", "Updated", "Updated by"];
+const HEADERS = ["User ID", "Trainer", "Club", "Onboarded", "Cert on file", "Billing health %", "Notes", "Updated", "Updated by", "Cert link", "Cert expires"];
 
 const RATES_TAB = "Rates";
 const RATES_HEADERS = ["Saved", "Saved by", "Encrypted rates"];
@@ -38,6 +38,8 @@ function doGet(e) {
     notes: String(r[6] || ""),
     updated: r[7] instanceof Date ? r[7].toISOString() : String(r[7] || ""),
     by: String(r[8] || ""),
+    certLink: String(r[9] || ""),
+    certExpires: dateText_(r[10]),
   }));
   return json_({ ok: true, records });
 }
@@ -72,8 +74,10 @@ function doPost(e) {
         rec.billing == null || rec.billing === "" || isNaN(rec.billing) ? "" : Number(rec.billing),
         String(rec.notes || "").slice(0, 2000),
         now, by,
+        /^https:\/\//.test(String(rec.certLink || "")) ? String(rec.certLink).slice(0, 500) : "",
+        /^\d{4}-\d{2}-\d{2}$/.test(String(rec.certExpires || "")) ? String(rec.certExpires) : "",
       ];
-      const empty = row[3] === "" && row[4] === "" && row[5] === "" && row[6] === "";
+      const empty = [3, 4, 5, 6, 9, 10].every((i) => row[i] === "");
       if (rowOf.has(id)) {
         sheet.getRange(rowOf.get(id), 1, 1, row.length).setValues([row]);
       } else if (!empty) {
@@ -97,7 +101,17 @@ function getSheet_() {
     sheet.setFrozenRows(1);
     sheet.getRange("A:A").setNumberFormat("@"); // keep User IDs as text
   }
+  // Columns added after the tab was first made (cert link, cert expires).
+  if (sheet.getLastColumn() < HEADERS.length) {
+    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+    sheet.getRange("K:K").setNumberFormat("@"); // keep expiry dates as YYYY-MM-DD text
+  }
   return sheet;
+}
+
+function dateText_(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), "yyyy-MM-dd");
+  return String(v || "");
 }
 
 function ratesSheet_() {
