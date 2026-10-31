@@ -5,9 +5,9 @@
 // Addresses come from lafitness.com / fitnessconnection.com / directory listings; approx: true =
 // coordinates estimated (Lighthouse gyms without a known street address sit at the town center).
 const BRANDS = {
-  GRIP: { label: "GRIP @ LA Fitness", color: "#d62828" },
-  Elevate: { label: "Elevate @ Fitness Connection", color: "#6a3fb5" },
-  Lighthouse: { label: "Lighthouse @ 10GYM", color: "#0b84a5" },
+  GRIP: { label: "GRIP @ LA Fitness", color: "#6a3fb5" },
+  Elevate: { label: "Elevate @ Fitness Connection", color: "#2b8a3e" },
+  Lighthouse: { label: "Lighthouse @ 10GYM", color: "#c8102e" },
 };
 
 const GYMS = [

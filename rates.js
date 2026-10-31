@@ -19,8 +19,17 @@ const ratesDirty = new Set(), ratesDeleted = new Set(); // row ids changed since
 let ratesTimer = null;
 
 // ---------- Encryption ----------
-const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+// The rates are gzipped before they're encrypted (v2) so a few hundred rows fit in one sheet cell
+// (50,000 characters). v1 blobs (not compressed) still open.
+function b64(buf) {
+  const bytes = new Uint8Array(buf);
+  let s = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
 const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+const gzip = (bytes, mode) => new Response(new Blob([bytes]).stream().pipeThrough(
+  mode === "in" ? new CompressionStream("gzip") : new DecompressionStream("gzip"))).arrayBuffer();
 async function deriveKey(pw, salt, iter = PBKDF2_ITER) {
   const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveKey"]);
   return crypto.subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt, iterations: iter }, base,
@@ -28,15 +37,17 @@ async function deriveKey(pw, salt, iter = PBKDF2_ITER) {
 }
 async function encryptRates(obj) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, ratesKey, new TextEncoder().encode(JSON.stringify(obj)));
-  return JSON.stringify({ v: 1, iter: PBKDF2_ITER, salt: b64(ratesSalt), iv: b64(iv), ct: b64(ct) });
+  const packed = await gzip(new TextEncoder().encode(JSON.stringify(obj)), "in");
+  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, ratesKey, packed);
+  return JSON.stringify({ v: 2, iter: PBKDF2_ITER, salt: b64(ratesSalt), iv: b64(iv), ct: b64(ct) });
 }
 // Throws on a wrong password (AES-GCM checks the data hasn't been tampered with, too).
 async function decryptRates(blob, pw) {
   const b = JSON.parse(blob);
   const salt = unb64(b.salt);
   const key = await deriveKey(pw, salt, b.iter);
-  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(b.iv) }, key, unb64(b.ct));
+  let pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(b.iv) }, key, unb64(b.ct));
+  if (b.v >= 2) pt = await gzip(pt, "out");
   return { data: JSON.parse(new TextDecoder().decode(pt)), key, salt };
 }
 
@@ -171,7 +182,12 @@ async function ratesSave() {
   const retry = () => { changed.forEach((id) => ratesDirty.add(id)); deleted.forEach((id) => ratesDeleted.add(id)); };
   ratesSaveStatus("Saving…");
   try {
-    const body = await ratesPost(await encryptRates(RATES));
+    const blob = await encryptRates(RATES);
+    if (blob.length > 45000) {
+      retry();
+      return ratesSaveStatus(`Too many rates to save in one sheet cell (${RATES.rows.length} rows). Delete some, or ask for the storage to be split.`, true);
+    }
+    const body = await ratesPost(blob);
     if (!body.ok) {
       retry();
       if (body.error === "conflict") return ratesMerge();
