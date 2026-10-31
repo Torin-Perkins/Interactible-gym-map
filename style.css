@@ -83,7 +83,7 @@ button:disabled { opacity: .5; cursor: default; }
 .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; color: var(--muted); font-size: 12px; }
 .legend span { display: inline-flex; align-items: center; gap: 4px; }
 .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-.dot.grip { background: #d62828; } .dot.elevate { background: #6a3fb5; }
+.dot.grip { background: #d62828; } .dot.elevate { background: #6a3fb5; } .dot.lighthouse { background: #0b84a5; }
 .muted { color: var(--muted); font-size: 12px; font-weight: normal; }
 .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; opacity: .7; }
 .gA { background: var(--gA); } .gB { background: var(--gB); } .gC { background: var(--gC); } .gN { background: var(--gN); }

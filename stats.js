@@ -538,7 +538,7 @@ function renderSources(data) {
     line("Drive folder", st.drive && st.drive.ok, data.drive
       ? `read ${esc(new Date(data.drive.generated).toLocaleString())} (re-read every 3 hours)${data.drive.errors.length ? ` · couldn't read: ${esc(data.drive.errors.join("; "))}` : ""}` : err("drive")),
     line("Staff lists", st.staff && st.staff.ok, data.staffFiles ? `${esc(data.staffFiles.join(", "))} · ${MODEL.trainers.length} active trainers` : err("staff")),
-    line("Club KPI sheets", st.kpis && st.kpis.ok, data.kpis ? `${data.kpis.length} clubs from the ${esc(Object.keys(STATS_SHEETS).join(" and "))} stats sheets` : err("kpis")),
+    line("Club KPI sheets", st.kpis && st.kpis.ok, data.kpis ? `${data.kpis.length} clubs from the ${esc(Object.keys(STATS_SHEETS).join(", ").replace(/, (?=[^,]*$)/, " and "))} stats sheets` : err("kpis")),
     line("Unlogged sessions", st.unlogged && st.unlogged.ok, ul ? ul.periods.map((p) =>
       `${esc(p.company)} ${esc(p.label)}: ${p.total} sessions across ${p.trainers} PTs`).join(" · ") || "no payroll comparison files" : err("unlogged")),
     line("Lost sheep reports", st.lostSheep && st.lostSheep.ok, data.lostSheep ? data.lostSheep.reports.map((r) =>
