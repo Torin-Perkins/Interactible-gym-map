@@ -1,10 +1,10 @@
 # USA PT Gym Map
 
-Internal map of every **GRIP (LA Fitness)** and **Elevate (Fitness Connection)** gym, with live per-gym stats,
+Internal map of every **GRIP (LA Fitness)**, **Elevate (Fitness Connection)** and **Lighthouse (10GYM)** gym, with live per-gym stats,
 staff counts, and the home areas of trainer candidates, plus **Gym stats** and **Trainer stats** tabs.
 
 ## Candidates & trainer needs tab
-- **Brand + region filters** — All / GRIP / Elevate, and a region dropdown that zooms to that region.
+- **Brand + region filters** — All / GRIP / Elevate / Lighthouse, and a region dropdown that zooms to that region.
 - **Per-gym stats** (popup): total clients, lost sheep (incl. prospects / non-prospect), lost sheep %,
   members with late amounts, billing health — latest value, change vs. previous report, and a trend sparkline.
 - **Color gyms by** a stat (red → green, scaled within each brand) or size them by clients / staff.

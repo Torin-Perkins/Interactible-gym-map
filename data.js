@@ -1,11 +1,13 @@
 // USA PT gym map data.
 //
-// GYMS: every GRIP (LA Fitness) and Elevate (Fitness Connection) gym. `name` must match the
-// gym's column header in the brand's stats sheet; `label` (optional) is the display name.
-// Addresses come from lafitness.com / fitnessconnection.com; approx: true = coordinates estimated.
+// GYMS: every GRIP (LA Fitness), Elevate (Fitness Connection) and Lighthouse (10GYM) gym. `name` must
+// match the gym's column header in the brand's stats sheet; `label` (optional) is the display name.
+// Addresses come from lafitness.com / fitnessconnection.com / directory listings; approx: true =
+// coordinates estimated (Lighthouse gyms without a known street address sit at the town center).
 const BRANDS = {
   GRIP: { label: "GRIP @ LA Fitness", color: "#d62828" },
   Elevate: { label: "Elevate @ Fitness Connection", color: "#6a3fb5" },
+  Lighthouse: { label: "Lighthouse @ 10GYM", color: "#0b84a5" },
 };
 
 const GYMS = [
@@ -101,6 +103,18 @@ const GYMS = [
   {"brand":  "GRIP", "region":  "Georgia", "name":  "Sugar Hill", "address":  "6025 Cumming Highway, Sugar Hill, GA 30518", "lat":  34.12198, "lng":  -84.07991},
   {"brand":  "GRIP", "region":  "Georgia", "name":  "Sugarloaf", "address":  "1860 Duluth Highway, Lawrenceville, GA 30043", "lat":  33.97639, "lng":  -84.0771},
   {"brand":  "GRIP", "region":  "Georgia", "name":  "Towne Lake", "address":  "2060 Eagle Drive, Woodstock, GA 30189", "lat":  34.11372, "lng":  -84.56691},
+  {"brand":  "Lighthouse", "region":  "OKC", "name":  "Edmond", "address":  "Edmond, OK", "lat":  35.6528, "lng":  -97.4781, "approx":  true},
+  {"brand":  "Lighthouse", "region":  "OKC", "name":  "Midwest City", "address":  "Midwest City, OK", "lat":  35.4495, "lng":  -97.3967, "approx":  true},
+  {"brand":  "Lighthouse", "region":  "OKC", "name":  "Norman", "address":  "Norman, OK", "lat":  35.2226, "lng":  -97.4395, "approx":  true},
+  {"brand":  "Lighthouse", "region":  "OKC", "name":  "Northwest OKC", "address":  "Northwest Oklahoma City, OK", "lat":  35.5648, "lng":  -97.6431, "approx":  true},
+  {"brand":  "Lighthouse", "region":  "OKC", "name":  "South OKC", "address":  "1020 SW 104th St, Oklahoma City, OK 73139", "lat":  35.3667, "lng":  -97.5302, "approx":  true},
+  {"brand":  "Lighthouse", "region":  "Tulsa", "name":  "Broken Arrow", "address":  "1800 S Aspen Ave, Broken Arrow, OK 74012", "lat":  36.0334, "lng":  -95.8172, "approx":  true},
+  {"brand":  "Lighthouse", "region":  "Tulsa", "name":  "East Tulsa", "address":  "9142 E 31st St, Tulsa, OK 74145", "lat":  36.1217, "lng":  -95.8781, "approx":  true},
+  {"brand":  "Lighthouse", "region":  "Tulsa", "name":  "Fort Smith", "address":  "Fort Smith, AR", "lat":  35.3859, "lng":  -94.3985, "approx":  true},
+  {"brand":  "Lighthouse", "region":  "Tulsa", "name":  "Jenks", "address":  "Jenks, OK", "lat":  36.0229, "lng":  -95.9683, "approx":  true},
+  {"brand":  "Lighthouse", "region":  "Tulsa", "name":  "Owasso", "address":  "507 E 2nd Ave, Owasso, OK 74055", "lat":  36.2696, "lng":  -95.8424, "approx":  true},
+  {"brand":  "Lighthouse", "region":  "Tulsa", "name":  "South Tulsa", "address":  "4818 E 80th St, Tulsa, OK 74136", "lat":  36.0472, "lng":  -95.9204, "approx":  true},
+  {"brand":  "Lighthouse", "region":  "Cleveland, TN", "name":  "LFM Cleveland, TN", "label":  "Cleveland, TN", "address":  "Cleveland, TN", "lat":  35.1595, "lng":  -84.8766, "approx":  true}
 ];
 
 // Live stats: one Google Sheet per brand, one tab per metric, a column per gym, a row per date.
@@ -108,6 +122,7 @@ const GYMS = [
 const STATS_SHEETS = {
   GRIP: "1G7bKW31ZsTMCzNmElXLPGSZ-eJWGodTNHxdEyO4UXOg",
   Elevate: "1L5dspQ716Qx0gF7hhq04PSapbMJ1FvhZPY6Ke-wYJqU",
+  Lighthouse: "1_P33PvF7JkLpeDrEIxohWzHoSZyqaI1ZT4ZOWiuIA74",
 };
 // better: "up" = higher is better, "down" = lower is better
 const METRICS = [

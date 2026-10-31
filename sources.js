@@ -50,9 +50,11 @@ async function fetchDriveData() {
 // ---------- Matching helpers ----------
 const norm = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "")
   .toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-const companyOf = (s) => (/elevate|fitness connection/i.test(s) ? "Elevate" : /grip|la fitness/i.test(s) ? "GRIP" : "Other");
-// "GRIP PT at LA Fitness - Roswell - Hwy 92 / Hardscrabble Road" -> "Roswell - Hwy 92 / Hardscrabble Road"
-const clubFromLocation = (loc) => String(loc).replace(/^.*?(fitness|connection)\s*-\s*/i, "").trim();
+const companyOf = (s) => (/elevate|fitness connection/i.test(s) ? "Elevate" : /grip|la fitness/i.test(s) ? "GRIP"
+  : /lighthouse|10gym|\blfm\b/i.test(s) ? "Lighthouse" : "Other");
+// "GRIP PT at LA Fitness - Roswell - Hwy 92 / Hardscrabble Road" -> "Roswell - Hwy 92 / Hardscrabble Road",
+// "Lighthouse at 10GYM - South OKC" -> "South OKC"
+const clubFromLocation = (loc) => String(loc).replace(/^.*?(fitness|connection|10gym)\s*-\s*/i, "").trim();
 const num = (v) => {
   if (typeof v === "number") return v;
   const s = String(v ?? "").replace(/[,%$\s]/g, "");
