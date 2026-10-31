@@ -34,7 +34,8 @@ body {
 
 /* Tabs */
 #tabs { display: flex; align-items: stretch; gap: 4px; padding: 0 12px; border-bottom: 1px solid var(--line); flex: none; overflow-x: auto; }
-#tabs .brand { font-weight: 700; align-self: center; margin-right: 12px; white-space: nowrap; }
+#tabs .brand { align-self: center; flex: none; display: flex; margin-right: 14px; padding: 4px 6px; background: #fff; border-radius: 6px; line-height: 0; }
+#tabs .brand img { height: 34px; width: auto; }
 #tabs .tab {
   background: none; color: var(--muted); border-radius: 0; padding: 12px 10px; white-space: nowrap;
   border-bottom: 3px solid transparent; font-weight: 600;
