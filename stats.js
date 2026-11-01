@@ -354,7 +354,8 @@ function renderTrainers() {
   const byWho = (t) => { const m = TRACKER_META[t.id]; return m && m.by ? `set by ${esc(m.by)}` : "set by hand"; };
   const resetLink = (t, f) => (manual(t, f) ? ` <button type="button" class="link reset" data-reset="${f}" title="Go back to the automatic value">reset</button>` : "");
   const cols = [
-    { key: "name", label: "Trainer", sort: (t) => t.name, html: (t) => `<b>${esc(t.name)}</b><span class="cell-sub">${esc(t.company)}</span>` },
+    { key: "name", label: "Trainer", sort: (t) => t.name, html: (t) => `<b>${esc(t.name)}</b><span class="cell-sub">${esc(t.company)}</span>`
+      + `<button type="button" class="graph-btn" data-graph title="Graph ${esc(t.name)}'s stats">Graph</button>` },
     { key: "club", label: "Club", sort: (t) => `${t.club}|${t.name}`, html: (t) => `${esc(t.club)}<span class="cell-sub">${esc(t.region)}</span>` },
     { key: "onboarded", label: "Onboarded", sort: (t) => +eff(t).onboarded, html: (t) =>
       `<label class="yn"><input type="checkbox" data-f="onboarded" ${eff(t).onboarded ? "checked" : ""}> ${eff(t).onboarded ? "Yes" : "No"}</label>
@@ -410,6 +411,7 @@ $("trainerTable").addEventListener("change", (e) => {
   renderTiles();
 });
 $("trainerTable").addEventListener("click", (e) => {
+  if (e.target.closest("[data-graph]")) return openTrainerGraph(e.target.closest("tr").dataset.id);
   if (e.target.closest("[data-certlink]")) {
     const id = e.target.closest("tr").dataset.id;
     const v = prompt("Link to this trainer's certification (e.g. its Google Drive link). Leave blank to remove it.", (TRACKER[id] || {}).certLink || "");
@@ -694,10 +696,198 @@ function openClubInTable(key) {
   $("trainerTable").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+// ---------- KPI trends (Gym stats) ----------
+// One small chart per KPI. With no filter, a line per brand; with a brand, region or club picked
+// (the filters at the top), one line for that scope. Counts are summed over the scope's clubs;
+// billing health is client-weighted; lost sheep % is total lost sheep ÷ total base, each club's base
+// worked out as its lost sheep ÷ its lost sheep % (the sheets' base isn't always total clients). A
+// report date is only plotted when at least 90% of the scope's clubs have it, so clubs added to a
+// sheet later (or a late report) don't make jumps or dips.
+let trendView = pref("trendView") === "table" ? "table" : "chart";
+const fmtMetric = (m) => (v, axis) => (m.pct ? fmtPct(v, axis && Number.isInteger(v) ? 0 : 1)
+  : axis && Math.abs(v) >= 1000 ? `${fmtNum(v / 1000, v % 1000 ? 1 : 0)}k` : fmtNum(v, Number.isInteger(v) ? 0 : 1));
+
+function scopeSeries(clubs, metric) {
+  const byDate = new Map(); // date -> { n, sum, lost, clients, wsum, w }
+  let clubsWith = 0;
+  clubs.forEach((c) => {
+    const s = c.kpi[metric];
+    if (!s || !s.length) return;
+    clubsWith++;
+    const clients = new Map((c.kpi.clients || []).map((p) => [+p.date, p.v]));
+    const lost = new Map((c.kpi.lost || []).map((p) => [+p.date, p.v]));
+    s.forEach((p) => {
+      const d = +p.date, x = byDate.get(d) || { n: 0, sum: 0, lost: 0, base: 0, wsum: 0, w: 0 };
+      x.n++; x.sum += p.v;
+      const cl = clients.get(d), ls = lost.get(d);
+      if (cl != null) { x.wsum += p.v * cl; x.w += cl; }
+      if (metric === "lostPct" && ls != null && p.v > 0) { x.lost += ls; x.base += ls / (p.v / 100); }
+      byDate.set(d, x);
+    });
+  });
+  if (!clubsWith) return [];
+  return [...byDate.entries()].sort((a, b) => a[0] - b[0])
+    .filter(([, x]) => x.n >= Math.ceil(clubsWith * 0.9))
+    .map(([d, x]) => {
+      let v = x.sum;
+      if (metric === "lostPct") v = x.base ? (x.lost / x.base) * 100 : x.sum / x.n;
+      else if (metric === "billing") v = x.w ? x.wsum / x.w : x.sum / x.n;
+      return { date: new Date(d), v };
+    });
+}
+
+function trendSeries(metric) {
+  const f = F(), days = +$("trRange").value;
+  const cut = days ? Date.now() - days * 864e5 : -Infinity;
+  const within = (pts) => pts.filter((p) => +p.date >= cut);
+  const clubs = MODEL.clubs.filter((c) => inFilter(c, f));
+  let out;
+  if (f.club) {
+    const c = clubs[0];
+    out = c ? [{ name: c.club, company: c.company, points: (c.kpi[metric] || []).slice() }] : [];
+  } else if (f.region || f.company) {
+    const co = f.company || (clubs[0] && clubs[0].company);
+    out = [{ name: f.region || co, company: co, points: scopeSeries(clubs, metric) }];
+  } else {
+    out = [...new Set(MODEL.clubs.map((c) => c.company))].filter((co) => BRAND_STYLE[co]).sort()
+      .map((co) => ({ name: co, company: co, points: scopeSeries(clubs.filter((c) => c.company === co), metric) }));
+  }
+  return out.map((s) => ({ ...s, points: within(s.points) })).filter((s) => s.points.length);
+}
+
+// When a combined line leaves out older reports that only some clubs have, say where to find them.
+function olderNote(clubs, f) {
+  if (f.club) return "";
+  const first = (cs) => Math.min(...cs.flatMap((c) => (c.kpi.clients || []).map((p) => +p.date)));
+  const notes = [...new Set(clubs.map((c) => c.company))].map((co) => {
+    const cs = clubs.filter((c) => c.company === co);
+    const plotted = scopeSeries(cs, "clients");
+    if (!plotted.length || first(cs) >= +plotted[0].date) return "";
+    const early = cs.filter((c) => (c.kpi.clients || []).some((p) => +p.date < +plotted[0].date));
+    return ` ${co} reports before ${fmtDate(plotted[0].date)} cover only ${early.length} of ${cs.length} clubs, so the combined line starts there. Pick ${f.region ? "a club" : "a region or club"} to see the earlier reports.`;
+  });
+  return notes.join("");
+}
+
+function renderTrends() {
+  const f = F();
+  const clubs = MODEL.clubs.filter((c) => inFilter(c, f) && Object.keys(c.kpi).length);
+  const club = f.club && MODEL.clubs.find((c) => c.key === f.club);
+  $("trScope").textContent = club ? `${club.club} (${club.company}${club.region ? ` · ${club.region}` : ""}). Pick "All" in the Club filter above to see the whole region or brand.`
+    : `${f.region || f.company || "Each brand"}: ${clubs.length} club${clubs.length === 1 ? "" : "s"} combined. Use the Company, Region and Club filters above to narrow it down.`
+      + (!f.company && !f.region ? " Brands have different amounts of history." : "") + olderNote(clubs, f);
+  document.querySelectorAll("#trView button").forEach((b) => b.classList.toggle("on", b.dataset.tv === trendView));
+  const grid = $("trendGrid");
+  grid.textContent = "";
+  METRICS.forEach((m) => {
+    const series = trendSeries(m.key), fmt = fmtMetric(m);
+    const card = document.createElement("div");
+    card.className = "trend";
+    const head = document.createElement("div");
+    head.className = "trend-head";
+    const title = document.createElement("h3");
+    title.textContent = m.label;
+    const better = document.createElement("span");
+    better.className = "cell-sub";
+    better.textContent = m.better === "up" ? "higher is better" : "lower is better";
+    head.append(title, better);
+    const body = document.createElement("div");
+    body.className = "trend-body";
+    card.append(head, body);
+    grid.appendChild(card);
+    if (trendView === "table") return trendTable(body, series, fmt);
+    lineChart(body, { series, fmt });
+  });
+}
+
+function trendTable(host, series, fmt) {
+  const dates = [...new Set(series.flatMap((s) => s.points.map((p) => +p.date)))].sort((a, b) => b - a);
+  if (!dates.length) { host.innerHTML = `<p class="chart-empty">No data for these filters.</p>`; return; }
+  const val = (s, d) => { const p = s.points.find((q) => +q.date === d); return p ? fmt(p.v) : "—"; };
+  host.innerHTML = `<div class="table-scroll trend-table"><table class="grid"><thead><tr><th>Date</th>${series.map((s) => `<th class="num">${esc(s.name)}</th>`).join("")}</tr></thead>
+    <tbody>${dates.map((d) => `<tr><td>${esc(fmtDate(new Date(d)))}</td>${series.map((s) => `<td class="num">${esc(val(s, d))}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+}
+
+$("trRange").onchange = renderTrends;
+document.querySelectorAll("#trView button").forEach((b) => (b.onclick = () => { trendView = b.dataset.tv; pref("trendView", trendView); renderTrends(); }));
+let trendResize = null;
+window.addEventListener("resize", () => {
+  clearTimeout(trendResize);
+  trendResize = setTimeout(() => {
+    if (MODEL && statsTab() === "gyms") renderTrends();
+    if ($("trainerDialog").open) openTrainerGraph($("trainerDialog").dataset.id);
+  }, 150);
+});
+document.addEventListener("viewchange", (e) => { if (e.detail === "gyms" && MODEL) renderTrends(); });
+
+// ---------- Trainer graph (Trainer stats) ----------
+// A trainer's numbers next to their club's and brand's trainer averages.
+function openTrainerGraph(id) {
+  const t = MODEL.trainers.find((x) => x.id === id);
+  if (!t) return;
+  const dlg = $("trainerDialog");
+  dlg.dataset.id = id;
+  $("tdName").textContent = t.name;
+  const e = eff(t);
+  $("tdSub").textContent = `${t.club} · ${t.company}${t.region ? ` · ${t.region}` : ""} · ${e.onboarded ? "onboarded" : "not onboarded"} · ${e.cert ? "cert on file" : "no cert on file"}`
+    + (e.certExpires ? ` (expires ${new Date(`${e.certExpires}T12:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })})` : "");
+  $("tdSelfKey").style.background = styleFor(t.company).color;
+  const club = MODEL.trainers.filter((x) => x.key === t.key), brand = MODEL.trainers.filter((x) => x.company === t.company);
+  const avg = (ts, get) => mean(ts.map(get).filter((v) => v != null && !isNaN(v)));
+  const metrics = [
+    { label: "Lost sheep", sub: "last session with them · fewer is better", get: (x) => x.lostSheep, fmt: (v) => fmtNum(v, Math.abs(v - Math.round(v)) < 0.05 ? 0 : 1) },
+    { label: "Billing health", sub: "% of their clients in good standing", get: (x) => eff(x).billing, fmt: (v) => fmtPct(v) },
+    { label: "Unlogged sessions", sub: "average per pay period · fewer is better", get: (x) => x.unlogged, fmt: (v) => fmtNum(v, Math.abs(v - Math.round(v)) < 0.05 ? 0 : 1) },
+    { label: "Client app adoption", sub: "% of their clients on the app", get: (x) => (x.adopt ? x.adopt.adoption : null), fmt: (v) => fmtPct(v, 0) },
+    { label: "Workout completion", sub: "% of assigned workouts completed in the app", get: (x) => (x.adopt ? x.adopt.completion : null), fmt: (v) => fmtPct(v, 0) },
+  ];
+  const body = $("tdBody");
+  body.textContent = "";
+  if (!dlg.open) dlg.showModal();
+  metrics.forEach((m) => {
+    const box = document.createElement("div");
+    box.className = "trend";
+    const head = document.createElement("div");
+    head.className = "trend-head";
+    const h = document.createElement("h3");
+    h.textContent = m.label;
+    const s = document.createElement("span");
+    s.className = "cell-sub";
+    s.textContent = m.sub;
+    head.append(h, s);
+    const chart = document.createElement("div");
+    box.append(head, chart);
+    body.appendChild(box);
+    compareBars(chart, { company: t.company, fmt: m.fmt, rows: [
+      { label: "This trainer", v: m.get(t), kind: "self" },
+      { label: "Club avg", v: avg(club, m.get), kind: "club" },
+      { label: `${t.company} avg`, v: avg(brand, m.get), kind: "brand" },
+    ] });
+    if (m.get(t) == null && chart.querySelector("svg")) {
+      const note = document.createElement("p");
+      note.className = "chart-empty";
+      note.textContent = "No data for this trainer yet.";
+      box.appendChild(note);
+    }
+  });
+  // Unlogged sessions per pay period, when there's more than one period.
+  const periods = Object.entries(t.unloggedPeriods || {});
+  if (periods.length > 1) {
+    const box = document.createElement("div");
+    box.className = "trend";
+    box.innerHTML = `<div class="trend-head"><h3>Unlogged sessions by pay period</h3><span class="cell-sub">this trainer</span></div><div></div>`;
+    body.appendChild(box);
+    compareBars(box.lastChild, { company: t.company, fmt: (v) => fmtNum(v), rows: periods.map(([p, n]) => ({ label: p, v: n, kind: "self" })) });
+  }
+}
+$("tdClose").onclick = () => $("trainerDialog").close();
+$("trainerDialog").addEventListener("click", (e) => { if (e.target === $("trainerDialog")) $("trainerDialog").close(); });
+
 // ---------- Render ----------
 function renderAll() {
   if (!MODEL) return;
   renderTiles();
+  if (statsTab() === "gyms") renderTrends();
   renderClubs();
   renderTrainers();
   if (statsView === "map") setStatsView("map");

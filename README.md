@@ -73,6 +73,13 @@ Browsers can't download Drive files or list a folder without an API key, so the 
 `scripts/build_drive_data.py` to read the folder into `drive-data.json`. That file keeps only names, clubs, job
 titles and session differences (no emails, phones or addresses) and is published with the site, never committed.
 
+### KPI trends and trainer graphs
+**Gym stats** has a chart per KPI (clients, lost sheep, lost sheep %, late amounts, billing health). With no
+filter it shows one line per brand; the Company / Region / Club filters narrow it to one line for that scope
+(counts summed, billing health client-weighted, lost sheep % recomputed from each club's own base). A Range picker
+and a Table view are next to it. On **Trainer stats**, each trainer's **Graph** button compares them with their
+club's and brand's trainer averages (lost sheep, billing health, unlogged sessions, app adoption and completion).
+
 ### Shared tracker database
 Onboarded / cert overrides, billing health and notes typed into the tracker save to a Google Sheet through a
 small Apps Script web app (`apps-script/`, URL in `TRACKER_DB.url`), so everyone sees the same data. Set an
