@@ -104,6 +104,25 @@
 
     <div id="tiles" class="tiles"></div>
 
+    <section class="card gyms-only" id="trendsCard">
+      <div class="card-head">
+        <h2>KPI trends</h2>
+        <div class="card-tools">
+          <label class="inline-field">Range <select id="trRange">
+            <option value="">All reports</option>
+            <option value="84">Last 12 weeks</option>
+            <option value="28">Last 4 weeks</option>
+          </select></label>
+          <div id="trView" class="seg">
+            <button type="button" data-tv="chart" class="on">Chart</button>
+            <button type="button" data-tv="table">Table</button>
+          </div>
+        </div>
+      </div>
+      <p class="hint" id="trScope"></p>
+      <div id="trendGrid" class="trend-grid"></div>
+    </section>
+
     <div class="view-toggle gyms-only">
       <div id="statsViewButtons" class="seg">
         <button type="button" data-sview="table" class="on">Table</button>
@@ -218,10 +237,24 @@
   </div>
 </div>
 
+<dialog id="trainerDialog" class="chart-dialog" aria-labelledby="tdName">
+  <div class="dlg-head">
+    <div><h2 id="tdName"></h2><p class="sub" id="tdSub"></p></div>
+    <button type="button" id="tdClose" class="btn-secondary">Close</button>
+  </div>
+  <div class="legend td-legend">
+    <span><i class="sw" id="tdSelfKey"></i>This trainer</span>
+    <span><i class="sw" style="background:var(--series-neutral)"></i>Club average</span>
+    <span><i class="sw" style="background:var(--series-neutral-2)"></i>Brand average</span>
+  </div>
+  <div id="tdBody" class="td-grid"></div>
+</dialog>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="data.js"></script>
 <script src="sources.js"></script>
 <script src="app.js"></script>
+<script src="charts.js"></script>
 <script src="stats.js"></script>
 <script src="rates.js"></script>
 </body>
