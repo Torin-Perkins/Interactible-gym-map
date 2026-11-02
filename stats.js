@@ -57,7 +57,7 @@ function buildModel(data) {
     const lost = ls && ls.index[s.company] && lookupName(ls.index[s.company], s.name);
     const hasLostReport = ls && ls.reports.some((r) => r.company === s.company);
     return {
-      id: s.id, name: s.name, club: s.club, company: s.company, key,
+      id: s.id, name: s.name, club: s.club, company: s.company, key, hired: s.hired,
       onbSources: [onb && "onboarding sheet", ...certSources.map((x) => `cert on ${x}`)].filter(Boolean),
       certText: (certRow && (certRow.detail || "on cert list")) || (onb && onb.certUploaded && "uploaded on onboarding form")
         || (adopt && adopt.cert) || "",
@@ -90,6 +90,14 @@ function buildModel(data) {
     c.unloggedTotal = withU.length ? withU.reduce((sum, t) => sum + t.unlogged, 0) : null;
   });
   return { data, trainers, clubs: [...clubs.values()] };
+}
+
+// Hire date ("YYYY-MM-DD", the staff list's "date added") and time since.
+const fmtHired = (d) => new Date(`${d}T12:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+function tenure(d) {
+  const months = Math.floor((Date.now() - new Date(`${d}T12:00`)) / (30.44 * 864e5));
+  if (months < 1) return "new this month";
+  return months < 12 ? `${months} mo` : `${Math.floor(months / 12)} yr${months % 12 ? ` ${months % 12} mo` : ""}`;
 }
 
 // Effective values: a manual entry wins over the automatic one.
@@ -348,6 +356,7 @@ function renderTrainers() {
     if (show === "certExpiring" && !certExpiry(e.certExpires)) return false;
     if (show === "unlogged" && !(t.unlogged > 0)) return false;
     if (show === "lostSheep" && !(t.lostSheep > 0)) return false;
+    if (show === "newHires" && !(t.hired && Date.now() - new Date(`${t.hired}T12:00`) <= 90 * 864e5)) return false;
     return true;
   });
   const manual = (t, f) => (TRACKER[t.id] || {})[f] !== undefined;
@@ -356,6 +365,8 @@ function renderTrainers() {
   const cols = [
     { key: "name", label: "Trainer", sort: (t) => t.name, html: (t) => `<b>${esc(t.name)}</b><span class="cell-sub">${esc(t.company)}</span>`
       + `<button type="button" class="graph-btn" data-graph title="Graph ${esc(t.name)}'s stats">Graph</button>` },
+    { key: "hired", label: "Hired", sort: (t) => t.hired || null, html: (t) => (t.hired
+      ? `<span class="nowrap">${esc(fmtHired(t.hired))}</span><span class="cell-sub">${esc(tenure(t.hired))}</span>` : `<span class="cell-sub">not on staff list</span>`) },
     { key: "club", label: "Club", sort: (t) => `${t.club}|${t.name}`, html: (t) => `${esc(t.club)}<span class="cell-sub">${esc(t.region)}</span>` },
     { key: "onboarded", label: "Onboarded", sort: (t) => +eff(t).onboarded, html: (t) =>
       `<label class="yn"><input type="checkbox" data-f="onboarded" ${eff(t).onboarded ? "checked" : ""}> ${eff(t).onboarded ? "Yes" : "No"}</label>
@@ -428,7 +439,7 @@ $("trainerTable").addEventListener("click", (e) => {
 });
 
 // ---------- Export / import ----------
-const CSV_COLS = ["User ID", "Trainer", "Company", "Region", "Club", "Onboarded", "Onboarded via", "Cert on file", "Cert",
+const CSV_COLS = ["User ID", "Trainer", "Hire date", "Company", "Region", "Club", "Onboarded", "Onboarded via", "Cert on file", "Cert",
   "Cert expires", "Cert link", "Lost sheep", "Billing health %", "On app", "Client adoption %", "Avg unlogged sessions", "Notes"];
 const csvCell = (v) => (/[",\n]/.test(String(v ?? "")) ? `"${String(v).replace(/"/g, '""')}"` : String(v ?? ""));
 
@@ -436,7 +447,7 @@ $("exportBtn").onclick = () => {
   const lines = [CSV_COLS.join(",")];
   MODEL.trainers.slice().sort((a, b) => a.club.localeCompare(b.club) || a.name.localeCompare(b.name)).forEach((t) => {
     const e = eff(t);
-    lines.push([t.id, t.name, t.company, t.region, t.club, e.onboarded ? "Yes" : "No",
+    lines.push([t.id, t.name, t.hired, t.company, t.region, t.club, e.onboarded ? "Yes" : "No",
       (TRACKER[t.id] || {}).onboarded !== undefined ? "set by hand" : t.onbSources.join("; "),
       e.cert ? "Yes" : "No", t.certText || t.certNote, e.certExpires, e.certLink, t.lostSheep ?? "", e.billing ?? "",
       t.adopt ? (t.adopt.onApp ? "Yes" : "No") : "", t.adopt && t.adopt.adoption != null ? t.adopt.adoption : "",
@@ -829,7 +840,7 @@ function openTrainerGraph(id) {
   dlg.dataset.id = id;
   $("tdName").textContent = t.name;
   const e = eff(t);
-  $("tdSub").textContent = `${t.club} · ${t.company}${t.region ? ` · ${t.region}` : ""} · ${e.onboarded ? "onboarded" : "not onboarded"} · ${e.cert ? "cert on file" : "no cert on file"}`
+  $("tdSub").textContent = `${t.club} · ${t.company}${t.region ? ` · ${t.region}` : ""}${t.hired ? ` · hired ${fmtHired(t.hired)} (${tenure(t.hired)})` : ""} · ${e.onboarded ? "onboarded" : "not onboarded"} · ${e.cert ? "cert on file" : "no cert on file"}`
     + (e.certExpires ? ` (expires ${new Date(`${e.certExpires}T12:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })})` : "");
   $("tdSelfKey").style.background = styleFor(t.company).color;
   const club = MODEL.trainers.filter((x) => x.key === t.key), brand = MODEL.trainers.filter((x) => x.company === t.company);

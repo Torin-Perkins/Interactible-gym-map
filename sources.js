@@ -102,6 +102,7 @@ function loadStaff(drive) {
     name: `${r.first} ${r.last}`.trim(),
     club: clubFromLocation(r.location), company: companyOf(r.location || r.file),
     role: staffRole(r.type), terminated: /terminated/i.test(r.type), file: r.file,
+    hired: r.hired || "", // YYYY-MM-DD, the staff list's "date added"
   }));
   if (!staff.length) throw new Error("No staff list files found in the Drive folder");
   return { staff, files: drive.staffFiles };
