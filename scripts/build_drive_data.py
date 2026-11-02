@@ -8,11 +8,14 @@ emails, phones, addresses or birthdays), the per-trainer session differences fro
 payroll comparisons, and per-trainer lost sheep counts (no client names). Google Sheets (stats, adoption) are read live by the page instead.
 
 Usage: python scripts/build_drive_data.py [output path]
+       python scripts/build_drive_data.py --app-clients <billing health .csv>   (updates app-clients.json)
 Needs: pip install xlrd openpyxl
 """
+import csv
 import html
 import io
 import json
+import os
 import re
 import sys
 import urllib.request
@@ -179,10 +182,36 @@ def read_lost_sheep(f):
             "rows": [{"trainer": t, "location": loc, "count": n} for (t, loc), n in sorted(counts.items())]}
 
 
+APP_CLIENTS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "app-clients.json")
+
+
+def count_app_clients(csv_text, name):
+    """Billing health export (Client Name, Trainer, Status, ..., Location): one row per client billed
+    through the app. Keeps only the number of clients per trainer per brand, never client names."""
+    rows = list(csv.DictReader(io.StringIO(csv_text.lstrip("\ufeff"))))
+    counts = {}
+    for r in rows:
+        trainer = (r.get("Trainer") or "").strip()
+        loc = (r.get("Location") or "").strip()
+        if not trainer or trainer.lower() == "unassigned" or not loc:
+            continue
+        key = (loc.split()[0], trainer)  # "GRIP Cumming" -> brand "GRIP"
+        counts[key] = counts.get(key, 0) + 1
+    return {"file": name, "total": len(rows),
+            "rows": [{"company": c, "trainer": t, "clients": n} for (c, t), n in sorted(counts.items())]}
+
+
 def main():
+    if len(sys.argv) > 2 and sys.argv[1] == "--app-clients":
+        with open(sys.argv[2], encoding="utf-8-sig") as fh:
+            counts = count_app_clients(fh.read(), os.path.basename(sys.argv[2]))
+        with open(APP_CLIENTS_FILE, "w", encoding="utf-8") as fh:
+            json.dump(counts, fh, indent=1)
+        print(f"Wrote app-clients.json: {len(counts['rows'])} trainers from {counts['total']} clients")
+        return
     out = sys.argv[1] if len(sys.argv) > 1 else "drive-data.json"
     files = list_folder(ROOT_FOLDER, [])
-    staff, unlogged, lost_sheep, errors = [], [], [], []
+    staff, unlogged, lost_sheep, errors, billing_files = [], [], [], [], []
     for f in files:
         if f["kind"] != "file":
             continue
@@ -193,6 +222,8 @@ def main():
                 u = read_unlogged(f)
                 if u:
                     unlogged.append(u)
+            elif re.search(r"billing health", f["folder"], re.I) and f["name"].lower().endswith(".csv"):
+                billing_files.append(f)
             elif re.search(r"lost sheep", f["folder"], re.I):
                 ls = read_lost_sheep(f)
                 if ls:
@@ -200,6 +231,17 @@ def main():
         except Exception as e:  # keep going; the page shows what failed
             errors.append(f"{f['name']}: {e}")
             print("ERROR", f["name"], e, file=sys.stderr)
+    # Clients on the app per trainer: the newest export in a "Billing Health" Drive folder, else the
+    # counts committed in app-clients.json.
+    app_clients = None
+    for f in sorted(billing_files, key=lambda f: f["name"], reverse=True)[:1]:
+        try:
+            app_clients = count_app_clients(get(f"https://drive.usercontent.google.com/download?id={f['id']}&export=download"), f["name"])
+        except Exception as e:
+            errors.append(f"{f['name']}: {e}")
+    if app_clients is None and os.path.exists(APP_CLIENTS_FILE):
+        with open(APP_CLIENTS_FILE, encoding="utf-8") as fh:
+            app_clients = json.load(fh)
     data = {
         "generated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "folder": ROOT_FOLDER,
@@ -207,6 +249,7 @@ def main():
         "staff": staff,
         "unlogged": unlogged,
         "lostSheep": lost_sheep,
+        "appClients": app_clients,
         "errors": errors,
     }
     with open(out, "w", encoding="utf-8") as fh:

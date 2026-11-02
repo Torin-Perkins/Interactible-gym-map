@@ -184,13 +184,17 @@ async function loadAdoption() {
   return failed.length ? failed[0].reason.message : "";
 }
 
+// Trainers / clients on the app per gym from the Trainer stats tab (billing health export ÷ the
+// sheet's total clients), when it's loaded; workout completion stays from the sheet.
+let CLUB_APP = null;
+document.addEventListener("clubadoption", (e) => { CLUB_APP = e.detail; renderAll(); });
 const adoptionPct = (g) => {
-  const a = g.adoption;
-  if (!a) return { trainer: null, client: null, completion: null };
+  const a = g.adoption, o = CLUB_APP && CLUB_APP[`${g.brand}|${g.name}`];
+  if (!a && !o) return { trainer: null, client: null, completion: null };
   return {
-    trainer: a.trainers ? a.onApp / a.trainers : null,
-    client: a.total ? a.inApp / a.total : null,
-    completion: a.completionN ? a.completionSum / a.completionN : null,
+    trainer: o ? (o.trainers ? o.onApp / o.trainers : null) : a.trainers ? a.onApp / a.trainers : null,
+    client: o ? (o.total ? o.inApp / o.total : null) : a.total ? a.inApp / a.total : null,
+    completion: a && a.completionN ? a.completionSum / a.completionN : null,
   };
 };
 
@@ -271,11 +275,13 @@ function gymPopup(g) {
     : `<div class="section-title">Need for a new trainer</div><div class="muted">No payroll data for this club.</div>`;
 
   const ad = adoptionPct(g);
-  const adoptHtml = g.adoption
+  const o = CLUB_APP && CLUB_APP[`${g.brand}|${g.name}`];
+  const counts = o || g.adoption;
+  const adoptHtml = counts
     ? `<div class="section-title">App adoption</div>
        <table class="stats">
-         <tr><td>Trainers on the app</td><td class="num">${g.adoption.onApp}/${g.adoption.trainers}</td><td class="num">${pct0(ad.trainer)}</td><td>${bar(ad.trainer)}</td></tr>
-         <tr><td>Clients on the app</td><td class="num">${Math.round(g.adoption.inApp)}/${Math.round(g.adoption.total)}</td><td class="num">${pct0(ad.client)}</td><td>${bar(ad.client)}</td></tr>
+         <tr><td>Trainers on the app</td><td class="num">${counts.onApp}/${counts.trainers}</td><td class="num">${pct0(ad.trainer)}</td><td>${bar(ad.trainer)}</td></tr>
+         <tr><td>Clients on the app</td><td class="num">${Math.round(counts.inApp)}/${Math.round(counts.total)}</td><td class="num">${pct0(ad.client)}</td><td>${bar(ad.client)}</td></tr>
          <tr><td>Avg. profile completion</td><td></td><td class="num">${pct0(ad.completion)}</td><td>${bar(ad.completion)}</td></tr>
        </table>`
     : `<div class="section-title">App adoption</div><div class="muted">Not in the adoption sheet.</div>`;

@@ -73,6 +73,14 @@ Browsers can't download Drive files or list a folder without an API key, so the 
 `scripts/build_drive_data.py` to read the folder into `drive-data.json`. That file keeps only names, clubs, job
 titles and session differences (no emails, phones or addresses) and is published with the site, never committed.
 
+### App adoption
+Each trainer's client app adoption = their clients in the latest **billing health export** (one row per client
+billed through the app) ÷ their *Total Clients #* on the app adoption sheet, capped at 100%. Workout completion
+still comes from the adoption sheet. Drop new exports (CSV) into a **Billing Health** folder in the Drive data
+folder and the deploy picks up the newest one; without it, the per-trainer counts in `app-clients.json` are used
+(`python scripts/build_drive_data.py --app-clients <export.csv>` refreshes that file; it keeps counts only, no
+client names).
+
 ### KPI trends and trainer graphs
 **Gym stats** has a chart per KPI (clients, lost sheep, lost sheep %, late amounts, billing health). With no
 filter it shows one line per brand; the Company / Region / Club filters narrow it to one line for that scope
