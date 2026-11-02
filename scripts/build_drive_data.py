@@ -3,7 +3,7 @@
 Google blocks browsers from downloading Drive files cross-site and from listing folders
 without an API key, so the deploy workflow runs this every few hours instead and ships the
 result with the site. It uses only the public "Anyone with the link" views (no credentials)
-and keeps just what the page needs: names, clubs and job titles from the staff lists (no
+and keeps just what the page needs: names, clubs, job titles and hire dates from the staff lists (no
 emails, phones, addresses or birthdays), the per-trainer session differences from the
 payroll comparisons, and per-trainer lost sheep counts (no client names). Google Sheets (stats, adoption) are read live by the page instead.
 
@@ -16,7 +16,7 @@ import json
 import re
 import sys
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import openpyxl
 import xlrd
@@ -81,6 +81,16 @@ def number(v):
         return 0.0
 
 
+def iso_date(v):
+    """Excel date serial, datetime or M/D/YYYY text -> "YYYY-MM-DD" ("" if blank or unreadable)."""
+    if isinstance(v, datetime):
+        return v.strftime("%Y-%m-%d")
+    if isinstance(v, (int, float)) and 20000 < v < 80000:
+        return (datetime(1899, 12, 30) + timedelta(days=float(v))).strftime("%Y-%m-%d")
+    m = re.match(r"(\d{1,2})/(\d{1,2})/(\d{4})", text(v))
+    return f"{m.group(3)}-{int(m.group(1)):02d}-{int(m.group(2)):02d}" if m else ""
+
+
 def header_index(rows, first_col):
     for i, r in enumerate(rows):
         if any(text(v).lower() == first_col for v in r):
@@ -95,6 +105,7 @@ def read_staff(f):
     if hi is None:
         return []
     c = {k: h.index(k) for k in ("userid", "firstname", "lastname", "location", "employee type")}
+    added = h.index("dateadded") if "dateadded" in h else None  # date added to the system ~ hire date
     out = []
     for r in rows[hi + 1:]:
         typ = text(r[c["employee type"]])
@@ -103,6 +114,7 @@ def read_staff(f):
         out.append({
             "id": text(r[c["userid"]]), "first": text(r[c["firstname"]]), "last": text(r[c["lastname"]]),
             "location": text(r[c["location"]]), "type": typ, "file": f["name"],
+            "hired": iso_date(r[added]) if added is not None else "",
         })
     return out
 
