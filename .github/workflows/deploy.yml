@@ -30,12 +30,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install xlrd==2.0.2 openpyxl==3.1.5
+      - run: pip install xlrd==2.0.2 openpyxl==3.1.5 cryptography==43.0.3
+      # RATES_PASSWORD (repo secret) = the Rates page password; it encrypts contacts.enc.json.
       - run: python scripts/build_drive_data.py drive-data.json
+        env:
+          RATES_PASSWORD: ${{ secrets.RATES_PASSWORD }}
       - name: Collect site files
         run: |
           mkdir _site
           cp index.html style.css data.js sources.js app.js charts.js stats.js rates.js usapt-logo.png drive-data.json _site/
+          if [ -f contacts.enc.json ]; then cp contacts.enc.json _site/; fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

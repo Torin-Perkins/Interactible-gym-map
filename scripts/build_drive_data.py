@@ -4,14 +4,17 @@ Google blocks browsers from downloading Drive files cross-site and from listing 
 without an API key, so the deploy workflow runs this every few hours instead and ships the
 result with the site. It uses only the public "Anyone with the link" views (no credentials)
 and keeps just what the page needs: names, clubs, job titles and hire dates from the staff lists (no
-emails, phones, addresses or birthdays), the per-trainer session differences from the
+emails, phones, addresses or birthdays; emails and phone numbers go only into contacts.enc.json,
+encrypted with the rates password), the per-trainer session differences from the
 payroll comparisons, and per-trainer lost sheep counts (no client names). Google Sheets (stats, adoption) are read live by the page instead.
 
 Usage: python scripts/build_drive_data.py [output path]
        python scripts/build_drive_data.py --app-clients <billing health .csv>   (updates app-clients.json)
 Needs: pip install xlrd openpyxl
 """
+import base64
 import csv
+import gzip
 import html
 import io
 import json
@@ -101,12 +104,24 @@ def header_index(rows, first_col):
     return None, None
 
 
-def read_staff(f):
+def read_staff(f, contacts=None):
+    """Trainers and fitness managers for drive-data.json. When `contacts` is a list, every active
+    staff member's email and phone numbers are added to it too (for the encrypted contacts file)."""
     sheets = read_workbook(f["id"], f["name"])
     rows = next(iter(sheets.values()))
     hi, h = header_index(rows, "userid")
     if hi is None:
         return []
+    if contacts is not None:
+        col = lambda k: h.index(k) if k in h else None
+        cc = {k: col(k) for k in ("userid", "firstname", "lastname", "location", "employee type", "email", "cell phone", "home phone")}
+        g = lambda r, k: text(r[cc[k]]) if cc[k] is not None else ""
+        for r in rows[hi + 1:]:
+            if not g(r, "userid") or "terminated" in g(r, "employee type").lower() or re.search(r" - demo$", g(r, "location"), re.I):
+                continue
+            contacts.append({"id": g(r, "userid"), "first": g(r, "firstname"), "last": g(r, "lastname"),
+                             "location": g(r, "location"), "type": g(r, "employee type"), "email": g(r, "email"),
+                             "cell": g(r, "cell phone"), "phone": g(r, "home phone"), "file": f["name"]})
     c = {k: h.index(k) for k in ("userid", "firstname", "lastname", "location", "employee type")}
     added = h.index("dateadded") if "dateadded" in h else None  # date added to the system ~ hire date
     out = []
@@ -201,6 +216,39 @@ def count_app_clients(csv_text, name):
             "rows": [{"company": c, "trainer": t, "clients": n} for (c, t), n in sorted(counts.items())]}
 
 
+def encrypt_for_page(obj, password, iterations=600000):
+    """Same format the Rates page writes (rates.js, v2): gzip, then AES-256-GCM with a key from
+    PBKDF2-SHA-256 of the password. The page opens it with the rates password."""
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+    salt, iv = os.urandom(16), os.urandom(12)
+    key = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=iterations).derive(password.encode())
+    ct = AESGCM(key).encrypt(iv, gzip.compress(json.dumps(obj, separators=(",", ":")).encode()), None)
+    b = lambda x: base64.b64encode(x).decode()
+    return {"v": 2, "iter": iterations, "salt": b(salt), "iv": b(iv), "ct": b(ct)}
+
+
+def newest_staff_lists(files):
+    """One staff list per brand: the newest by the date in its name ("Stafflist10-23GRIP.xls",
+    "stafflist11-3-2026GRIP.xls"), so an old list left in the folder doesn't double-count anyone."""
+    def brand(f):
+        m = re.search(r"grip|elevate|lighthouse|redwood", f["name"], re.I)
+        return m.group(0).lower() if m else f["name"]
+    def stamp(f):
+        m = re.search(r"(\d{1,2})-(\d{1,2})(?:-(\d{2,4}))?", f["name"])
+        if not m:
+            return (0, 0, 0)
+        now = datetime.now(timezone.utc)  # no year in the name: this year, or last year for a later month
+        year = int(m.group(3)) if m.group(3) else now.year - (int(m.group(1)) > now.month)
+        return (year + 2000 if year < 100 else year, int(m.group(1)), int(m.group(2)))
+    best = {}
+    for f in files:
+        if brand(f) not in best or stamp(f) > stamp(best[brand(f)]):
+            best[brand(f)] = f
+    return set(id(f) for f in best.values())
+
+
 def main():
     if len(sys.argv) > 2 and sys.argv[1] == "--app-clients":
         with open(sys.argv[2], encoding="utf-8-sig") as fh:
@@ -211,13 +259,18 @@ def main():
         return
     out = sys.argv[1] if len(sys.argv) > 1 else "drive-data.json"
     files = list_folder(ROOT_FOLDER, [])
+    keep_staff = newest_staff_lists([f for f in files if f["kind"] == "file" and re.search(r"staff list", f["folder"], re.I)])
     staff, unlogged, lost_sheep, errors, billing_files = [], [], [], [], []
+    # Staff contact details, only when the rates password is set (RATES_PASSWORD, a GitHub secret).
+    password = os.environ.get("RATES_PASSWORD", "")
+    contacts = [] if password else None
     for f in files:
         if f["kind"] != "file":
             continue
         try:
             if re.search(r"staff list", f["folder"], re.I):
-                staff += read_staff(f)
+                if id(f) in keep_staff:
+                    staff += read_staff(f, contacts)
             elif re.search(r"unlogged", f["folder"], re.I):
                 u = read_unlogged(f)
                 if u:
@@ -254,6 +307,13 @@ def main():
     }
     with open(out, "w", encoding="utf-8") as fh:
         json.dump(data, fh, separators=(",", ":"))
+    # Encrypted contacts next to drive-data.json; never written unencrypted.
+    if contacts is not None:
+        contacts_out = os.path.join(os.path.dirname(os.path.abspath(out)), "contacts.enc.json")
+        payload = {"generated": data["generated"], "files": sorted({c["file"] for c in contacts}), "rows": contacts}
+        with open(contacts_out, "w", encoding="utf-8") as fh:
+            json.dump(encrypt_for_page(payload, password), fh)
+        print(f"Wrote {contacts_out}: {len(contacts)} staff contacts (encrypted)")
     print(f"Wrote {out}: {len(staff)} staff, {len(unlogged)} payroll comparisons, "
           f"{len(lost_sheep)} lost sheep reports, {len(errors)} errors")
 

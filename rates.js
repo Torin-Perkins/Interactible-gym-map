@@ -244,6 +244,42 @@ $("rChangePw").onclick = async () => {
   ratesPw = pw;
   ratesDirty.add("*");
   ratesQueueSave(0);
+  alert("Password changed. The staff contacts download is locked with this password too: update the RATES_PASSWORD secret in the GitHub repo (Settings → Secrets and variables → Actions) so the next deploy uses it.");
+};
+
+// ---------- Staff contacts ----------
+// contacts.enc.json is built by the deploy (scripts/build_drive_data.py) from the staff lists and
+// encrypted with the rates password (the RATES_PASSWORD repo secret). It opens with the password
+// typed to unlock this page and downloads as a CSV; nothing readable is stored on the site.
+const CONTACT_COLS = [["User ID", "id"], ["First name", "first"], ["Last name", "last"], ["Company", "company"], ["Club", "club"],
+  ["Job title", "type"], ["Email", "email"], ["Cell phone", "cell"], ["Home phone", "phone"]];
+$("rContacts").onclick = async () => {
+  const btn = $("rContacts");
+  btn.disabled = true;
+  ratesSaveStatus("Opening staff contacts…");
+  try {
+    const res = await fetch(`contacts.enc.json?_=${Date.now()}`);
+    if (!res.ok) throw new Error("no contacts file yet: add the RATES_PASSWORD secret to the GitHub repo and redeploy");
+    let opened;
+    try { opened = await decryptRates(await res.text(), ratesPw); }
+    catch { throw new Error("the contacts file was locked with a different password. Update the RATES_PASSWORD secret in GitHub to the current rates password and redeploy"); }
+    const { rows, generated } = opened.data;
+    const lines = [CONTACT_COLS.map(([h]) => h).join(",")].concat(rows
+      .map((r) => ({ ...r, company: companyOf(r.location || r.file), club: clubFromLocation(r.location) }))
+      .sort((a, b) => a.company.localeCompare(b.company) || a.club.localeCompare(b.club) || a.last.localeCompare(b.last))
+      .map((r) => CONTACT_COLS.map(([, k]) => csvCell(r[k])).join(",")));
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
+    a.download = `staff-contacts-${String(generated || "").slice(0, 10) || new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    ratesSaveStatus(`Downloaded ${rows.length} staff contacts (staff lists as of ${new Date(generated).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })})`);
+  } catch (err) {
+    console.error(err);
+    ratesSaveStatus(`Couldn't open staff contacts: ${err.message}`, true);
+  } finally {
+    btn.disabled = false;
+  }
 };
 
 // ---------- Table ----------

@@ -104,6 +104,13 @@ key from PBKDF2-SHA-256) and only the ciphertext is saved, as a new row in the *
 each time, so older versions stay as history. The password isn't stored anywhere and can't be recovered: if it's
 lost, delete the rows in the Rates tab and set a new one. Saving also needs the tracker's `EDIT_KEY`, if one is set.
 
+### Staff contacts (password protected)
+**Download staff contacts** on the unlocked Rates tab gives a CSV of every active staff member's email and phone
+numbers from the newest staff list per brand. The deploy encrypts them into `contacts.enc.json` with the
+**`RATES_PASSWORD`** repo secret (Settings → Secrets and variables → Actions), which must match the Rates page
+password; the page opens the file with the password typed to unlock it. After changing the Rates password, update
+the secret too. Without the secret, no contacts file is built.
+
 ## Publish on GitHub Pages
 1. Repo **Settings → Pages → Source: GitHub Actions**.
 2. `.github/workflows/deploy.yml` deploys on every push to `main`, every 3 hours (to pick up new Drive files),
