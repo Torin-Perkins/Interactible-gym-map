@@ -443,8 +443,13 @@ function renderTrainers() {
       const clients = a.fromExport ? `${fmtNum(a.clientsInApp)}${a.totalClients ? ` of ${fmtNum(a.totalClients)}` : ""} clients` : "";
       return `${a.adoption != null ? `<b>${fmtPct(a.adoption, 0)}</b>` : a.onApp ? "On app" : "Not on app"}`
         + `<span class="cell-sub">${[clients, a.totalClients == null && a.fromExport ? "no total on adoption sheet" : "",
-          a.completion != null ? `${fmtPct(a.completion, 0)} complete` : "",
-          a.rating ? `★ ${a.rating.toFixed(1)}${a.reviews ? ` (${fmtNum(a.reviews)})` : ""}` : ""].filter(Boolean).join(" · ")}</span>`;
+          a.completion != null ? `${fmtPct(a.completion, 0)} complete` : ""].filter(Boolean).join(" · ")}</span>`;
+    } },
+    { key: "rating", label: "Rating<br><small>Lumin stars</small>", num: true, sort: (t) => (t.adopt && t.adopt.rating) || null, html: (t) => {
+      const a = t.adopt;
+      if (!a || !a.rating) return `<span class="cell-sub">no reviews</span>`;
+      return `<span class="stars" title="${esc(`${a.rating.toFixed(2)} stars from ${a.reviews || 0} review${a.reviews === 1 ? "" : "s"}`)}"><span aria-hidden="true">★</span> ${a.rating.toFixed(1)}</span>`
+        + `<span class="cell-sub">${fmtNum(a.reviews || 0)} review${a.reviews === 1 ? "" : "s"}</span>`;
     } },
     { key: "unlogged", label: "Avg unlogged<br><small>sessions</small>", num: true, sort: (t) => t.unlogged, html: (t) =>
       `<span class="${t.unlogged > 0 ? "flag" : ""}" title="${esc(Object.entries(t.unloggedPeriods).map(([p, n]) => `${p}: ${n}`).join(", ") || "none in the payroll comparisons")}">${fmtNum(t.unlogged, t.unlogged % 1 ? 1 : 0)}</span>` },
@@ -493,7 +498,7 @@ $("trainerTable").addEventListener("click", (e) => {
 
 // ---------- Export / import ----------
 const CSV_COLS = ["User ID", "Trainer", "Hire date", "Company", "Region", "Club", "Onboarded", "Onboarded via", "Cert on file", "Cert",
-  "Cert expires", "Cert link", "Lost sheep", "Billing health %", "On app", "Clients on app", "Total clients", "Client adoption %", "Avg unlogged sessions", "Notes"];
+  "Cert expires", "Cert link", "Lost sheep", "Billing health %", "On app", "Clients on app", "Total clients", "Client adoption %", "Star rating", "Reviews", "Avg unlogged sessions", "Notes"];
 const csvCell = (v) => (/[",\n]/.test(String(v ?? "")) ? `"${String(v).replace(/"/g, '""')}"` : String(v ?? ""));
 
 $("exportBtn").onclick = () => {
@@ -505,6 +510,7 @@ $("exportBtn").onclick = () => {
       e.cert ? "Yes" : "No", t.certText || t.certNote, e.certExpires, e.certLink, t.lostSheep ?? "", e.billing ?? "",
       t.adopt ? (t.adopt.onApp ? "Yes" : "No") : "", t.adopt ? t.adopt.clientsInApp ?? "" : "", t.adopt ? t.adopt.totalClients ?? "" : "",
       t.adopt && t.adopt.adoption != null ? Math.round(t.adopt.adoption * 10) / 10 : "",
+      t.adopt && t.adopt.rating ? Math.round(t.adopt.rating * 100) / 100 : "", t.adopt && t.adopt.rating ? t.adopt.reviews || 0 : "",
       t.unlogged ?? "", e.notes].map(csvCell).join(","));
   });
   const a = document.createElement("a");
@@ -908,6 +914,7 @@ function openTrainerGraph(id) {
     { label: "Unlogged sessions", sub: "average per pay period · fewer is better", get: (x) => x.unlogged, fmt: (v) => fmtNum(v, Math.abs(v - Math.round(v)) < 0.05 ? 0 : 1) },
     { label: "Client app adoption", sub: "clients on the app ÷ total clients (max 100%)", get: (x) => (x.adopt ? x.adopt.adoption : null), fmt: (v) => fmtPct(v, 0) },
     { label: "Workout completion", sub: "% of assigned workouts completed in the app", get: (x) => (x.adopt ? x.adopt.completion : null), fmt: (v) => fmtPct(v, 0) },
+    { label: "Star rating", sub: "Lumin client reviews, out of 5", get: (x) => (x.adopt && x.adopt.rating) || null, fmt: (v) => `★ ${v.toFixed(2)}` },
   ];
   const body = $("tdBody");
   body.textContent = "";

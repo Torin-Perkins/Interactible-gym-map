@@ -293,3 +293,4 @@ button.btn-secondary { background: none; }
 .td-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
 @media (max-width: 420px) { .trend-grid, .td-grid { grid-template-columns: 1fr; } }
 .nowrap { white-space: nowrap; }
+.stars { white-space: nowrap; font-weight: 600; } .stars span { color: #d98e04; }
