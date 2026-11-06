@@ -74,12 +74,12 @@ Browsers can't download Drive files or list a folder without an API key, so the 
 titles and session differences (no emails, phones or addresses) and is published with the site, never committed.
 
 ### App adoption
-Each trainer's client app adoption = their clients in the latest **billing health export** (one row per client
-billed through the app) ÷ their *Total Clients #* on the app adoption sheet, capped at 100%. Workout completion
-still comes from the adoption sheet. Drop new exports (CSV) into a **Billing Health** folder in the Drive data
-folder and the deploy picks up the newest one; without it, the per-trainer counts in `app-clients.json` are used
-(`python scripts/build_drive_data.py --app-clients <export.csv>` refreshes that file; it keeps counts only, no
-client names).
+Each trainer's client app adoption = their **active clients in Lumin** ÷ their *Total Clients #* on the app
+adoption sheet, capped at 100%. The Lumin numbers (plus star rating and review count) are a snapshot in
+`app-clients.json`, pulled through the Lumin connector in a Claude session; ask Claude to "refresh the Lumin
+numbers" to update it. Lumin shows trainers as first name + last initial, so they're matched to the staff lists by
+brand, first name and initial, and by club when two share those. Workout completion still comes from the adoption
+sheet. A billing health export (CSV) dropped into a **Billing Health** Drive folder overrides the snapshot.
 
 ### KPI trends and trainer graphs
 **Gym stats** has a chart per KPI (clients, lost sheep, lost sheep %, late amounts, billing health). With no

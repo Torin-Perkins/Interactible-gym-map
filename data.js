@@ -1037,7 +1037,11 @@ const CERT_SHEET = { id: "", gid: "" };
 // (personal, hybrid, head, ghost...) except the "Trainer Compliance" login.
 const PT_TYPE = /^(?!.*compliance).*trainer/i;
 // Club names that are spelled differently in the stats sheets and the staff lists.
-const CLUB_ALIASES = { tualtin: "tualatin", pearl: "pearl district", "82nd": "portland se 82nd" };
+const CLUB_ALIASES = { tualtin: "tualatin", pearl: "pearl district", "82nd": "portland se 82nd",
+  // Lumin location names
+  "midwest oklahoma city": "midwest city", "northwest oklahoma city": "northwest okc", "south oklahoma city": "south okc",
+  "tanasbourne hillsboro": "hillsboro", cleveland: "lfm cleveland tn", "east broad": "columbus east broad st",
+  goodale: "columbus goodale blvd", graceland: "columbus graceland blvd", "old hamilton": "columbus old hamilton rd" };
 
 // Club tags on the Trainer stats tab: billing health below billingWarn (and the red "worse" tag
 // below billingBad), no trainers onboarded, lost sheep % above lostPctMax, and more than
