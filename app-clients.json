@@ -1,1276 +1,3452 @@
 {
- "file": "billing-health-2026-11-02.csv",
- "total": 4114,
+ "source": "Lumin",
+ "file": "Lumin (active clients per trainer)",
+ "generated": "2026-11-06T21:37:07Z",
+ "total": 4221,
  "rows": [
   {
    "company": "Elevate",
-   "trainer": "Adanya Price",
-   "clients": 12
+   "trainer": "Sharon C.",
+   "clubs": [
+    "Allen"
+   ],
+   "clients": 10,
+   "rating": 4.75,
+   "reviews": 4
   },
   {
    "company": "Elevate",
-   "trainer": "Albert Taylor",
-   "clients": 6
+   "trainer": "John B.",
+   "clubs": [
+    "Baytown"
+   ],
+   "clients": 6,
+   "rating": 4.8,
+   "reviews": 10
   },
   {
    "company": "Elevate",
-   "trainer": "Aldo Torres",
-   "clients": 22
+   "trainer": "Jorey G.",
+   "clubs": [
+    "Baytown"
+   ],
+   "clients": 9,
+   "rating": 5,
+   "reviews": 25
   },
   {
    "company": "Elevate",
-   "trainer": "Alejandra Azeneth salinas",
-   "clients": 15
+   "trainer": "Adanya P.",
+   "clubs": [
+    "Bedford"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Alina Logvynenko",
-   "clients": 18
+   "trainer": "Demetrius H.",
+   "clubs": [
+    "Bedford",
+    "Watauga"
+   ],
+   "clients": 7,
+   "rating": 5,
+   "reviews": 5
   },
   {
    "company": "Elevate",
-   "trainer": "Amir Brooks",
-   "clients": 14
+   "trainer": "Jusper K.",
+   "clubs": [
+    "Bissonnet"
+   ],
+   "clients": 4,
+   "rating": 5,
+   "reviews": 4
   },
   {
    "company": "Elevate",
-   "trainer": "Ana Pollack",
-   "clients": 1
+   "trainer": "Sebastian R.",
+   "clubs": [
+    "Bissonnet"
+   ],
+   "clients": 8,
+   "rating": 5,
+   "reviews": 7
   },
   {
    "company": "Elevate",
-   "trainer": "Anggie Acosta",
-   "clients": 7
+   "trainer": "Emiliano O.",
+   "clubs": [
+    "Blanco West"
+   ],
+   "clients": 6,
+   "rating": 5,
+   "reviews": 5
   },
   {
    "company": "Elevate",
-   "trainer": "Anthony Pillado",
-   "clients": 8
+   "trainer": "Joe O.",
+   "clubs": [
+    "Blanco West",
+    "South Park Mall"
+   ],
+   "clients": 70,
+   "rating": 4.98,
+   "reviews": 283
   },
   {
    "company": "Elevate",
-   "trainer": "Antonia Lam",
-   "clients": 9
+   "trainer": "Olivia B.",
+   "clubs": [
+    "Blanco West"
+   ],
+   "clients": 21,
+   "rating": 5,
+   "reviews": 26
   },
   {
    "company": "Elevate",
-   "trainer": "April Hernandez",
-   "clients": 5
+   "trainer": "Connie M.",
+   "clubs": [
+    "Carrollton",
+    "Allen"
+   ],
+   "clients": 17,
+   "rating": 4.89,
+   "reviews": 18
   },
   {
    "company": "Elevate",
-   "trainer": "Ariana Williams",
-   "clients": 1
+   "trainer": "Curtis H.",
+   "clubs": [
+    "Carrollton"
+   ],
+   "clients": 4,
+   "rating": 5,
+   "reviews": 6
   },
   {
    "company": "Elevate",
-   "trainer": "Aurelia Lyles",
-   "clients": 3
+   "trainer": "Jean Y.",
+   "clubs": [
+    "Carrollton"
+   ],
+   "clients": 5,
+   "rating": 5,
+   "reviews": 21
   },
   {
    "company": "Elevate",
-   "trainer": "Blake Crawley",
-   "clients": 6
+   "trainer": "Morgan D.",
+   "clubs": [
+    "Carrollton",
+    "Garland"
+   ],
+   "clients": 0,
+   "rating": 5,
+   "reviews": 1
   },
   {
    "company": "Elevate",
-   "trainer": "Brandon Brown",
-   "clients": 29
+   "trainer": "Brandon B.",
+   "clubs": [
+    "Champions"
+   ],
+   "clients": 35,
+   "rating": 4.98,
+   "reviews": 48
   },
   {
    "company": "Elevate",
-   "trainer": "Brandon Wilson",
-   "clients": 16
+   "trainer": "Bregman G.",
+   "clubs": [
+    "Champions"
+   ],
+   "clients": 25,
+   "rating": 5,
+   "reviews": 43
   },
   {
    "company": "Elevate",
-   "trainer": "Brashaud Patton",
-   "clients": 11
+   "trainer": "Jason S.",
+   "clubs": [
+    "Champions",
+    "Greenspoint"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Bregman Grey",
-   "clients": 27
+   "trainer": "Lane M.",
+   "clubs": [
+    "Champions"
+   ],
+   "clients": 35,
+   "rating": 4.91,
+   "reviews": 53
   },
   {
    "company": "Elevate",
-   "trainer": "Brian Stephenson",
-   "clients": 39
+   "trainer": "Lindsey F.",
+   "clubs": [
+    "Champions",
+    "Woodlands",
+    "Jones Road",
+    "Sugarland"
+   ],
+   "clients": 63,
+   "rating": 4.98,
+   "reviews": 129
   },
   {
    "company": "Elevate",
-   "trainer": "Brock Harrison",
-   "clients": 2
+   "trainer": "Paul V.",
+   "clubs": [
+    "Champions"
+   ],
+   "clients": 9,
+   "rating": 5,
+   "reviews": 11
   },
   {
    "company": "Elevate",
-   "trainer": "Bryan Filipp",
-   "clients": 19
+   "trainer": "Steven H.",
+   "clubs": [
+    "Champions"
+   ],
+   "clients": 10,
+   "rating": 5,
+   "reviews": 20
   },
   {
    "company": "Elevate",
-   "trainer": "Bryan Ortiz cabrera",
-   "clients": 2
+   "trainer": "Gregory R.",
+   "clubs": [
+    "Clear Lake"
+   ],
+   "clients": 2,
+   "rating": 5,
+   "reviews": 1
   },
   {
    "company": "Elevate",
-   "trainer": "Bryce Hunter",
-   "clients": 3
+   "trainer": "William C.",
+   "clubs": [
+    "Clear Lake"
+   ],
+   "clients": 8,
+   "rating": 5,
+   "reviews": 2
   },
   {
    "company": "Elevate",
-   "trainer": "Bryn Mcmanamy",
-   "clients": 2
+   "trainer": "Wyatt J.",
+   "clubs": [
+    "Clear Lake"
+   ],
+   "clients": 8,
+   "rating": 5,
+   "reviews": 37
   },
   {
    "company": "Elevate",
-   "trainer": "Camryn Brown",
-   "clients": 11
+   "trainer": "Chandler O.",
+   "clubs": [
+    "Denton"
+   ],
+   "clients": 2,
+   "rating": 5,
+   "reviews": 1
   },
   {
    "company": "Elevate",
-   "trainer": "Chandler Owen",
-   "clients": 4
+   "trainer": "Chris W.",
+   "clubs": [
+    "Denton"
+   ],
+   "clients": 29,
+   "rating": 5,
+   "reviews": 41
   },
   {
    "company": "Elevate",
-   "trainer": "Charles (Garrett) Mott",
-   "clients": 5
+   "trainer": "Corrie W.",
+   "clubs": [
+    "Denton"
+   ],
+   "clients": 9,
+   "rating": 5,
+   "reviews": 6
   },
   {
    "company": "Elevate",
-   "trainer": "Chris Kane",
-   "clients": 13
+   "trainer": "Shay R.",
+   "clubs": [
+    "Denton"
+   ],
+   "clients": 62,
+   "rating": 5,
+   "reviews": 92
   },
   {
    "company": "Elevate",
-   "trainer": "Chris Watts",
-   "clients": 17
+   "trainer": "Steven D.",
+   "clubs": [
+    "Denton",
+    "Lewisville"
+   ],
+   "clients": 9,
+   "rating": 5,
+   "reviews": 10
   },
   {
    "company": "Elevate",
-   "trainer": "Christopher Simmons",
-   "clients": 42
+   "trainer": "Corey W.",
+   "clubs": [
+    "Eastside"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Connor Sharrah",
-   "clients": 8
+   "trainer": "Denise W.",
+   "clubs": [
+    "Eastside"
+   ],
+   "clients": 1,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Corey Worthy",
-   "clients": 3
+   "trainer": "Michael D.",
+   "clubs": [
+    "Eastside"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Corrie Williams",
-   "clients": 12
+   "trainer": "Travaris M.",
+   "clubs": [
+    "Eastside"
+   ],
+   "clients": 2,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Curtis Hall",
-   "clients": 22
+   "trainer": "Uriah F.",
+   "clubs": [
+    "Eastside",
+    "Indian Trail"
+   ],
+   "clients": 13,
+   "rating": 5,
+   "reviews": 3
   },
   {
    "company": "Elevate",
-   "trainer": "Daniel Perez",
-   "clients": 28
+   "trainer": "Yamen A.",
+   "clubs": [
+    "Eastside"
+   ],
+   "clients": 5,
+   "rating": 5,
+   "reviews": 4
   },
   {
    "company": "Elevate",
-   "trainer": "Deandre Richardson",
-   "clients": 4
+   "trainer": "Christopher S.",
+   "clubs": [
+    "Fayetteville"
+   ],
+   "clients": 14,
+   "rating": 5,
+   "reviews": 2
   },
   {
    "company": "Elevate",
-   "trainer": "Demarcus Williams",
-   "clients": 1
+   "trainer": "Tyrone L.",
+   "clubs": [
+    "Fayetteville"
+   ],
+   "clients": 7,
+   "rating": 5,
+   "reviews": 1
   },
   {
    "company": "Elevate",
-   "trainer": "Demario Evans",
-   "clients": 3
+   "trainer": "Yenaira R.",
+   "clubs": [
+    "Fayetteville"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Demetrius Heath",
-   "clients": 22
+   "trainer": "Javeon W.",
+   "clubs": [
+    "Federal"
+   ],
+   "clients": 39,
+   "rating": 5,
+   "reviews": 40
   },
   {
    "company": "Elevate",
-   "trainer": "Denise Wilson",
-   "clients": 12
+   "trainer": "Kasandra M.",
+   "clubs": [
+    "Federal"
+   ],
+   "clients": 48,
+   "rating": 4.71,
+   "reviews": 80
   },
   {
    "company": "Elevate",
-   "trainer": "Derek Uphoff",
-   "clients": 4
+   "trainer": "Paul G.",
+   "clubs": [
+    "Federal"
+   ],
+   "clients": 12,
+   "rating": 4.95,
+   "reviews": 37
   },
   {
    "company": "Elevate",
-   "trainer": "Dylan Enriquez",
-   "clients": 2
+   "trainer": "Bryn M.",
+   "clubs": [
+    "Forest Hill"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Dylan Gibson",
-   "clients": 7
+   "trainer": "Lino A.",
+   "clubs": [
+    "Forest Hill"
+   ],
+   "clients": 10,
+   "rating": 5,
+   "reviews": 9
   },
   {
    "company": "Elevate",
-   "trainer": "Elizabeth De la paz loret de mola",
-   "clients": 13
+   "trainer": "Rosa Z.",
+   "clubs": [
+    "Forest Hill"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Elizabeth Quanaim",
-   "clients": 2
+   "trainer": "Ariana W.",
+   "clubs": [
+    "Garland"
+   ],
+   "clients": 10,
+   "rating": 3.67,
+   "reviews": 3
   },
   {
    "company": "Elevate",
-   "trainer": "Elizabeth Wiley",
-   "clients": 1
+   "trainer": "Biak C.",
+   "clubs": [
+    "Garland"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Emiliano Ortiz",
-   "clients": 17
+   "trainer": "Dylan E.",
+   "clubs": [
+    "Garland"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Eric Cruz",
-   "clients": 10
+   "trainer": "Eric C.",
+   "clubs": [
+    "Garland"
+   ],
+   "clients": 15,
+   "rating": 5,
+   "reviews": 9
   },
   {
    "company": "Elevate",
-   "trainer": "Ernest Minix",
-   "clients": 4
+   "trainer": "Oscar O.",
+   "clubs": [
+    "Garland"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Gabriela Villalobos",
-   "clients": 13
+   "trainer": "Savion B.",
+   "clubs": [
+    "Garland"
+   ],
+   "clients": 8,
+   "rating": 5,
+   "reviews": 9
   },
   {
    "company": "Elevate",
-   "trainer": "Gina Varela",
-   "clients": 30
+   "trainer": "Akeyla B.",
+   "clubs": [
+    "Grand Prairie",
+    "Oak Cliff"
+   ],
+   "clients": 1,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Gregory Rivera",
-   "clients": 4
+   "trainer": "Brashaud P.",
+   "clubs": [
+    "Grand Prairie"
+   ],
+   "clients": 12,
+   "rating": 5,
+   "reviews": 15
   },
   {
    "company": "Elevate",
-   "trainer": "Hayley Williams",
-   "clients": 29
+   "trainer": "Jakaila J.",
+   "clubs": [
+    "Grand Prairie"
+   ],
+   "clients": 15,
+   "rating": 5,
+   "reviews": 6
   },
   {
    "company": "Elevate",
-   "trainer": "Jacob Aguirre",
-   "clients": 56
+   "trainer": "Jeancarlo P.",
+   "clubs": [
+    "Grand Prairie"
+   ],
+   "clients": 5,
+   "rating": 5,
+   "reviews": 1
   },
   {
    "company": "Elevate",
-   "trainer": "Jacob Salmeron",
-   "clients": 3
+   "trainer": "Keenan H.",
+   "clubs": [
+    "Grand Prairie"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Jaime Johnson",
-   "clients": 1
+   "trainer": "Stephen L.",
+   "clubs": [
+    "Grand Prairie"
+   ],
+   "clients": 4,
+   "rating": 5,
+   "reviews": 5
   },
   {
    "company": "Elevate",
-   "trainer": "Jairus Michael",
-   "clients": 6
+   "trainer": "Demarcus W.",
+   "clubs": [
+    "Greenspoint"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Jakaila Johnson",
-   "clients": 9
+   "trainer": "Ernest M.",
+   "clubs": [
+    "Greenspoint"
+   ],
+   "clients": 2,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Javeon Wiley",
-   "clients": 22
+   "trainer": "Shana S.",
+   "clubs": [
+    "Greenville"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Jean Yakam",
-   "clients": 34
+   "trainer": "Brandon W.",
+   "clubs": [
+    "Hulen"
+   ],
+   "clients": 1,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Jeancarlo Parra",
-   "clients": 5
+   "trainer": "Charles (garrett) M.",
+   "clubs": [
+    "Hulen"
+   ],
+   "clients": 2,
+   "rating": 5,
+   "reviews": 8
   },
   {
    "company": "Elevate",
-   "trainer": "Jessica Donati",
-   "clients": 13
+   "trainer": "Ronnie S.",
+   "clubs": [
+    "Hulen"
+   ],
+   "clients": 2,
+   "rating": 5,
+   "reviews": 2
   },
   {
    "company": "Elevate",
-   "trainer": "Joe Ojeda",
-   "clients": 29
+   "trainer": "Sonia P.",
+   "clubs": [
+    "Hulen"
+   ],
+   "clients": 3,
+   "rating": 5,
+   "reviews": 3
   },
   {
    "company": "Elevate",
-   "trainer": "Joel Roberts",
-   "clients": 2
+   "trainer": "Tyler C.",
+   "clubs": [
+    "Hulen"
+   ],
+   "clients": 11,
+   "rating": 5,
+   "reviews": 25
   },
   {
    "company": "Elevate",
-   "trainer": "John Blanson",
-   "clients": 12
+   "trainer": "Katherine B.",
+   "clubs": [
+    "Humble"
+   ],
+   "clients": 8,
+   "rating": 5,
+   "reviews": 54
   },
   {
    "company": "Elevate",
-   "trainer": "Johnathan Elizondo",
-   "clients": 3
+   "trainer": "William H.",
+   "clubs": [
+    "Indian Trail"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Jonathan Randall",
-   "clients": 7
+   "trainer": "Bryan O.",
+   "clubs": [
+    "Irving"
+   ],
+   "clients": 4,
+   "rating": 4.75,
+   "reviews": 4
   },
   {
    "company": "Elevate",
-   "trainer": "Jordan Hernandez",
-   "clients": 4
+   "trainer": "Jordan H.",
+   "clubs": [
+    "Irving",
+    "Lewisville",
+    "Bedford"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Jordan Stargell",
-   "clients": 7
+   "trainer": "Jose B.",
+   "clubs": [
+    "Irving"
+   ],
+   "clients": 22,
+   "rating": 4.85,
+   "reviews": 34
   },
   {
    "company": "Elevate",
-   "trainer": "Jorey Goens",
-   "clients": 1
+   "trainer": "Maricela E.",
+   "clubs": [
+    "Irving"
+   ],
+   "clients": 29,
+   "rating": 5,
+   "reviews": 19
   },
   {
    "company": "Elevate",
-   "trainer": "Jose Banda",
-   "clients": 7
+   "trainer": "Amir B.",
+   "clubs": [
+    "Jones Road"
+   ],
+   "clients": 26,
+   "rating": 4.84,
+   "reviews": 31
   },
   {
    "company": "Elevate",
-   "trainer": "Jusper Kumba",
-   "clients": 1
+   "trainer": "Connor S.",
+   "clubs": [
+    "Katy"
+   ],
+   "clients": 14,
+   "rating": 5,
+   "reviews": 137
   },
   {
    "company": "Elevate",
-   "trainer": "Justin Chukwujekwu",
-   "clients": 1
+   "trainer": "Jonathan R.",
+   "clubs": [
+    "Kietzke"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Kahlil Ford",
-   "clients": 15
+   "trainer": "Sydney L.",
+   "clubs": [
+    "Kietzke"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Kalvin Brooks",
-   "clients": 24
+   "trainer": "Elizabeth Q.",
+   "clubs": [
+    "Lake Creek"
+   ],
+   "clients": 1,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Kasandra Matamoros",
-   "clients": 35
+   "trainer": "Jaime J.",
+   "clubs": [
+    "Lake Creek"
+   ],
+   "clients": 4,
+   "rating": 5,
+   "reviews": 3
   },
   {
    "company": "Elevate",
-   "trainer": "Katherine Boone",
-   "clients": 18
+   "trainer": "Lorenzo H.",
+   "clubs": [
+    "Lake Creek"
+   ],
+   "clients": 9,
+   "rating": 5,
+   "reviews": 12
   },
   {
    "company": "Elevate",
-   "trainer": "Keji Owoseni",
-   "clients": 8
+   "trainer": "Luis V.",
+   "clubs": [
+    "Lake Creek"
+   ],
+   "clients": 9,
+   "rating": 5,
+   "reviews": 6
   },
   {
    "company": "Elevate",
-   "trainer": "Kelsey Nicholson",
-   "clients": 10
+   "trainer": "Rebekah T.",
+   "clubs": [
+    "Lake Creek"
+   ],
+   "clients": 10,
+   "rating": 5,
+   "reviews": 8
   },
   {
    "company": "Elevate",
-   "trainer": "Kevin Alvarez",
-   "clients": 22
+   "trainer": "Bryce H.",
+   "clubs": [
+    "Lewisville"
+   ],
+   "clients": 2,
+   "rating": 5,
+   "reviews": 3
   },
   {
    "company": "Elevate",
-   "trainer": "Lane Miller",
-   "clients": 12
+   "trainer": "Brian S.",
+   "clubs": [
+    "Mesquite"
+   ],
+   "clients": 25,
+   "rating": 5,
+   "reviews": 3
   },
   {
    "company": "Elevate",
-   "trainer": "Lauren Zendejas",
-   "clients": 20
+   "trainer": "Daphne R.",
+   "clubs": [
+    "Mesquite"
+   ],
+   "clients": 11,
+   "rating": 5,
+   "reviews": 17
   },
   {
    "company": "Elevate",
-   "trainer": "Lindsey Freeman",
-   "clients": 35
+   "trainer": "Faith R.",
+   "clubs": [
+    "Mesquite"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Lino Almendarez",
-   "clients": 12
+   "trainer": "Jordan S.",
+   "clubs": [
+    "Mesquite",
+    "Oak Cliff"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Lizette Teran",
-   "clients": 1
+   "trainer": "Tonato T.",
+   "clubs": [
+    "Mesquite"
+   ],
+   "clients": 6,
+   "rating": 5,
+   "reviews": 1
   },
   {
    "company": "Elevate",
-   "trainer": "Lorenzo Hernandez",
-   "clients": 5
+   "trainer": "Brock H.",
+   "clubs": [
+    "Mission Bend"
+   ],
+   "clients": 6,
+   "rating": 5,
+   "reviews": 12
   },
   {
    "company": "Elevate",
-   "trainer": "Luis Vergne",
-   "clients": 14
+   "trainer": "Gabriela V.",
+   "clubs": [
+    "Mission Bend"
+   ],
+   "clients": 20,
+   "rating": 4.83,
+   "reviews": 30
   },
   {
    "company": "Elevate",
-   "trainer": "Maria Daughtrey",
-   "clients": 6
+   "trainer": "Samara S.",
+   "clubs": [
+    "Mission Bend",
+    "Bissonnet",
+    "Sugarland",
+    "Katy"
+   ],
+   "clients": 10,
+   "rating": 5,
+   "reviews": 20
   },
   {
    "company": "Elevate",
-   "trainer": "Mariah Hill",
-   "clients": 10
+   "trainer": "Terrance W.",
+   "clubs": [
+    "Mission Bend",
+    "Sugarland"
+   ],
+   "clients": 7,
+   "rating": 5,
+   "reviews": 8
   },
   {
    "company": "Elevate",
-   "trainer": "Maricela Espinoza",
-   "clients": 6
+   "trainer": "Charlie H.",
+   "clubs": [
+    "Morrow"
+   ],
+   "clients": 0,
+   "rating": 4.75,
+   "reviews": 8
   },
   {
    "company": "Elevate",
-   "trainer": "Michael Dowson",
-   "clients": 1
+   "trainer": "Deandre R.",
+   "clubs": [
+    "Morrow"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Mossiev \"Q\" Quintero",
-   "clients": 30
+   "trainer": "Joel R.",
+   "clubs": [
+    "Morrow"
+   ],
+   "clients": 1,
+   "rating": 5,
+   "reviews": 1
   },
   {
    "company": "Elevate",
-   "trainer": "Olivia Browne",
-   "clients": 17
+   "trainer": "Patrick H.",
+   "clubs": [
+    "Morrow"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Paul Garcia",
-   "clients": 15
+   "trainer": "Tyri H.",
+   "clubs": [
+    "Morrow"
+   ],
+   "clients": 15,
+   "rating": 4.58,
+   "reviews": 12
   },
   {
    "company": "Elevate",
-   "trainer": "Paul Vernon",
-   "clients": 18
+   "trainer": "Maria D.",
+   "clubs": [
+    "North Hills"
+   ],
+   "clients": 1,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Rebekah Torkelson",
-   "clients": 12
+   "trainer": "Jairus M.",
+   "clubs": [
+    "Northlake"
+   ],
+   "clients": 2,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Ronnie Sanders",
-   "clients": 8
+   "trainer": "jessica P.",
+   "clubs": [
+    "Northlake"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Rosa Zuniga holmen",
-   "clients": 3
+   "trainer": "Reynardo J.",
+   "clubs": [
+    "Oak Cliff"
+   ],
+   "clients": 1,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Sabrina Pitts",
-   "clients": 21
+   "trainer": "Anggie A.",
+   "clubs": [
+    "Park Forest"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Samara Shaw",
-   "clients": 1
+   "trainer": "Hayley W.",
+   "clubs": [
+    "Park Forest"
+   ],
+   "clients": 4,
+   "rating": 5,
+   "reviews": 6
   },
   {
    "company": "Elevate",
-   "trainer": "Sara Pena",
-   "clients": 12
+   "trainer": "Jacob S.",
+   "clubs": [
+    "Park Forest"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Savion Bernard",
-   "clients": 1
+   "trainer": "Kahlil F.",
+   "clubs": [
+    "Park Forest"
+   ],
+   "clients": 12,
+   "rating": 5,
+   "reviews": 7
   },
   {
    "company": "Elevate",
-   "trainer": "Sebastian Ramirez",
-   "clients": 31
+   "trainer": "Daniel P.",
+   "clubs": [
+    "Pasadena"
+   ],
+   "clients": 82,
+   "rating": 4.99,
+   "reviews": 359
   },
   {
    "company": "Elevate",
-   "trainer": "Sergio De luna",
-   "clients": 7
+   "trainer": "Elizabeth W.",
+   "clubs": [
+    "Pasadena"
+   ],
+   "clients": 9,
+   "rating": 5,
+   "reviews": 23
   },
   {
    "company": "Elevate",
-   "trainer": "Shana Smith",
-   "clients": 14
+   "trainer": "Timothy M.",
+   "clubs": [
+    "RTP"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Sharon Clements",
-   "clients": 16
+   "trainer": "Alejandra A.",
+   "clubs": [
+    "South Park Mall"
+   ],
+   "clients": 22,
+   "rating": 4.86,
+   "reviews": 44
   },
   {
    "company": "Elevate",
-   "trainer": "Shay Recinos",
-   "clients": 41
+   "trainer": "April H.",
+   "clubs": [
+    "South Park Mall"
+   ],
+   "clients": 4,
+   "rating": 5,
+   "reviews": 4
   },
   {
    "company": "Elevate",
-   "trainer": "Sheridan Shands",
-   "clients": 8
+   "trainer": "Jacob A.",
+   "clubs": [
+    "South Park Mall"
+   ],
+   "clients": 65,
+   "rating": 4.98,
+   "reviews": 148
   },
   {
    "company": "Elevate",
-   "trainer": "Shykieva Brown",
-   "clients": 4
+   "trainer": "Johnathan E.",
+   "clubs": [
+    "South Park Mall",
+    "Westover"
+   ],
+   "clients": 8,
+   "rating": 5,
+   "reviews": 7
   },
   {
    "company": "Elevate",
-   "trainer": "Sonia Palma",
-   "clients": 15
+   "trainer": "Lauren Z.",
+   "clubs": [
+    "South Park Mall"
+   ],
+   "clients": 14,
+   "rating": 5,
+   "reviews": 20
   },
   {
    "company": "Elevate",
-   "trainer": "Stephen Lawson",
-   "clients": 1
+   "trainer": "Sara P.",
+   "clubs": [
+    "South Park Mall"
+   ],
+   "clients": 9,
+   "rating": 4.95,
+   "reviews": 22
   },
   {
    "company": "Elevate",
-   "trainer": "Steven Hoang",
-   "clients": 5
+   "trainer": "Sergio D.",
+   "clubs": [
+    "South Park Mall"
+   ],
+   "clients": 19,
+   "rating": 4.95,
+   "reviews": 42
   },
   {
    "company": "Elevate",
-   "trainer": "Sydney Layfield",
-   "clients": 5
+   "trainer": "Blake C.",
+   "clubs": [
+    "Sparks"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Terrance Williams",
-   "clients": 6
+   "trainer": "Cordell D.",
+   "clubs": [
+    "Sparks"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Tonato Tutt",
-   "clients": 1
+   "trainer": "Dylan G.",
+   "clubs": [
+    "Sparks"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Tyler Coomer",
-   "clients": 20
+   "trainer": "Jessica D.",
+   "clubs": [
+    "Sparks"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Tyriq Valentine",
-   "clients": 12
+   "trainer": "Michael N.",
+   "clubs": [
+    "Sparks"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Tyrone Lyons",
-   "clients": 16
+   "trainer": "Sabrina P.",
+   "clubs": [
+    "Sparks"
+   ],
+   "clients": 1,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "William Curl",
-   "clients": 16
+   "trainer": "Albert T.",
+   "clubs": [
+    "Stone Mountain"
+   ],
+   "clients": 1,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Wyatt Johnson",
-   "clients": 12
+   "trainer": "Aurelia L.",
+   "clubs": [
+    "Stone Mountain"
+   ],
+   "clients": 1,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Elevate",
-   "trainer": "Yasminah Lontae",
-   "clients": 5
+   "trainer": "Kalvin B.",
+   "clubs": [
+    "Stone Mountain"
+   ],
+   "clients": 0,
+   "rating": 5,
+   "reviews": 1
   },
   {
+   "company": "Elevate",
+   "trainer": "Yasminah L.",
+   "clubs": [
+    "Stone Mountain"
+   ],
+   "clients": 1,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Antonia L.",
+   "clubs": [
+    "Sugarland"
+   ],
+   "clients": 11,
+   "rating": 5,
+   "reviews": 7
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Justin C.",
+   "clubs": [
+    "Sugarland"
+   ],
+   "clients": 3,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Keji O.",
+   "clubs": [
+    "Sugarland"
+   ],
+   "clients": 12,
+   "rating": 5,
+   "reviews": 9
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Lee W.",
+   "clubs": [
+    "Sugarland"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Mariah H.",
+   "clubs": [
+    "Sugarland"
+   ],
+   "clients": 10,
+   "rating": 4.89,
+   "reviews": 9
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Aldo T.",
+   "clubs": [
+    "Tech Ridge"
+   ],
+   "clients": 1,
+   "rating": 5,
+   "reviews": 2
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Alina L.",
+   "clubs": [
+    "Tech Ridge"
+   ],
+   "clients": 7,
+   "rating": 5,
+   "reviews": 1
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Bryan F.",
+   "clubs": [
+    "Tech Ridge"
+   ],
+   "clients": 15,
+   "rating": 5,
+   "reviews": 4
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Camryn B.",
+   "clubs": [
+    "Tech Ridge"
+   ],
+   "clients": 9,
+   "rating": 5,
+   "reviews": 11
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Chris K.",
+   "clubs": [
+    "Tech Ridge",
+    "Lake Creek"
+   ],
+   "clients": 14,
+   "rating": 5,
+   "reviews": 22
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Gina V.",
+   "clubs": [
+    "Tech Ridge",
+    "Lake Creek"
+   ],
+   "clients": 39,
+   "rating": 4.98,
+   "reviews": 63
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Lizette T.",
+   "clubs": [
+    "Tech Ridge"
+   ],
+   "clients": 2,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Maddy L.",
+   "clubs": [
+    "Tech Ridge"
+   ],
+   "clients": 25,
+   "rating": 4.99,
+   "reviews": 109
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Omeed S.",
+   "clubs": [
+    "Tech Ridge"
+   ],
+   "clients": 2,
+   "rating": 4.93,
+   "reviews": 14
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Tyriq V.",
+   "clubs": [
+    "Tech Ridge"
+   ],
+   "clients": 15,
+   "rating": 5,
+   "reviews": 27
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Demario E.",
+   "clubs": [
+    "University"
+   ],
+   "clients": 39,
+   "rating": 4.98,
+   "reviews": 48
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Edward P.",
+   "clubs": [
+    "University"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Kelsey N.",
+   "clubs": [
+    "University"
+   ],
+   "clients": 20,
+   "rating": 4.96,
+   "reviews": 45
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Marsiase B.",
+   "clubs": [
+    "University"
+   ],
+   "clients": 2,
+   "rating": 5,
+   "reviews": 2
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Sheridan S.",
+   "clubs": [
+    "University",
+    "Eastside"
+   ],
+   "clients": 42,
+   "rating": 4.9,
+   "reviews": 117
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Christopher S.",
+   "clubs": [
+    "Watauga",
+    "Hulen"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Dennis M.",
+   "clubs": [
+    "Watauga"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Kevin A.",
+   "clubs": [
+    "Watauga"
+   ],
+   "clients": 15,
+   "rating": 5,
+   "reviews": 11
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Ana P.",
+   "clubs": [
+    "Westover"
+   ],
+   "clients": 7,
+   "rating": 5,
+   "reviews": 8
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Anthony P.",
+   "clubs": [
+    "Westover"
+   ],
+   "clients": 6,
+   "rating": 5,
+   "reviews": 5
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Diego A.",
+   "clubs": [
+    "Westover"
+   ],
+   "clients": 15,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Dustin K.",
+   "clubs": [
+    "Westover"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Elizabeth D.",
+   "clubs": [
+    "Westover"
+   ],
+   "clients": 25,
+   "rating": 4.98,
+   "reviews": 51
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Johnathan E.",
+   "clubs": [
+    "Westover"
+   ],
+   "clients": 6,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Ricardo O.",
+   "clubs": [
+    "Westover"
+   ],
+   "clients": 2,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Tim O.",
+   "clubs": [
+    "Westover"
+   ],
+   "clients": 1,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Derek U.",
+   "clubs": [
+    "Woodlands"
+   ],
+   "clients": 50,
+   "rating": 4.99,
+   "reviews": 165
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Mossiev Q.",
+   "clubs": [
+    "Woodlands"
+   ],
+   "clients": 40,
+   "rating": 5,
+   "reviews": 124
+  },
+  {
+   "company": "Elevate",
+   "trainer": "Shykieva B.",
+   "clubs": [
+    "Woodlands"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Jonathan H.",
+   "clubs": [
+    "Akers Mill"
+   ],
+   "clients": 14,
+   "rating": 5,
+   "reviews": 9
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Kurt C.",
+   "clubs": [
+    "Alpharetta / Windward",
+    "Cumming"
+   ],
+   "clients": 19,
+   "rating": 5,
+   "reviews": 32
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Volha P.",
+   "clubs": [
+    "Alpharetta / Windward"
+   ],
+   "clients": 20,
+   "rating": 5,
+   "reviews": 29
+  },
+  {
+   "company": "GRIP",
+   "trainer": "James J.",
+   "clubs": [
+    "Ansley Mall"
+   ],
+   "clients": 1,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Christian T.",
+   "clubs": [
+    "Atlanta - Peachtree Rd"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "GRIP",
+   "trainer": "John M.",
+   "clubs": [
+    "Atlantic Beach",
+    "Orange Park"
+   ],
+   "clients": 8,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Tyler W.",
+   "clubs": [
+    "Atlantic Beach"
+   ],
+   "clients": 14,
+   "rating": 5,
+   "reviews": 22
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Alyssa C.",
+   "clubs": [
+    "Austell"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Alisa C.",
+   "clubs": [
+    "Beavercreek"
+   ],
+   "clients": 25,
+   "rating": 4.9,
+   "reviews": 50
+  },
+  {
+   "company": "GRIP",
+   "trainer": "John W.",
+   "clubs": [
+    "Beavercreek"
+   ],
+   "clients": 5,
+   "rating": 5,
+   "reviews": 3
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Joshua S.",
+   "clubs": [
+    "Beavercreek"
+   ],
+   "clients": 2,
+   "rating": 5,
+   "reviews": 1
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Rosette G.",
+   "clubs": [
+    "Beavercreek"
+   ],
+   "clients": 30,
+   "rating": 4.98,
+   "reviews": 51
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Temba N.",
+   "clubs": [
+    "Beavercreek"
+   ],
+   "clients": 15,
+   "rating": 4.79,
+   "reviews": 19
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Tracey R.",
+   "clubs": [
+    "Beavercreek"
+   ],
+   "clients": 18,
+   "rating": 4.94,
+   "reviews": 16
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Zach P.",
+   "clubs": [
+    "Beavercreek"
+   ],
+   "clients": 19,
+   "rating": 5,
+   "reviews": 57
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Cole R.",
+   "clubs": [
+    "Beaverton",
+    "Vancouver East"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Ilona F.",
+   "clubs": [
+    "Beaverton"
+   ],
+   "clients": 58,
+   "rating": 4.96,
+   "reviews": 229
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Jb R.",
+   "clubs": [
+    "Beaverton"
+   ],
+   "clients": 1,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Jonah M.",
+   "clubs": [
+    "Beaverton"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Kenny M.",
+   "clubs": [
+    "Beaverton"
+   ],
+   "clients": 19,
+   "rating": 5,
+   "reviews": 21
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Lumpai R.",
+   "clubs": [
+    "Beaverton"
+   ],
+   "clients": 24,
+   "rating": 5,
+   "reviews": 75
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Bryan C.",
+   "clubs": [
+    "Buford"
+   ],
+   "clients": 3,
+   "rating": 5,
+   "reviews": 1
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Carli R.",
+   "clubs": [
+    "Buford"
+   ],
+   "clients": 1,
+   "rating": 5,
+   "reviews": 3
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Chrysler K.",
+   "clubs": [
+    "Buford"
+   ],
+   "clients": 3,
+   "rating": 5,
+   "reviews": 3
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Enzi P.",
+   "clubs": [
+    "Buford"
+   ],
+   "clients": 8,
+   "rating": 4.83,
+   "reviews": 6
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Megan L.",
+   "clubs": [
+    "Centerville"
+   ],
+   "clients": 20,
+   "rating": 4.79,
+   "reviews": 38
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Robert F.",
+   "clubs": [
+    "Centerville"
+   ],
+   "clients": 48,
+   "rating": 4.99,
+   "reviews": 149
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Ariel L.",
+   "clubs": [
+    "Cumming"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Darron B.",
+   "clubs": [
+    "Cumming"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Jeffery H.",
+   "clubs": [
+    "Douglasville"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Christine T.",
+   "clubs": [
+    "Duluth - Peachtree Industrial"
+   ],
+   "clients": 3,
+   "rating": 5,
+   "reviews": 5
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Dannie M.",
+   "clubs": [
+    "Duluth - Peachtree Industrial"
+   ],
+   "clients": 4,
+   "rating": 5,
+   "reviews": 1
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Anthony C.",
+   "clubs": [
+    "Duluth - Pleasant Hill"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "GRIP",
+   "trainer": "Erica D.",
+   "clubs": [
+    "Duluth - Pleasant Hill"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
+  },
+  {
    "company": "GRIP",
-   "trainer": "Alan Levine",
-   "clients": 2
+   "trainer": "Bryan H.",
+   "clubs": [
+    "East Broad"
+   ],
+   "clients": 26,
+   "rating": 5,
+   "reviews": 14
   },
   {
    "company": "GRIP",
-   "trainer": "Alisa Conley",
-   "clients": 2
+   "trainer": "Michael R.",
+   "clubs": [
+    "East Broad"
+   ],
+   "clients": 5,
+   "rating": 5,
+   "reviews": 2
   },
   {
    "company": "GRIP",
-   "trainer": "Alisa Martin",
-   "clients": 16
+   "trainer": "James M.",
+   "clubs": [
+    "Goodale"
+   ],
+   "clients": 13,
+   "rating": 5,
+   "reviews": 6
   },
   {
    "company": "GRIP",
-   "trainer": "Alix Lunsford",
-   "clients": 24
+   "trainer": "Felix D.",
+   "clubs": [
+    "Graceland"
+   ],
+   "clients": 2,
+   "rating": 5,
+   "reviews": 5
   },
   {
    "company": "GRIP",
-   "trainer": "Allen Clyburn",
-   "clients": 4
+   "trainer": "Lizbeth D.",
+   "clubs": [
+    "Graceland"
+   ],
+   "clients": 22,
+   "rating": 4.92,
+   "reviews": 48
   },
   {
    "company": "GRIP",
-   "trainer": "Andre Tovar",
-   "clients": 4
+   "trainer": "Rosemary W.",
+   "clubs": [
+    "Graceland"
+   ],
+   "clients": 7,
+   "rating": 5,
+   "reviews": 5
   },
   {
    "company": "GRIP",
-   "trainer": "Anthony  Clemons",
-   "clients": 11
+   "trainer": "Alix L.",
+   "clubs": [
+    "Gresham"
+   ],
+   "clients": 23,
+   "rating": 5,
+   "reviews": 15
   },
   {
    "company": "GRIP",
-   "trainer": "Antonio Burgos",
-   "clients": 15
+   "trainer": "Brandon S.",
+   "clubs": [
+    "Gresham"
+   ],
+   "clients": 76,
+   "rating": 4.82,
+   "reviews": 101
   },
   {
    "company": "GRIP",
-   "trainer": "Antonio Toves",
-   "clients": 8
+   "trainer": "Kimberly D.",
+   "clubs": [
+    "Gresham"
+   ],
+   "clients": 15,
+   "rating": 5,
+   "reviews": 18
   },
   {
    "company": "GRIP",
-   "trainer": "Athena Lawrence",
-   "clients": 20
+   "trainer": "Ronnie W.",
+   "clubs": [
+    "Gresham"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "GRIP",
-   "trainer": "Braden Kent",
-   "clients": 5
+   "trainer": "Viktoria C.",
+   "clubs": [
+    "Gresham",
+    "Portland SE 82nd"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "GRIP",
-   "trainer": "Brandon Steele",
-   "clients": 25
+   "trainer": "Youssef W.",
+   "clubs": [
+    "Gresham"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "GRIP",
-   "trainer": "Bryan  Chen",
-   "clients": 14
+   "trainer": "Dane T.",
+   "clubs": [
+    "Hazel Dell",
+    "Vancouver East"
+   ],
+   "clients": 3,
+   "rating": 5,
+   "reviews": 6
   },
   {
    "company": "GRIP",
-   "trainer": "Bryan Hancock",
-   "clients": 13
+   "trainer": "Genny B.",
+   "clubs": [
+    "Hazel Dell"
+   ],
+   "clients": 31,
+   "rating": 4.95,
+   "reviews": 73
   },
   {
    "company": "GRIP",
-   "trainer": "Bryce Perlman",
-   "clients": 38
+   "trainer": "Kasey B.",
+   "clubs": [
+    "Hazel Dell"
+   ],
+   "clients": 25,
+   "rating": 5,
+   "reviews": 50
   },
   {
    "company": "GRIP",
-   "trainer": "Carli Riggs",
-   "clients": 7
+   "trainer": "Kyle A.",
+   "clubs": [
+    "Hazel Dell"
+   ],
+   "clients": 31,
+   "rating": 4.98,
+   "reviews": 63
   },
   {
    "company": "GRIP",
-   "trainer": "Chris Cunningham",
-   "clients": 8
+   "trainer": "Rhonnie S.",
+   "clubs": [
+    "Hazel Dell"
+   ],
+   "clients": 25,
+   "rating": 4.95,
+   "reviews": 22
   },
   {
    "company": "GRIP",
-   "trainer": "Christine Truhe",
-   "clients": 12
+   "trainer": "William T.",
+   "clubs": [
+    "Hazel Dell"
+   ],
+   "clients": 31,
+   "rating": 5,
+   "reviews": 119
   },
   {
    "company": "GRIP",
-   "trainer": "Chrysler Kubanangidi",
-   "clients": 5
+   "trainer": "Alan L.",
+   "clubs": [
+    "Holcomb @ 400"
+   ],
+   "clients": 7,
+   "rating": 5,
+   "reviews": 7
   },
   {
    "company": "GRIP",
-   "trainer": "Corey Johnson",
-   "clients": 4
+   "trainer": "Tim V.",
+   "clubs": [
+    "Holcomb @ 400"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "GRIP",
-   "trainer": "DJ Forte",
-   "clients": 2
+   "trainer": "Connie L.",
+   "clubs": [
+    "Johns Creek"
+   ],
+   "clients": 1,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "GRIP",
-   "trainer": "Dane Tufford",
-   "clients": 3
+   "trainer": "David K.",
+   "clubs": [
+    "Johns Creek"
+   ],
+   "clients": 25,
+   "rating": 4.83,
+   "reviews": 29
   },
   {
    "company": "GRIP",
-   "trainer": "Danielle Simeoli",
-   "clients": 15
+   "trainer": "Paris R.",
+   "clubs": [
+    "Johns Creek"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "GRIP",
-   "trainer": "Dannie McKinnon",
-   "clients": 6
+   "trainer": "Thomas W.",
+   "clubs": [
+    "Johns Creek"
+   ],
+   "clients": 17,
+   "rating": 5,
+   "reviews": 7
   },
   {
    "company": "GRIP",
-   "trainer": "Darron Brown",
-   "clients": 5
+   "trainer": "Brant U.",
+   "clubs": [
+    "Kennesaw - Wade Green"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "GRIP",
-   "trainer": "David  Kang",
-   "clients": 33
+   "trainer": "Tammie P.",
+   "clubs": [
+    "Kennesaw - Wade Green"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "GRIP",
-   "trainer": "David Quintero",
-   "clients": 6
+   "trainer": "Chris C.",
+   "clubs": [
+    "Kenwood"
+   ],
+   "clients": 2,
+   "rating": 5,
+   "reviews": 1
   },
   {
    "company": "GRIP",
-   "trainer": "Derrick Marshall",
-   "clients": 8
+   "trainer": "Damon H.",
+   "clubs": [
+    "Kenwood"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "GRIP",
-   "trainer": "Diana Castelan",
-   "clients": 8
+   "trainer": "Kyle M.",
+   "clubs": [
+    "Kenwood"
+   ],
+   "clients": 18,
+   "rating": 5,
+   "reviews": 6
   },
   {
    "company": "GRIP",
-   "trainer": "Enzi Piao",
-   "clients": 9
+   "trainer": "Matt S.",
+   "clubs": [
+    "Kenwood"
+   ],
+   "clients": 1,
+   "rating": 5,
+   "reviews": 1
   },
   {
    "company": "GRIP",
-   "trainer": "Erica Hansen",
-   "clients": 3
+   "trainer": "Corey H.",
+   "clubs": [
+    "Kernan"
+   ],
+   "clients": 4,
+   "rating": 5,
+   "reviews": 1
   },
   {
    "company": "GRIP",
-   "trainer": "Ervin  Dorsett",
-   "clients": 2
+   "trainer": "Danielle S.",
+   "clubs": [
+    "Kernan"
+   ],
+   "clients": 42,
+   "rating": 4.99,
+   "reviews": 99
   },
   {
    "company": "GRIP",
-   "trainer": "Evan Spencer",
-   "clients": 26
+   "trainer": "Leslee C.",
+   "clubs": [
+    "Kernan"
+   ],
+   "clients": 44,
+   "rating": 4.99,
+   "reviews": 177
   },
   {
    "company": "GRIP",
-   "trainer": "Felix De los santos",
-   "clients": 3
+   "trainer": "Mohammad S.",
+   "clubs": [
+    "Kernan"
+   ],
+   "clients": 20,
+   "rating": 5,
+   "reviews": 25
   },
   {
    "company": "GRIP",
-   "trainer": "Genny Blaker",
-   "clients": 23
+   "trainer": "Briana W.",
+   "clubs": [
+    "Lenox / Buckhead"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "GRIP",
-   "trainer": "Ilona Fleming",
-   "clients": 25
+   "trainer": "Allen C.",
+   "clubs": [
+    "Lloyd Center"
+   ],
+   "clients": 18,
+   "rating": 4.92,
+   "reviews": 13
   },
   {
    "company": "GRIP",
-   "trainer": "Isabel Cunningham",
-   "clients": 7
+   "trainer": "Derrick M.",
+   "clubs": [
+    "Lloyd Center"
+   ],
+   "clients": 4,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "GRIP",
-   "trainer": "Jacob  Roskowski",
-   "clients": 30
+   "trainer": "Isabel C.",
+   "clubs": [
+    "Lloyd Center"
+   ],
+   "clients": 2,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "GRIP",
-   "trainer": "Jacques  Kisula",
-   "clients": 6
+   "trainer": "James B.",
+   "clubs": [
+    "Lloyd Center"
+   ],
+   "clients": 49,
+   "rating": 5,
+   "reviews": 47
   },
   {
    "company": "GRIP",
-   "trainer": "Jake Harper",
-   "clients": 20
+   "trainer": "Jenna L.",
+   "clubs": [
+    "Lloyd Center"
+   ],
+   "clients": 22,
+   "rating": 5,
+   "reviews": 14
   },
   {
    "company": "GRIP",
-   "trainer": "James Baglai",
-   "clients": 30
+   "trainer": "Leah S.",
+   "clubs": [
+    "Marietta South"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "GRIP",
-   "trainer": "James McDaniel Jr.",
-   "clients": 2
+   "trainer": "Popular P.",
+   "clubs": [
+    "Marietta South"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "GRIP",
-   "trainer": "Jaren Zadlo",
-   "clients": 19
+   "trainer": "Tyler H.",
+   "clubs": [
+    "Marietta South"
+   ],
+   "clients": 3,
+   "rating": 5,
+   "reviews": 2
   },
   {
    "company": "GRIP",
-   "trainer": "Jasmine Watkins",
-   "clients": 11
+   "trainer": "Jacob R.",
+   "clubs": [
+    "Norcross - Peachtree Corners",
+    "Duluth - Peachtree Industrial"
+   ],
+   "clients": 10,
+   "rating": 5,
+   "reviews": 10
   },
   {
    "company": "GRIP",
-   "trainer": "Jason Kampa",
-   "clients": 26
+   "trainer": "Walker B.",
+   "clubs": [
+    "Norcross - Peachtree Corners"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "GRIP",
-   "trainer": "Jb Rodriguez",
-   "clients": 1
+   "trainer": "Antonio T.",
+   "clubs": [
+    "Old Hamilton"
+   ],
+   "clients": 42,
+   "rating": 4.95,
+   "reviews": 103
   },
   {
    "company": "GRIP",
-   "trainer": "Jenna Louie",
-   "clients": 10
+   "trainer": "Jasmine W.",
+   "clubs": [
+    "Old Hamilton"
+   ],
+   "clients": 8,
+   "rating": 5,
+   "reviews": 5
   },
   {
    "company": "GRIP",
-   "trainer": "Jill Lehrer",
-   "clients": 1
+   "trainer": "Mackenzie M.",
+   "clubs": [
+    "Old Hamilton",
+    "East Broad"
+   ],
+   "clients": 3,
+   "rating": 5,
+   "reviews": 4
   },
   {
    "company": "GRIP",
-   "trainer": "Joseph Gomez",
-   "clients": 11
+   "trainer": "Tiffany C.",
+   "clubs": [
+    "Old Hamilton"
+   ],
+   "clients": 10,
+   "rating": 5,
+   "reviews": 11
   },
   {
    "company": "GRIP",
-   "trainer": "Kasey Brodahl",
-   "clients": 9
+   "trainer": "Jake H.",
+   "clubs": [
+    "Old St"
+   ],
+   "clients": 5,
+   "rating": 5,
+   "reviews": 5
   },
   {
    "company": "GRIP",
-   "trainer": "Kenny Morrell",
-   "clients": 10
+   "trainer": "John T.",
+   "clubs": [
+    "Old St"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "GRIP",
-   "trainer": "Kimberly Dahl",
-   "clients": 16
+   "trainer": "Joseph G.",
+   "clubs": [
+    "Old St"
+   ],
+   "clients": 3,
+   "rating": 5,
+   "reviews": 1
   },
   {
    "company": "GRIP",
-   "trainer": "Kurt Comber",
-   "clients": 39
+   "trainer": "Amanda S.",
+   "clubs": [
+    "Orange Park",
+    "Kernan"
+   ],
+   "clients": 14,
+   "rating": 5,
+   "reviews": 2
   },
   {
    "company": "GRIP",
-   "trainer": "Kyle Aplin",
-   "clients": 28
+   "trainer": "Antonio B.",
+   "clubs": [
+    "Orange Park"
+   ],
+   "clients": 61,
+   "rating": 4.96,
+   "reviews": 126
   },
   {
    "company": "GRIP",
-   "trainer": "Kyle Cameron",
-   "clients": 15
+   "trainer": "Athena L.",
+   "clubs": [
+    "Pearl District"
+   ],
+   "clients": 28,
+   "rating": 4.97,
+   "reviews": 29
   },
   {
    "company": "GRIP",
-   "trainer": "Kyle Martin",
-   "clients": 5
+   "trainer": "Claire R.",
+   "clubs": [
+    "Pearl District"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "GRIP",
-   "trainer": "Leslee Clark",
-   "clients": 18
+   "trainer": "DJ F.",
+   "clubs": [
+    "Pearl District",
+    "Tualatin"
+   ],
+   "clients": 1,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "GRIP",
-   "trainer": "Lizbeth Davila",
-   "clients": 2
+   "trainer": "David Q.",
+   "clubs": [
+    "Pearl District"
+   ],
+   "clients": 5,
+   "rating": 5,
+   "reviews": 6
   },
   {
    "company": "GRIP",
-   "trainer": "Lonell Williams",
-   "clients": 6
+   "trainer": "Miles B.",
+   "clubs": [
+    "Pearl District"
+   ],
+   "clients": 32,
+   "rating": 4.83,
+   "reviews": 23
   },
   {
    "company": "GRIP",
-   "trainer": "Lumpai Russell",
-   "clients": 11
+   "trainer": "Sam S.",
+   "clubs": [
+    "Pearl District"
+   ],
+   "clients": 9,
+   "rating": 5,
+   "reviews": 10
   },
   {
    "company": "GRIP",
-   "trainer": "Mackenzie Murray",
-   "clients": 2
+   "trainer": "Toni C.",
+   "clubs": [
+    "Pearl District"
+   ],
+   "clients": 86,
+   "rating": 4.96,
+   "reviews": 104
   },
   {
    "company": "GRIP",
-   "trainer": "Mariah Liggins",
-   "clients": 4
+   "trainer": "Will R.",
+   "clubs": [
+    "Pearl District",
+    "Tualatin"
+   ],
+   "clients": 37,
+   "rating": 5,
+   "reviews": 39
   },
   {
    "company": "GRIP",
-   "trainer": "Matt Staveskie",
-   "clients": 14
+   "trainer": "Andreina V.",
+   "clubs": [
+    "Portland SE 82nd"
+   ],
+   "clients": 3,
+   "rating": 5,
+   "reviews": 6
   },
   {
    "company": "GRIP",
-   "trainer": "Megan Lakes",
-   "clients": 2
+   "trainer": "Jason K.",
+   "clubs": [
+    "Portland SE 82nd"
+   ],
+   "clients": 71,
+   "rating": 4.98,
+   "reviews": 174
   },
   {
    "company": "GRIP",
-   "trainer": "Michael Roberts",
-   "clients": 1
+   "trainer": "Miranda B.",
+   "clubs": [
+    "Portland SE 82nd"
+   ],
+   "clients": 17,
+   "rating": 5,
+   "reviews": 18
   },
   {
    "company": "GRIP",
-   "trainer": "Miles Bergman",
-   "clients": 5
+   "trainer": "Jacques K.",
+   "clubs": [
+    "Roswell - Hwy 92 / Hardscrabble"
+   ],
+   "clients": 3,
+   "rating": 5,
+   "reviews": 1
   },
   {
    "company": "GRIP",
-   "trainer": "Miranda Barnett",
-   "clients": 7
+   "trainer": "Jill L.",
+   "clubs": [
+    "Roswell - Hwy 92 / Hardscrabble"
+   ],
+   "clients": 1,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "GRIP",
-   "trainer": "Mohammad Samardzic",
-   "clients": 18
+   "trainer": "Tyler B.",
+   "clubs": [
+    "Roswell - Hwy 92 / Hardscrabble"
+   ],
+   "clients": 35,
+   "rating": 4.92,
+   "reviews": 39
   },
   {
    "company": "GRIP",
-   "trainer": "Monique  Moore",
-   "clients": 5
+   "trainer": "Monique M.",
+   "clubs": [
+    "Sandy Springs"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "GRIP",
-   "trainer": "Paris Roozbahani",
-   "clients": 4
+   "trainer": "Ryder M.",
+   "clubs": [
+    "Sandy Springs"
+   ],
+   "clients": 2,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "GRIP",
-   "trainer": "Rhonnie Smart",
-   "clients": 27
+   "trainer": "K.j S.",
+   "clubs": [
+    "Sprayberry"
+   ],
+   "clients": 3,
+   "rating": 5,
+   "reviews": 1
   },
   {
    "company": "GRIP",
-   "trainer": "Robert Fleck",
-   "clients": 21
+   "trainer": "Corey J.",
+   "clubs": [
+    "Sugar Hill"
+   ],
+   "clients": 1,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "GRIP",
-   "trainer": "Rosemary Walton",
-   "clients": 16
+   "trainer": "Seiji T.",
+   "clubs": [
+    "Sugar Hill"
+   ],
+   "clients": 23,
+   "rating": 4.89,
+   "reviews": 19
   },
   {
    "company": "GRIP",
-   "trainer": "Rosette Goldsmith",
-   "clients": 1
+   "trainer": "Willie B.",
+   "clubs": [
+    "Sugar Hill"
+   ],
+   "clients": 1,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "GRIP",
-   "trainer": "Ryder Matthews",
-   "clients": 10
+   "trainer": "Braden K.",
+   "clubs": [
+    "Tanasbourne/Hillsboro"
+   ],
+   "clients": 3,
+   "rating": 5,
+   "reviews": 1
   },
   {
    "company": "GRIP",
-   "trainer": "Sam Shepherd",
-   "clients": 16
+   "trainer": "Bryce P.",
+   "clubs": [
+    "Tanasbourne/Hillsboro"
+   ],
+   "clients": 42,
+   "rating": 5,
+   "reviews": 40
   },
   {
    "company": "GRIP",
-   "trainer": "Seiji Tada",
-   "clients": 34
+   "trainer": "Diana C.",
+   "clubs": [
+    "Tanasbourne/Hillsboro"
+   ],
+   "clients": 18,
+   "rating": 5,
+   "reviews": 18
   },
   {
    "company": "GRIP",
-   "trainer": "TONI CARNELL",
-   "clients": 14
+   "trainer": "Talon M.",
+   "clubs": [
+    "Tanasbourne/Hillsboro"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "GRIP",
-   "trainer": "Tarek Abdallah",
-   "clients": 9
+   "trainer": "Melissa M.",
+   "clubs": [
+    "Towne Lake"
+   ],
+   "clients": 1,
+   "rating": 5,
+   "reviews": 1
   },
   {
    "company": "GRIP",
-   "trainer": "Temba Ngqakayi",
-   "clients": 14
+   "trainer": "Nicholas S.",
+   "clubs": [
+    "Towne Lake"
+   ],
+   "clients": 5,
+   "rating": 5,
+   "reviews": 4
   },
   {
    "company": "GRIP",
-   "trainer": "Tiffany Cooper",
-   "clients": 4
+   "trainer": "Alisa M.",
+   "clubs": [
+    "Tualatin"
+   ],
+   "clients": 18,
+   "rating": 5,
+   "reviews": 25
   },
   {
    "company": "GRIP",
-   "trainer": "Tim Vicchrilli",
-   "clients": 8
+   "trainer": "Andre T.",
+   "clubs": [
+    "Tualatin"
+   ],
+   "clients": 17,
+   "rating": 5,
+   "reviews": 23
   },
   {
    "company": "GRIP",
-   "trainer": "Tom Wittenberg",
-   "clients": 45
+   "trainer": "Ervin D.",
+   "clubs": [
+    "Tualatin"
+   ],
+   "clients": 15,
+   "rating": 5,
+   "reviews": 8
   },
   {
    "company": "GRIP",
-   "trainer": "Torin Perkins",
-   "clients": 23
+   "trainer": "Evan S.",
+   "clubs": [
+    "Tualatin"
+   ],
+   "clients": 70,
+   "rating": 5,
+   "reviews": 130
   },
   {
    "company": "GRIP",
-   "trainer": "Tracey Rickey",
-   "clients": 8
+   "trainer": "Jaren Z.",
+   "clubs": [
+    "Tualatin"
+   ],
+   "clients": 21,
+   "rating": 5,
+   "reviews": 162
   },
   {
    "company": "GRIP",
-   "trainer": "Tyler  Barnes",
-   "clients": 36
+   "trainer": "Mariah L.",
+   "clubs": [
+    "Tualatin"
+   ],
+   "clients": 11,
+   "rating": 5,
+   "reviews": 1
   },
   {
    "company": "GRIP",
-   "trainer": "Tyler Wright",
-   "clients": 28
+   "trainer": "Erica H.",
+   "clubs": [
+    "Vancouver East"
+   ],
+   "clients": 15,
+   "rating": 5,
+   "reviews": 36
   },
   {
    "company": "GRIP",
-   "trainer": "Verne Fortson",
-   "clients": 11
+   "trainer": "Kyle C.",
+   "clubs": [
+    "Vancouver East"
+   ],
+   "clients": 59,
+   "rating": 4.93,
+   "reviews": 204
   },
   {
    "company": "GRIP",
-   "trainer": "Volha  Padbiarezskaya",
-   "clients": 19
+   "trainer": "Torin P.",
+   "clubs": [
+    "Vancouver East"
+   ],
+   "clients": 80,
+   "rating": 4.99,
+   "reviews": 582
   },
   {
    "company": "GRIP",
-   "trainer": "Will Rusciano",
-   "clients": 23
+   "trainer": "Dejoira P.",
+   "clubs": [
+    "West Chester"
+   ],
+   "clients": 3,
+   "rating": 5,
+   "reviews": 1
   },
   {
    "company": "GRIP",
-   "trainer": "William T",
-   "clients": 27
+   "trainer": "Lonell W.",
+   "clubs": [
+    "West Chester"
+   ],
+   "clients": 27,
+   "rating": 5,
+   "reviews": 30
   },
   {
    "company": "GRIP",
-   "trainer": "Willie Brooks",
-   "clients": 1
+   "trainer": "Tarek A.",
+   "clubs": [
+    "West Chester"
+   ],
+   "clients": 17,
+   "rating": 4.96,
+   "reviews": 23
   },
   {
    "company": "GRIP",
-   "trainer": "Zach Pollock",
-   "clients": 5
+   "trainer": "Verne F.",
+   "clubs": [
+    "West Chester"
+   ],
+   "clients": 4,
+   "rating": 5,
+   "reviews": 2
   },
   {
    "company": "Lighthouse",
-   "trainer": "Aaron Simmons",
-   "clients": 15
+   "trainer": "Aaron S.",
+   "clubs": [
+    "Broken Arrow"
+   ],
+   "clients": 30,
+   "rating": 4.99,
+   "reviews": 120
   },
   {
    "company": "Lighthouse",
-   "trainer": "Alanna Farr",
-   "clients": 3
+   "trainer": "Alanna F.",
+   "clubs": [
+    "Broken Arrow"
+   ],
+   "clients": 9,
+   "rating": 4.11,
+   "reviews": 9
   },
   {
    "company": "Lighthouse",
-   "trainer": "Andrew Hanson",
-   "clients": 5
+   "trainer": "Andrew H.",
+   "clubs": [
+    "Broken Arrow"
+   ],
+   "clients": 2,
+   "rating": 5,
+   "reviews": 1
   },
   {
    "company": "Lighthouse",
-   "trainer": "Andrew Medico",
-   "clients": 6
+   "trainer": "Austin C.",
+   "clubs": [
+    "Broken Arrow"
+   ],
+   "clients": 5,
+   "rating": 4.67,
+   "reviews": 3
   },
   {
    "company": "Lighthouse",
-   "trainer": "Ann Albert",
-   "clients": 4
+   "trainer": "Autumn M.",
+   "clubs": [
+    "Broken Arrow"
+   ],
+   "clients": 6,
+   "rating": 5,
+   "reviews": 8
   },
   {
    "company": "Lighthouse",
-   "trainer": "Austin Collier",
-   "clients": 15
+   "trainer": "Dianna M.",
+   "clubs": [
+    "Broken Arrow"
+   ],
+   "clients": 0,
+   "rating": 5,
+   "reviews": 1
   },
   {
    "company": "Lighthouse",
-   "trainer": "Beau Gooch",
-   "clients": 21
+   "trainer": "Karl S.",
+   "clubs": [
+    "Broken Arrow"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Lighthouse",
-   "trainer": "Bradley Anderson",
-   "clients": 1
+   "trainer": "Logan S.",
+   "clubs": [
+    "Broken Arrow"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Lighthouse",
-   "trainer": "Cedric Haywood",
-   "clients": 5
+   "trainer": "Oliver G.",
+   "clubs": [
+    "Broken Arrow"
+   ],
+   "clients": 5,
+   "rating": 5,
+   "reviews": 2
   },
   {
    "company": "Lighthouse",
-   "trainer": "Christianne Quarterson",
-   "clients": 14
+   "trainer": "Tapanga M.",
+   "clubs": [
+    "Broken Arrow"
+   ],
+   "clients": 2,
+   "rating": 5,
+   "reviews": 11
   },
   {
    "company": "Lighthouse",
-   "trainer": "Cody Hurlbert",
-   "clients": 17
+   "trainer": "Ann A.",
+   "clubs": [
+    "Cleveland"
+   ],
+   "clients": 2,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Lighthouse",
-   "trainer": "Dianna Meyer",
-   "clients": 9
+   "trainer": "Isaiah W.",
+   "clubs": [
+    "Cleveland"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Lighthouse",
-   "trainer": "Dmahree Turner",
-   "clients": 15
+   "trainer": "Ryan H.",
+   "clubs": [
+    "Cleveland"
+   ],
+   "clients": 1,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Lighthouse",
-   "trainer": "Esmeralda Gonzalez",
-   "clients": 4
+   "trainer": "Bradley A.",
+   "clubs": [
+    "Edmond"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Lighthouse",
-   "trainer": "Evan Rowland",
-   "clients": 17
+   "trainer": "Hannah N.",
+   "clubs": [
+    "Edmond"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Lighthouse",
-   "trainer": "Fernando Morales",
-   "clients": 10
+   "trainer": "Kayla M.",
+   "clubs": [
+    "Fort Smith"
+   ],
+   "clients": 5,
+   "rating": 3.5,
+   "reviews": 2
   },
   {
    "company": "Lighthouse",
-   "trainer": "Kayla Mckenzie",
-   "clients": 6
+   "trainer": "Lynn C.",
+   "clubs": [
+    "Fort Smith"
+   ],
+   "clients": 14,
+   "rating": 5,
+   "reviews": 11
   },
   {
    "company": "Lighthouse",
-   "trainer": "Kris Koors",
-   "clients": 2
+   "trainer": "Amber N.",
+   "clubs": [
+    "Jenks"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Lighthouse",
-   "trainer": "Kyia Willis",
-   "clients": 2
+   "trainer": "Evan R.",
+   "clubs": [
+    "Jenks"
+   ],
+   "clients": 4,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Lighthouse",
-   "trainer": "Lynn C",
-   "clients": 8
+   "trainer": "Osvaldo G.",
+   "clubs": [
+    "Jenks"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Lighthouse",
-   "trainer": "Melissa Phillips",
-   "clients": 6
+   "trainer": "Terry D.",
+   "clubs": [
+    "Jenks"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Lighthouse",
-   "trainer": "Oliver Gardner",
-   "clients": 2
+   "trainer": "Cedric H.",
+   "clubs": [
+    "Midwest Oklahoma City"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Lighthouse",
-   "trainer": "Osvaldo Gomez",
-   "clients": 3
+   "trainer": "Justin G.",
+   "clubs": [
+    "Midwest Oklahoma City"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Lighthouse",
-   "trainer": "Ryan Heming",
-   "clients": 5
+   "trainer": "William C.",
+   "clubs": [
+    "Midwest Oklahoma City"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Lighthouse",
-   "trainer": "Terry Dunn III",
-   "clients": 5
+   "trainer": "Dmahree T.",
+   "clubs": [
+    "Northwest Oklahoma City"
+   ],
+   "clients": 1,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Lighthouse",
-   "trainer": "Teylor Tottress",
-   "clients": 12
+   "trainer": "Esmeralda G.",
+   "clubs": [
+    "Northwest Oklahoma City"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Lighthouse",
-   "trainer": "William Cornelius",
-   "clients": 1
+   "trainer": "Andrew M.",
+   "clubs": [
+    "Owasso"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "Lighthouse",
+   "trainer": "Beau G.",
+   "clubs": [
+    "Owasso"
+   ],
+   "clients": 2,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "Lighthouse",
+   "trainer": "Christianne Q.",
+   "clubs": [
+    "Owasso"
+   ],
+   "clients": 1,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "Lighthouse",
+   "trainer": "Caleb L.",
+   "clubs": [
+    "South Oklahoma City"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "Lighthouse",
+   "trainer": "Fernando M.",
+   "clubs": [
+    "South Oklahoma City"
+   ],
+   "clients": 6,
+   "rating": 5,
+   "reviews": 53
+  },
+  {
+   "company": "Lighthouse",
+   "trainer": "Mattison L.",
+   "clubs": [
+    "South Oklahoma City"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "Lighthouse",
+   "trainer": "Melissa P.",
+   "clubs": [
+    "South Oklahoma City"
+   ],
+   "clients": 1,
+   "rating": 5,
+   "reviews": 36
+  },
+  {
+   "company": "Lighthouse",
+   "trainer": "Cody H.",
+   "clubs": [
+    "South Tulsa",
+    "Jenks"
+   ],
+   "clients": 1,
+   "rating": 1.6,
+   "reviews": 5
+  },
+  {
+   "company": "Lighthouse",
+   "trainer": "Kristen K.",
+   "clubs": [
+    "South Tulsa"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "Lighthouse",
+   "trainer": "Kyia W.",
+   "clubs": [
+    "South Tulsa"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "Lighthouse",
+   "trainer": "Teylor T.",
+   "clubs": [
+    "South Tulsa"
+   ],
+   "clients": 47,
+   "rating": 4.96,
+   "reviews": 148
   },
   {
    "company": "Redwood",
-   "trainer": "Berkley Cooper",
-   "clients": 11
+   "trainer": "Dylan R.",
+   "clubs": [
+    "Chula Vista"
+   ],
+   "clients": 48,
+   "rating": 5,
+   "reviews": 73
   },
   {
    "company": "Redwood",
-   "trainer": "Demetrius Mumford",
-   "clients": 9
+   "trainer": "Jose A.",
+   "clubs": [
+    "Chula Vista"
+   ],
+   "clients": 58,
+   "rating": 4.88,
+   "reviews": 107
   },
   {
    "company": "Redwood",
-   "trainer": "Dylan Reisberg",
-   "clients": 18
+   "trainer": "Karen H.",
+   "clubs": [
+    "Chula Vista"
+   ],
+   "clients": 35,
+   "rating": 4.58,
+   "reviews": 36
   },
   {
    "company": "Redwood",
-   "trainer": "Jose Aldaco",
-   "clients": 12
+   "trainer": "Kyle J.",
+   "clubs": [
+    "Chula Vista"
+   ],
+   "clients": 186,
+   "rating": 4.98,
+   "reviews": 758
   },
   {
    "company": "Redwood",
-   "trainer": "Karen Heredia",
-   "clients": 25
+   "trainer": "Vanessa L.",
+   "clubs": [
+    "Chula Vista"
+   ],
+   "clients": 59,
+   "rating": 4.85,
+   "reviews": 103
   },
   {
    "company": "Redwood",
-   "trainer": "Kyle Johnson",
-   "clients": 31
+   "trainer": "Berkley C.",
+   "clubs": [
+    "Encinitas"
+   ],
+   "clients": 2,
+   "rating": 5,
+   "reviews": 1
   },
   {
    "company": "Redwood",
-   "trainer": "Lindsay Bailey",
-   "clients": 14
+   "trainer": "Maryam S.",
+   "clubs": [
+    "La Mesa"
+   ],
+   "clients": 2,
+   "rating": 5,
+   "reviews": 1
   },
   {
    "company": "Redwood",
-   "trainer": "Noah Nicholas",
-   "clients": 21
+   "trainer": "Noah N.",
+   "clubs": [
+    "La Mesa"
+   ],
+   "clients": 11,
+   "rating": 5,
+   "reviews": 11
   },
   {
    "company": "Redwood",
-   "trainer": "Oleander Stormfield",
-   "clients": 10
+   "trainer": "Thais T.",
+   "clubs": [
+    "La Mesa"
+   ],
+   "clients": 1,
+   "rating": 4.5,
+   "reviews": 2
   },
   {
    "company": "Redwood",
-   "trainer": "Omar Abdulwahid",
-   "clients": 10
+   "trainer": "Amada A.",
+   "clubs": [
+    "Mission Valley SD"
+   ],
+   "clients": 4,
+   "rating": 5,
+   "reviews": 1
   },
   {
    "company": "Redwood",
-   "trainer": "Thais Turanski",
-   "clients": 11
+   "trainer": "Demetrius M.",
+   "clubs": [
+    "Mission Valley SD"
+   ],
+   "clients": 37,
+   "rating": 4.93,
+   "reviews": 60
   },
   {
    "company": "Redwood",
-   "trainer": "Vanessa Lopez",
-   "clients": 8
+   "trainer": "Gabriela F.",
+   "clubs": [
+    "Mission Valley SD"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
   },
   {
    "company": "Redwood",
-   "trainer": "Yvonne Hsueh",
-   "clients": 14
+   "trainer": "Alexis H.",
+   "clubs": [
+    "Oakway"
+   ],
+   "clients": 3,
+   "rating": 5,
+   "reviews": 2
+  },
+  {
+   "company": "Redwood",
+   "trainer": "George D.",
+   "clubs": [
+    "Oakway"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "Redwood",
+   "trainer": "Jennifer W.",
+   "clubs": [
+    "Oakway"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "Redwood",
+   "trainer": "Kael O.",
+   "clubs": [
+    "Oakway"
+   ],
+   "clients": 21,
+   "rating": 5,
+   "reviews": 26
+  },
+  {
+   "company": "Redwood",
+   "trainer": "Kiyta L.",
+   "clubs": [
+    "Oakway"
+   ],
+   "clients": 6,
+   "rating": 4.88,
+   "reviews": 8
+  },
+  {
+   "company": "Redwood",
+   "trainer": "Lindsay B.",
+   "clubs": [
+    "Oakway"
+   ],
+   "clients": 0,
+   "rating": null,
+   "reviews": 0
+  },
+  {
+   "company": "Redwood",
+   "trainer": "Oleander S.",
+   "clubs": [
+    "Oakway"
+   ],
+   "clients": 15,
+   "rating": 5,
+   "reviews": 73
+  },
+  {
+   "company": "Redwood",
+   "trainer": "Yvonne H.",
+   "clubs": [
+    "Oakway"
+   ],
+   "clients": 5,
+   "rating": 5,
+   "reviews": 5
+  },
+  {
+   "company": "Redwood",
+   "trainer": "Omar A.",
+   "clubs": [
+    "Santee"
+   ],
+   "clients": 3,
+   "rating": 4.5,
+   "reviews": 2
   }
  ]
 }

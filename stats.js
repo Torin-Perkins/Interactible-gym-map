@@ -40,11 +40,9 @@ function buildModel(data) {
   });
 
   const adoptIdx = nameIndex(data.adoption || []);
-  // Clients on the app per trainer, from the billing health export (data.drive.appClients),
-  // matched by name within the brand.
+  // Clients on the app per trainer (data.drive.appClients: a Lumin snapshot or a billing health export).
   const appRows = (data.drive && data.drive.appClients && data.drive.appClients.rows) || [];
-  const appIdx = {};
-  [...new Set(appRows.map((r) => r.company))].forEach((co) => (appIdx[co] = nameIndex(appRows.filter((r) => r.company === co), (r) => r.trainer)));
+  const findApp = appMatcher(appRows);
   const onbIdx = data.onboarding ? nameIndex(data.onboarding) : null;
   const certIdx = data.certs ? nameIndex(data.certs) : null;
   const ul = data.unlogged;
@@ -52,7 +50,7 @@ function buildModel(data) {
 
   const trainers = staff.filter((s) => s.role === "pt" && !s.terminated).map((s) => {
     const key = `${s.company}|${s.club}`;
-    const adopt = appAdoption(lookupName(adoptIdx, s.name) || null, appIdx[s.company] && lookupName(appIdx[s.company], s.name), appRows.length > 0);
+    const adopt = appAdoption(lookupName(adoptIdx, s.name) || null, findApp(s), appRows.length > 0);
     const onb = onbIdx && lookupName(onbIdx, s.name);
     const certRow = certIdx && lookupName(certIdx, s.name);
     const certSources = [certRow && "cert list", onb && onb.certUploaded && "onboarding form",
@@ -100,6 +98,30 @@ function buildModel(data) {
 // App adoption = the trainer's clients in the billing health export (billed through the app) ÷ their
 // total clients on the app adoption sheet, capped at 100%. Without the export, the sheet's own
 // adoption % is used. Workout completion and the rest still come from the adoption sheet.
+// Matches a staff member to their app row. Lumin shows trainers as first name + last initial
+// ("Aaron S."): match on brand + first name + initial, and when two share that, on club too.
+// Billing export rows have full names: match by name within the brand.
+function appMatcher(rows) {
+  const short = /^(\S+)\s+(\S)\.?$/;
+  const byKey = new Map(), full = {};
+  rows.forEach((r) => {
+    const m = norm(String(r.trainer).replace(/\([^)]*\)/g, " ")).match(short); // drop "(nickname)"
+    if (m) {
+      const k = `${r.company}|${m[1]}|${m[2]}`;
+      (byKey.get(k) || byKey.set(k, []).get(k)).push(r);
+    } else (full[r.company] ||= []).push(r);
+  });
+  const fullIdx = Object.fromEntries(Object.entries(full).map(([co, rs]) => [co, nameIndex(rs, (r) => r.trainer)]));
+  return (s) => {
+    const parts = norm(s.name).split(" ").filter((p, i, all) => !(i > 1 && i === all.length - 1 && /^(jr|sr|ii|iii|iv)$/.test(p)));
+    const cands = byKey.get(`${s.company}|${parts[0]}|${(parts[parts.length - 1] || "")[0]}`) || [];
+    const atClub = cands.filter((r) => (r.clubs || []).some((c) => matchClub(c, [s.club])));
+    if (atClub.length === 1) return atClub[0];
+    if (!atClub.length && cands.length === 1) return cands[0];
+    return fullIdx[s.company] ? lookupName(fullIdx[s.company], s.name) || null : null;
+  };
+}
+
 function appAdoption(sheet, app, haveExport) {
   if (!haveExport) return sheet;
   const clients = app ? app.clients : 0;
@@ -111,6 +133,8 @@ function appAdoption(sheet, app, haveExport) {
     clientsInApp: clients,
     totalClients: total,
     adoption: total ? Math.min(100, (clients / total) * 100) : null,
+    rating: app && app.rating != null ? app.rating : sheet ? sheet.stars : null,
+    reviews: app ? app.reviews || 0 : null,
     fromExport: true,
   };
 }
@@ -298,7 +322,7 @@ function renderTiles() {
       `per trainer per pay period · ${[...new Set(periods.map((p) => p.label))].join(", ") || "no payroll files"}`],
     ["Lost sheep by trainer", fmtNum(tls.reduce((s, t) => s + t.lostSheep, 0)),
       `last session with ${tls.filter((t) => t.lostSheep).length} of ${n} trainers · ${lsRanges || "no lost sheep report"}`],
-    ["On the app", `${onApp} / ${n}`, `${MODEL.data.drive && MODEL.data.drive.appClients ? "clients in the billing export or marked on the adoption sheet" : "matched on the app adoption sheet"}${share(onApp)}`],
+    ["On the app", `${onApp} / ${n}`, `${MODEL.data.drive && MODEL.data.drive.appClients ? `active clients in ${MODEL.data.drive.appClients.source || "the billing export"} or marked on the adoption sheet` : "matched on the app adoption sheet"}${share(onApp)}`],
     ["Billing health", fmtPct(mean(bh.map((x) => x.v))), `avg of ${bh.length} clubs · ${fmtDate(bh.length ? new Date(Math.max(...bh.map((x) => x.date))) : null)}`, "gyms"],
     ["Lost sheep", fmtNum(ls.reduce((s, x) => s + x.v, 0)), `${fmtNum(npls.reduce((s, x) => s + x.v, 0))} non-prospect · incl. prospects`, "gyms"],
   ];
@@ -419,7 +443,8 @@ function renderTrainers() {
       const clients = a.fromExport ? `${fmtNum(a.clientsInApp)}${a.totalClients ? ` of ${fmtNum(a.totalClients)}` : ""} clients` : "";
       return `${a.adoption != null ? `<b>${fmtPct(a.adoption, 0)}</b>` : a.onApp ? "On app" : "Not on app"}`
         + `<span class="cell-sub">${[clients, a.totalClients == null && a.fromExport ? "no total on adoption sheet" : "",
-          a.completion != null ? `${fmtPct(a.completion, 0)} complete` : ""].filter(Boolean).join(" · ")}</span>`;
+          a.completion != null ? `${fmtPct(a.completion, 0)} complete` : "",
+          a.rating ? `★ ${a.rating.toFixed(1)}${a.reviews ? ` (${fmtNum(a.reviews)})` : ""}` : ""].filter(Boolean).join(" · ")}</span>`;
     } },
     { key: "unlogged", label: "Avg unlogged<br><small>sessions</small>", num: true, sort: (t) => t.unlogged, html: (t) =>
       `<span class="${t.unlogged > 0 ? "flag" : ""}" title="${esc(Object.entries(t.unloggedPeriods).map(([p, n]) => `${p}: ${n}`).join(", ") || "none in the payroll comparisons")}">${fmtNum(t.unlogged, t.unlogged % 1 ? 1 : 0)}</span>` },
@@ -586,7 +611,7 @@ function renderSources(data) {
     line("Lost sheep reports", st.lostSheep && st.lostSheep.ok, data.lostSheep ? data.lostSheep.reports.map((r) =>
       `${esc(r.company)}${r.range ? ` ${esc(r.range)}` : ""}: ${fmtNum(r.total)} lost sheep · ${fmtNum(r.total - r.noBooking)} with a last session, across ${r.trainers} trainers · ${MODEL.trainers.filter((t) => t.company === r.company && t.lostSheep).length} matched to current PTs`).join(" · ") || "no lost sheep reports" : err("lostSheep")),
     line("App clients", !!(data.drive && data.drive.appClients), data.drive && data.drive.appClients
-      ? `${esc(data.drive.appClients.file)}: ${fmtNum(data.drive.appClients.total)} clients across ${data.drive.appClients.rows.length} trainers · ${MODEL.trainers.filter((t) => t.adopt && t.adopt.clientsInApp > 0).length} matched to current PTs · adoption % = clients on the app ÷ total clients on the adoption sheet (max 100%)`
+      ? `${esc(data.drive.appClients.file)}: ${fmtNum(data.drive.appClients.total)} clients across ${data.drive.appClients.rows.length} trainers · ${MODEL.trainers.filter((t) => t.adopt && t.adopt.clientsInApp > 0).length} matched to current PTs · adoption % = clients on the app ÷ total clients on the adoption sheet (max 100%)${data.drive.appClients.generated ? ` · pulled ${new Date(data.drive.appClients.generated).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}` : ""}`
       : "no billing health export (Billing Health folder in Drive, or app-clients.json)"),
     line("App adoption sheet", st.adoption && st.adoption.ok, data.adoption
       ? `${data.adoption.length} rows · ${MODEL.trainers.filter((t) => t.adopt).length} matched to current PTs` : err("adoption")),
