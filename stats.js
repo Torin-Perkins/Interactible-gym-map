@@ -1032,9 +1032,8 @@ function rankSection(stat, items, who) {
   return { ...stat, n: rows.length, best: best.map(fmt), worst: worst.map(fmt), tiedBest: tied(best), tiedWorst: tied(worst) };
 }
 
-function openReport(kind) {
-  rpStatus("");
-  const f = F();
+// Builds a report for kind "trainers" or "clubs" over the filters f ({ company, region, club }).
+function buildReport(kind, f) {
   const scope = [f.company, f.region, f.club && (MODEL.clubs.find((c) => c.key === f.club) || {}).club].filter(Boolean).join(" · ") || "All brands";
   const trainers = kind === "trainers";
   const items = trainers ? MODEL.trainers.filter((t) => inFilter(t, f)) : MODEL.clubs.filter((c) => inFilter(c, f) && (c.pts || Object.keys(c.kpi).length));
@@ -1042,11 +1041,16 @@ function openReport(kind) {
     ? (t) => ({ name: t.name, where: `${t.club} · ${t.company}` })
     : (c) => ({ name: c.club, where: [c.company, c.region].filter(Boolean).join(" · ") });
   const stats = trainers ? trainerReportStats() : clubReportStats();
-  REPORT = {
+  return {
     title: `Top & bottom 5 ${trainers ? "trainers" : "clubs"}`, scope, kind,
     date: new Date(), count: items.length,
     sections: stats.map((s) => rankSection(s, items, who)),
   };
+}
+
+function openReport(kind) {
+  rpStatus("");
+  REPORT = buildReport(kind, F());
   renderReport();
   if (!$("reportDialog").open) $("reportDialog").showModal();
 }
@@ -1094,12 +1098,14 @@ $("rpPrint").onclick = () => {
   window.print();
 };
 window.addEventListener("afterprint", endPrintReport);
-function reportCsv() {
-  const R = REPORT;
-  const lines = [["Stat", "Better", "List", "Rank", R.kind === "trainers" ? "Trainer" : "Club", "Where", "Value", "Detail"].join(",")];
-  R.sections.forEach((s) => [["Best", s.best], ["Worst", s.worst]].forEach(([side, rows]) => rows.forEach((r) =>
-    lines.push([s.label, s.better === "up" ? "higher" : "lower", side, r.rank, r.name, r.where, r.value,
-      [r.extra, r.rank === rows.length && s[side === "Best" ? "tiedBest" : "tiedWorst"] ? `+${s[side === "Best" ? "tiedBest" : "tiedWorst"]} more tied` : ""].filter(Boolean).join("; ")].map(csvCell).join(",")))));
+// One CSV for one or more reports (a "Report" column is added when there's more than one).
+function reportCsv(reports = [REPORT]) {
+  const many = reports.length > 1;
+  const lines = [[...(many ? ["Report"] : []), "Stat", "Better", "List", "Rank", many ? "Name" : reports[0].kind === "trainers" ? "Trainer" : "Club",
+    "Where", "Value", "Detail"].join(",")];
+  reports.forEach((R) => R.sections.forEach((s) => [["Best", s.best], ["Worst", s.worst]].forEach(([side, rows]) => rows.forEach((r) =>
+    lines.push([...(many ? [R.kind === "trainers" ? "Trainers" : "Clubs"] : []), s.label, s.better === "up" ? "higher" : "lower", side, r.rank, r.name, r.where, r.value,
+      [r.extra, r.rank === rows.length && s[side === "Best" ? "tiedBest" : "tiedWorst"] ? `+${s[side === "Best" ? "tiedBest" : "tiedWorst"]} more tied` : ""].filter(Boolean).join("; ")].map(csvCell).join(","))))));
   return lines.join("\n");
 }
 const reportFilename = () => `top-bottom-5-${REPORT.kind}-${REPORT.scope.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${REPORT.date.toISOString().slice(0, 10)}.csv`;
@@ -1115,8 +1121,7 @@ $("rpCsv").onclick = () => {
 // Sent by the tracker's Apps Script (apps-script/Code.gs) from the sheet owner's Google account,
 // only to the addresses in its REPORT_EMAILS property; the page never chooses recipients.
 // Email clients ignore stylesheets, so the email body uses inline styles.
-function reportEmailHtml() {
-  const R = REPORT;
+function reportEmailHtml(R = REPORT) {
   const td = "padding:4px 8px;border-bottom:1px solid #e4e7ec;font-size:13px;vertical-align:top";
   const list = (rows, color, tied, label) => `<td style="width:50%;vertical-align:top;padding:0 8px 0 0">
       <div style="font-size:11px;font-weight:700;letter-spacing:.04em;color:${color};margin:4px 0">${label} ${rows.length}</div>
@@ -1134,6 +1139,32 @@ function reportEmailHtml() {
         : `<p style="color:#667085;font-size:12px">No data for this stat in these filters.</p>`}</div>`).join("")}
     <p style="color:#667085;font-size:12px">The full report is attached as a CSV.</p></div>`;
 }
+async function postReportEmail(email, key, by) {
+  const res = await fetch(TRACKER_DB.url, {
+    method: "POST", credentials: "omit",
+    headers: { "Content-Type": "text/plain;charset=utf-8" }, // simple request: no CORS preflight
+    body: JSON.stringify({ key, by, email }),
+  });
+  return res.json();
+}
+
+// The weekly email (.github/workflows/weekly-report.yml runs this in a headless browser on the live
+// site every Monday): both reports for all brands in one email, one CSV. Refuses to send if a data
+// source failed to load, so nobody gets a half-empty report.
+window.sendWeeklyReport = async ({ key = "", by = "Weekly report" } = {}) => {
+  if (!MODEL) throw new Error("data hasn't loaded");
+  const bad = Object.entries(MODEL.data.status || {}).filter(([k, s]) => !s.ok && ["staff", "kpis"].includes(k)).map(([k]) => k);
+  if (bad.length) throw new Error(`not sending: ${bad.join(", ")} failed to load`);
+  const all = { company: "", region: "", club: "" };
+  const reports = [buildReport("trainers", all), buildReport("clubs", all)];
+  const date = reports[0].date;
+  const day = date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/Los_Angeles" });
+  const html = `<div style="font-family:Arial,Helvetica,sans-serif;color:#1d2330;font-size:13px;margin-bottom:12px">Weekly top &amp; bottom 5 report for ${esc(day)}: trainers first, then clubs. The CSV has both.</div>`
+    + reports.map((R) => reportEmailHtml(R)).join('<hr style="border:0;border-top:2px solid #e4e7ec;margin:20px 0">');
+  return postReportEmail({ subject: `Weekly top & bottom 5 · trainers and clubs · ${day}`, html, csv: reportCsv(reports),
+    filename: `weekly-top-bottom-5-${date.toISOString().slice(0, 10)}.csv` }, key, by);
+};
+
 function rpStatus(text, bad) {
   $("rpStatus").textContent = text;
   $("rpStatus").classList.toggle("bad", !!bad);
@@ -1148,12 +1179,8 @@ $("rpEmail").onclick = async () => {
     if (!("recipients" in info)) throw new Error("the tracker's Apps Script needs the latest Code.gs (see apps-script/README.md)");
     if (!info.recipients) throw new Error("no one is set up to get reports yet: add REPORT_EMAILS in the Apps Script's script properties");
     if (!confirm(`Email this report to the ${info.recipients} ${info.recipients === 1 ? "person" : "people"} set up for reports?`)) return rpStatus("");
-    const send = async () => (await fetch(TRACKER_DB.url, {
-      method: "POST", credentials: "omit",
-      headers: { "Content-Type": "text/plain;charset=utf-8" }, // simple request: no CORS preflight
-      body: JSON.stringify({ key: pref("trackerEditKey"), by: pref("trackerName"),
-        email: { subject: `${REPORT.title} · ${REPORT.scope} · ${REPORT.date.toLocaleDateString()}`, html: reportEmailHtml(), csv: reportCsv(), filename: reportFilename() } }),
-    })).json();
+    const send = () => postReportEmail({ subject: `${REPORT.title} · ${REPORT.scope} · ${REPORT.date.toLocaleDateString()}`,
+      html: reportEmailHtml(), csv: reportCsv(), filename: reportFilename() }, pref("trackerEditKey"), pref("trackerName"));
     rpStatus("Sending…");
     let res = await send();
     if (!res.ok && res.error === "bad key") {
