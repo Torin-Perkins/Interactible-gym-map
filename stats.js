@@ -976,6 +976,202 @@ function shareClubAdoption() {
   document.dispatchEvent(new CustomEvent("clubadoption", { detail: byGym }));
 }
 
+// ---------- Top & bottom 5 reports ----------
+// For each stat, the 5 best and 5 worst trainers (Trainer stats) or clubs (Gym stats) among those
+// in the filters. Nobody is in both lists: with fewer than 10 ranked, the list splits in half.
+// Star ratings need REPORT_MIN_REVIEWS reviews to count.
+const REPORT_MIN_REVIEWS = 3;
+let REPORT = null;
+const num1 = (v) => fmtNum(v, Math.abs(v - Math.round(v)) < 0.05 ? 0 : 1);
+
+function trainerReportStats() {
+  const a = (t) => t.adopt || {};
+  return [
+    { label: "Lost sheep", sub: "last session with them", better: "down", get: (t) => t.lostSheep, fmt: num1 },
+    { label: "Billing health", sub: "% of their clients in good standing", better: "up", get: (t) => eff(t).billing, fmt: (v) => fmtPct(v) },
+    { label: "Unlogged sessions", sub: "average per pay period", better: "down", get: (t) => t.unlogged, fmt: num1 },
+    { label: "Clients on the app", sub: "active clients in Lumin", better: "up", get: (t) => (a(t).fromExport ? a(t).clientsInApp : null), fmt: (v) => fmtNum(v) },
+    { label: "Client app adoption", sub: "clients on the app ÷ total clients", better: "up", get: (t) => a(t).adoption, fmt: (v) => fmtPct(v, 0) },
+    { label: "Workout completion", sub: "% of assigned workouts completed", better: "up", get: (t) => a(t).completion, fmt: (v) => fmtPct(v, 0) },
+    { label: "Star rating", sub: `Lumin reviews (at least ${REPORT_MIN_REVIEWS})`, better: "up",
+      get: (t) => (a(t).rating && (a(t).reviews || 0) >= REPORT_MIN_REVIEWS ? a(t).rating : null),
+      fmt: (v) => `★ ${v.toFixed(2)}`, extra: (t) => `${fmtNum(a(t).reviews)} reviews` },
+  ];
+}
+
+function clubReportStats() {
+  const lv = (m) => (c) => (last(c.kpi[m]) || {}).v ?? null;
+  const share = (c, f) => (c.pts ? (clubCounts(c)[f] / c.pts) * 100 : null);
+  const app = (c) => {
+    const ts = clubCounts(c).ts.filter((t) => t.adopt && t.adopt.totalClients);
+    const total = ts.reduce((s, t) => s + t.adopt.totalClients, 0);
+    return total ? (ts.reduce((s, t) => s + Math.min(t.adopt.clientsInApp || 0, t.adopt.totalClients), 0) / total) * 100 : null;
+  };
+  const stars = (c) => mean(clubCounts(c).ts.filter((t) => t.adopt && t.adopt.rating && (t.adopt.reviews || 0) >= REPORT_MIN_REVIEWS).map((t) => t.adopt.rating));
+  return [
+    // Clubs with no clients in the latest report (not open yet) aren't ranked on the KPIs.
+    ...METRICS.map((m) => ({ label: m.label, sub: "latest report", better: m.better, get: (c) => (lv("clients")(c) > 0 ? lv(m.key)(c) : null),
+      fmt: m.pct ? (v) => fmtPct(v) : (v) => fmtNum(v) })),
+    { label: "Unlogged sessions", sub: "average per trainer per pay period", better: "down", get: (c) => c.unlogged, fmt: (v) => fmtNum(v, 2) },
+    { label: "Trainers onboarded", sub: "% of the club's trainers", better: "up", get: (c) => share(c, "onboarded"), fmt: (v) => fmtPct(v, 0), extra: (c) => `${clubCounts(c).onboarded} of ${c.pts}` },
+    { label: "Cert on file", sub: "% of the club's trainers", better: "up", get: (c) => share(c, "cert"), fmt: (v) => fmtPct(v, 0), extra: (c) => `${clubCounts(c).cert} of ${c.pts}` },
+    { label: "Client app adoption", sub: "trainers' clients on the app ÷ total clients", better: "up", get: app, fmt: (v) => fmtPct(v, 0) },
+    { label: "Star rating", sub: `average of trainers with ${REPORT_MIN_REVIEWS}+ reviews`, better: "up", get: stars, fmt: (v) => `★ ${v.toFixed(2)}` },
+  ];
+}
+
+function rankSection(stat, items, who) {
+  const rows = items.map((x) => ({ x, v: stat.get(x) })).filter((r) => r.v != null && !isNaN(r.v))
+    .sort((p, q) => (stat.better === "up" ? q.v - p.v : p.v - q.v) || who(p.x).name.localeCompare(who(q.x).name));
+  const nBest = Math.min(5, Math.ceil(rows.length / 2));
+  const best = rows.slice(0, nBest);
+  const worst = rows.slice(nBest).reverse().slice(0, 5);
+  const fmt = (r, i) => ({ rank: i + 1, ...who(r.x), value: stat.fmt(r.v), extra: stat.extra ? stat.extra(r.x) : "" });
+  // How many more share the value at the cut-off (e.g. lots of trainers with 0 lost sheep).
+  const tied = (list) => (list.length ? rows.filter((r) => r.v === list[list.length - 1].v && !best.includes(r) && !worst.includes(r)).length : 0);
+  return { ...stat, n: rows.length, best: best.map(fmt), worst: worst.map(fmt), tiedBest: tied(best), tiedWorst: tied(worst) };
+}
+
+function openReport(kind) {
+  rpStatus("");
+  const f = F();
+  const scope = [f.company, f.region, f.club && (MODEL.clubs.find((c) => c.key === f.club) || {}).club].filter(Boolean).join(" · ") || "All brands";
+  const trainers = kind === "trainers";
+  const items = trainers ? MODEL.trainers.filter((t) => inFilter(t, f)) : MODEL.clubs.filter((c) => inFilter(c, f) && (c.pts || Object.keys(c.kpi).length));
+  const who = trainers
+    ? (t) => ({ name: t.name, where: `${t.club} · ${t.company}` })
+    : (c) => ({ name: c.club, where: [c.company, c.region].filter(Boolean).join(" · ") });
+  const stats = trainers ? trainerReportStats() : clubReportStats();
+  REPORT = {
+    title: `Top & bottom 5 ${trainers ? "trainers" : "clubs"}`, scope, kind,
+    date: new Date(), count: items.length,
+    sections: stats.map((s) => rankSection(s, items, who)),
+  };
+  renderReport();
+  if (!$("reportDialog").open) $("reportDialog").showModal();
+}
+
+const tieNote = (s, k, list) => (s[k] ? `<p class="cell-sub tie-note">+${fmtNum(s[k])} more tied at ${esc(list[list.length - 1].value)} (listed A–Z)</p>` : "");
+
+function renderReport() {
+  const R = REPORT;
+  $("rpTitle").textContent = R.title;
+  $("rpSub").textContent = `${R.scope} · ${R.count} ${R.kind} · ${R.date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`
+    + ` · change the Company, Region and Club filters to change who's ranked`;
+  const list = (rows, cls) => rows.length
+    ? `<ol class="rank-list ${cls}">${rows.map((r) => `<li><span class="rank-name"><b>${esc(r.name)}</b><span class="cell-sub">${esc(r.where)}</span></span>`
+      + `<span class="rank-val"><b>${esc(r.value)}</b>${r.extra ? `<span class="cell-sub">${esc(r.extra)}</span>` : ""}</span></li>`).join("")}</ol>`
+    : `<p class="chart-empty">—</p>`;
+  $("rpBody").innerHTML = R.sections.map((s) => `<section class="report-sec">
+      <div class="trend-head"><h3>${esc(s.label)}</h3><span class="cell-sub">${esc(s.sub)} · ${s.better === "up" ? "higher" : "lower"} is better</span></div>
+      ${s.n ? `<div class="report-cols">
+        <div><div class="rank-head good">Best ${s.best.length}</div>${list(s.best, "good")}${tieNote(s, "tiedBest", s.best)}</div>
+        <div><div class="rank-head bad">Worst ${s.worst.length}</div>${list(s.worst, "bad")}${tieNote(s, "tiedWorst", s.worst)}</div>
+      </div>${s.n < 10 ? `<p class="cell-sub">Only ${s.n} with data, split between the two lists.</p>` : ""}`
+      : `<p class="chart-empty">No data for this stat in these filters.</p>`}
+    </section>`).join("");
+}
+
+$("trainerReportBtn").onclick = () => openReport("trainers");
+$("clubReportBtn").onclick = () => openReport("clubs");
+$("rpClose").onclick = () => $("reportDialog").close();
+$("reportDialog").addEventListener("click", (e) => { if (e.target === $("reportDialog")) $("reportDialog").close(); });
+// Printing: an open modal dialog is laid out fixed over the page, so a long report would print
+// from wherever it's scrolled to. Print a plain copy in the page instead.
+function endPrintReport() {
+  document.body.classList.remove("print-report");
+  const el = $("printReport");
+  if (el) el.remove();
+}
+$("reportDialog").addEventListener("close", endPrintReport);
+$("rpPrint").onclick = () => {
+  endPrintReport();
+  const el = document.createElement("div");
+  el.id = "printReport";
+  el.innerHTML = `<h2>${esc($("rpTitle").textContent)}</h2><p class="sub">${esc($("rpSub").textContent)}</p>${$("rpBody").outerHTML.replace('id="rpBody"', "")}`;
+  document.body.appendChild(el);
+  document.body.classList.add("print-report");
+  window.print();
+};
+window.addEventListener("afterprint", endPrintReport);
+function reportCsv() {
+  const R = REPORT;
+  const lines = [["Stat", "Better", "List", "Rank", R.kind === "trainers" ? "Trainer" : "Club", "Where", "Value", "Detail"].join(",")];
+  R.sections.forEach((s) => [["Best", s.best], ["Worst", s.worst]].forEach(([side, rows]) => rows.forEach((r) =>
+    lines.push([s.label, s.better === "up" ? "higher" : "lower", side, r.rank, r.name, r.where, r.value,
+      [r.extra, r.rank === rows.length && s[side === "Best" ? "tiedBest" : "tiedWorst"] ? `+${s[side === "Best" ? "tiedBest" : "tiedWorst"]} more tied` : ""].filter(Boolean).join("; ")].map(csvCell).join(",")))));
+  return lines.join("\n");
+}
+const reportFilename = () => `top-bottom-5-${REPORT.kind}-${REPORT.scope.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${REPORT.date.toISOString().slice(0, 10)}.csv`;
+$("rpCsv").onclick = () => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([reportCsv()], { type: "text/csv" }));
+  a.download = reportFilename();
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+
+// ---------- Emailing a report ----------
+// Sent by the tracker's Apps Script (apps-script/Code.gs) from the sheet owner's Google account,
+// only to the addresses in its REPORT_EMAILS property; the page never chooses recipients.
+// Email clients ignore stylesheets, so the email body uses inline styles.
+function reportEmailHtml() {
+  const R = REPORT;
+  const td = "padding:4px 8px;border-bottom:1px solid #e4e7ec;font-size:13px;vertical-align:top";
+  const list = (rows, color, tied, label) => `<td style="width:50%;vertical-align:top;padding:0 8px 0 0">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.04em;color:${color};margin:4px 0">${label} ${rows.length}</div>
+      <table style="border-collapse:collapse;width:100%">${rows.map((r) => `<tr><td style="${td};color:#667085;width:20px">${r.rank}.</td>
+        <td style="${td}"><b>${esc(r.name)}</b><br><span style="color:#667085;font-size:11px">${esc(r.where)}</span></td>
+        <td style="${td};text-align:right;white-space:nowrap"><b>${esc(r.value)}</b>${r.extra ? `<br><span style="color:#667085;font-size:11px">${esc(r.extra)}</span>` : ""}</td></tr>`).join("")
+      || `<tr><td style="${td};color:#667085">—</td></tr>`}</table>
+      ${tied ? `<div style="color:#667085;font-size:11px;margin-top:4px">+${fmtNum(tied)} more tied at ${esc(rows[rows.length - 1].value)}</div>` : ""}</td>`;
+  return `<div style="font-family:Arial,Helvetica,sans-serif;color:#1d2330;max-width:760px">
+    <h2 style="margin:0 0 4px;font-size:18px">${esc(R.title)}</h2>
+    <p style="margin:0 0 16px;color:#667085;font-size:13px">${esc(R.scope)} · ${R.count} ${R.kind} · ${esc(R.date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }))}</p>
+    ${R.sections.map((s) => `<div style="border:1px solid #e4e7ec;border-radius:8px;padding:10px 12px;margin-bottom:12px">
+      <div style="font-size:14px;font-weight:700">${esc(s.label)} <span style="font-weight:400;color:#667085;font-size:12px">${esc(s.sub)} · ${s.better === "up" ? "higher" : "lower"} is better</span></div>
+      ${s.n ? `<table style="width:100%;border-collapse:collapse"><tr>${list(s.best, "#1f8a43", s.tiedBest, "▲ BEST")}${list(s.worst, "#c0392b", s.tiedWorst, "▼ WORST")}</tr></table>`
+        : `<p style="color:#667085;font-size:12px">No data for this stat in these filters.</p>`}</div>`).join("")}
+    <p style="color:#667085;font-size:12px">The full report is attached as a CSV.</p></div>`;
+}
+function rpStatus(text, bad) {
+  $("rpStatus").textContent = text;
+  $("rpStatus").classList.toggle("bad", !!bad);
+}
+$("rpEmail").onclick = async () => {
+  if (!TRACKER_DB.url) return rpStatus("Emailing needs the shared tracker (TRACKER_DB.url in data.js).", true);
+  const btn = $("rpEmail");
+  btn.disabled = true;
+  try {
+    rpStatus("Checking who reports go to…");
+    const info = await (await fetch(`${TRACKER_DB.url}?email=1`, { credentials: "omit" })).json();
+    if (!("recipients" in info)) throw new Error("the tracker's Apps Script needs the latest Code.gs (see apps-script/README.md)");
+    if (!info.recipients) throw new Error("no one is set up to get reports yet: add REPORT_EMAILS in the Apps Script's script properties");
+    if (!confirm(`Email this report to the ${info.recipients} ${info.recipients === 1 ? "person" : "people"} set up for reports?`)) return rpStatus("");
+    const send = async () => (await fetch(TRACKER_DB.url, {
+      method: "POST", credentials: "omit",
+      headers: { "Content-Type": "text/plain;charset=utf-8" }, // simple request: no CORS preflight
+      body: JSON.stringify({ key: pref("trackerEditKey"), by: pref("trackerName"),
+        email: { subject: `${REPORT.title} · ${REPORT.scope} · ${REPORT.date.toLocaleDateString()}`, html: reportEmailHtml(), csv: reportCsv(), filename: reportFilename() } }),
+    })).json();
+    rpStatus("Sending…");
+    let res = await send();
+    if (!res.ok && res.error === "bad key") {
+      const key = prompt("Enter the edit key to send reports:", "");
+      if (key == null) return rpStatus("Not sent.", true);
+      pref("trackerEditKey", key.trim());
+      res = await send();
+    }
+    if (!res.ok) throw new Error(res.error === "bad key" ? "that edit key didn't work" : res.error);
+    rpStatus(`Sent to ${res.sent} ${res.sent === 1 ? "person" : "people"} at ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`);
+  } catch (err) {
+    console.error(err);
+    rpStatus(`Couldn't send the report: ${err.message}`, true);
+  } finally {
+    btn.disabled = false;
+  }
+};
+
 // ---------- Render ----------
 function renderAll() {
   if (!MODEL) return;

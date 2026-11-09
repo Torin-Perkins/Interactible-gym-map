@@ -31,3 +31,9 @@ deploy a new version as above. Until then the Rates page says the Apps Script ne
 
 The tracker also stores each trainer's **certification link** and **expiration date** (columns J and K of the
 Tracker tab, added automatically). This also needs the current `Code.gs` deployed as a new version.
+
+**Emailing reports.** The "Email report" button on the Top & bottom 5 reports sends the report through this
+script, from the Google account that owns it, only to the addresses in the **`REPORT_EMAILS`** script property
+(Project Settings → Script properties; comma-separated, e.g. `ana@example.com, ben@example.com`). The public page
+can't choose recipients. After pasting in the new `Code.gs`, deploy a new version; Google asks once for permission
+to send email as you. Saving needs the `EDIT_KEY`, like other edits.

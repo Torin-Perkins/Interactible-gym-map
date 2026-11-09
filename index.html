@@ -150,6 +150,7 @@
             <option value="tagged">Tagged clubs only</option>
             <option value="bad">Red tags only</option>
           </select>
+          <button id="clubReportBtn" type="button" class="btn-secondary" title="Best and worst 5 clubs on each stat, for the clubs in the filters above">Top &amp; bottom 5</button>
         </div>
       </div>
       <div class="table-scroll"><table id="clubTable" class="grid"></table></div>
@@ -169,6 +170,7 @@
             <option value="lostSheep">Has lost sheep</option>
             <option value="newHires">Hired in the last 90 days</option>
           </select>
+          <button id="trainerReportBtn" type="button" class="btn-secondary" title="Best and worst 5 trainers on each stat, for the trainers in the filters above">Top &amp; bottom 5</button>
           <button id="exportBtn" type="button">Export CSV</button>
           <label class="btn-secondary">Import CSV<input id="importFile" type="file" accept=".csv,text/csv" hidden></label>
           <label class="btn-secondary" title="Client-level billing report: Client Name, Trainer, Status, Days Overdue, …, Location">Import billing report<input id="billingFile" type="file" accept=".csv,text/csv" hidden></label>
@@ -238,6 +240,20 @@
     </section>
   </div>
 </div>
+
+<dialog id="reportDialog" class="chart-dialog report-dialog" aria-labelledby="rpTitle">
+  <div class="dlg-head">
+    <div><h2 id="rpTitle"></h2><p class="sub" id="rpSub"></p></div>
+    <div class="card-tools no-print">
+      <button type="button" id="rpPrint" class="btn-secondary">Print / save as PDF</button>
+      <button type="button" id="rpCsv" class="btn-secondary">Download CSV</button>
+      <button type="button" id="rpEmail" class="btn-secondary" title="Send this report (with the CSV attached) to the people set up for reports">Email report</button>
+      <button type="button" id="rpClose" class="btn-secondary">Close</button>
+    </div>
+  </div>
+  <p id="rpStatus" class="status no-print" role="status"></p>
+  <div id="rpBody" class="report-grid"></div>
+</dialog>
 
 <dialog id="trainerDialog" class="chart-dialog" aria-labelledby="tdName">
   <div class="dlg-head">
