@@ -54,15 +54,35 @@ try {
     console.log(`Data loaded; waiting ${Math.round(wait / 60000)} min until 11:00 Pacific.`);
     await new Promise((r) => setTimeout(r, wait));
   }
-  const url = await page.evaluate(() => TRACKER_DB.url);
-  let res;
-  try {
-    res = await page.evaluate((key) => window.sendWeeklyReport({ key, by: "Weekly report (automatic)" }), process.env.TRACKER_EDIT_KEY || "");
-  } catch (err) {
+  // The page builds the email; it's sent from here rather than from the page, because a browser
+  // can't read an Apps Script error page (it reports "Failed to fetch"), while this can log it.
+  // (Catching postReportEmail too works with a live page from before the build option existed.)
+  const { url, email } = await page.evaluate(async () => {
+    let caught = null;
+    const post = window.postReportEmail;
+    window.postReportEmail = async (email) => { caught = email; return { ok: true }; };
+    try {
+      const built = await window.sendWeeklyReport({ build: true });
+      return built && built.email ? built : { url: TRACKER_DB.url, email: caught };
+    } finally {
+      window.postReportEmail = post;
+    }
+  });
+  if (!email) throw new Error("the page didn't build the report email");
+  const r = await fetch(url, {
+    method: "POST", redirect: "follow",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ key: process.env.TRACKER_EDIT_KEY || "", by: "Weekly report (automatic)", email }),
+  });
+  const text = await r.text();
+  let res = null;
+  try { res = JSON.parse(text); } catch {}
+  if (!res) {
+    const plain = text.replace(/<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
     await diagnose(url);
-    throw err;
+    throw new Error(`Apps Script answered ${r.status} with a page instead of JSON: ${plain.slice(0, 600)}`);
   }
-  if (!res || !res.ok) throw new Error(`Apps Script refused: ${res && res.error}`);
+  if (!res.ok) throw new Error(`Apps Script refused: ${res.error}`);
   console.log(`Weekly report sent to ${res.sent} recipient(s).`);
 } finally {
   await browser.close();

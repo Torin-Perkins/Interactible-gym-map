@@ -1159,7 +1159,7 @@ async function postReportEmail(email, key, by) {
 // The weekly email (.github/workflows/weekly-report.yml runs this in a headless browser on the live
 // site every Monday): both reports for all brands in one email, one CSV. Refuses to send if a data
 // source failed to load, so nobody gets a half-empty report.
-window.sendWeeklyReport = async ({ key = "", by = "Weekly report" } = {}) => {
+window.sendWeeklyReport = async ({ key = "", by = "Weekly report", build = false } = {}) => {
   if (!MODEL) throw new Error("data hasn't loaded");
   const bad = Object.entries(MODEL.data.status || {}).filter(([k, s]) => !s.ok && ["staff", "kpis"].includes(k)).map(([k]) => k);
   if (bad.length) throw new Error(`not sending: ${bad.join(", ")} failed to load`);
@@ -1169,8 +1169,10 @@ window.sendWeeklyReport = async ({ key = "", by = "Weekly report" } = {}) => {
   const day = date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/Los_Angeles" });
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;color:#1d2330;font-size:13px;margin-bottom:12px">Weekly top &amp; bottom 5 report for ${esc(day)}: trainers first, then clubs. The CSV has both.</div>`
     + reports.map((R) => reportEmailHtml(R)).join('<hr style="border:0;border-top:2px solid #e4e7ec;margin:20px 0">');
-  return postReportEmail({ subject: `Weekly top & bottom 5 · trainers and clubs · ${day}`, html, csv: reportCsv(reports),
-    filename: `weekly-top-bottom-5-${date.toISOString().slice(0, 10)}.csv` }, key, by);
+  const email = { subject: `Weekly top & bottom 5 · trainers and clubs · ${day}`, html, csv: reportCsv(reports),
+    filename: `weekly-top-bottom-5-${date.toISOString().slice(0, 10)}.csv` };
+  if (build) return { url: TRACKER_DB.url, email }; // the weekly job sends it itself (so it can log errors)
+  return postReportEmail(email, key, by);
 };
 
 function rpStatus(text, bad) {
