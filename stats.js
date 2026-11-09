@@ -1140,12 +1140,20 @@ function reportEmailHtml(R = REPORT) {
     <p style="color:#667085;font-size:12px">The full report is attached as a CSV.</p></div>`;
 }
 async function postReportEmail(email, key, by) {
-  const res = await fetch(TRACKER_DB.url, {
-    method: "POST", credentials: "omit",
-    headers: { "Content-Type": "text/plain;charset=utf-8" }, // simple request: no CORS preflight
-    body: JSON.stringify({ key, by, email }),
-  });
-  return res.json();
+  let res;
+  try {
+    res = await fetch(TRACKER_DB.url, {
+      method: "POST", credentials: "omit",
+      headers: { "Content-Type": "text/plain;charset=utf-8" }, // simple request: no CORS preflight
+      body: JSON.stringify({ key, by, email }),
+    });
+    return await res.json();
+  } catch {
+    // Apps Script answers errors (and sign-in pages) with HTML the browser can't read here.
+    throw new Error("the tracker's Apps Script sent back an error page instead of an answer. Check that its deployment's "
+      + "\"Who has access\" is Anyone, and that it's allowed to send email: in the Apps Script editor, pick doGet, click Run "
+      + "and allow the permissions it asks for.");
+  }
 }
 
 // The weekly email (.github/workflows/weekly-report.yml runs this in a headless browser on the live
