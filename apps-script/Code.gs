@@ -175,6 +175,17 @@ function emailReport_(email, by) {
   return { ok: true, sent: to.length };
 }
 
+// Run this once from the Apps Script editor (pick testReportEmail, click Run): Google asks for
+// permission to send email as you, then a short test goes to the REPORT_EMAILS addresses.
+// Without that permission, report emails fail with "You do not have permission to call MailApp".
+function testReportEmail() {
+  const to = reportRecipients_();
+  if (!to.length) throw new Error("Add REPORT_EMAILS in Project Settings → Script properties first.");
+  MailApp.sendEmail({ to: to.join(","), subject: "Gym map report email test", name: "USA PT Gym Map",
+    htmlBody: "<p>Report emails from the gym map are set up. Reports will come from this address.</p>" });
+  Logger.log("Test sent to " + to.join(", ") + ". Emails left today: " + MailApp.getRemainingDailyQuota());
+}
+
 function yesNo_(v) {
   if (v === true || /^y/i.test(String(v))) return true;
   if (v === false || /^n/i.test(String(v))) return false;

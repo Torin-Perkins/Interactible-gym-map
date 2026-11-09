@@ -35,5 +35,7 @@ Tracker tab, added automatically). This also needs the current `Code.gs` deploye
 **Emailing reports.** The "Email report" button on the Top & bottom 5 reports sends the report through this
 script, from the Google account that owns it, only to the addresses in the **`REPORT_EMAILS`** script property
 (Project Settings → Script properties; comma-separated, e.g. `ana@example.com, ben@example.com`). The public page
-can't choose recipients. After pasting in the new `Code.gs`, deploy a new version; Google asks once for permission
-to send email as you. Saving needs the `EDIT_KEY`, like other edits.
+can't choose recipients. After pasting in the new `Code.gs`, deploy a new version, then **pick `testReportEmail`
+in the editor's function list and click Run**: Google asks for permission to send email as you (deploying alone
+doesn't ask), and a short test email goes to the recipients. Until that's done, sending fails with "You do not
+have permission to call MailApp.sendEmail". Saving needs the `EDIT_KEY`, like other edits.
