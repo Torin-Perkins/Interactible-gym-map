@@ -81,6 +81,12 @@ with no clients yet aren't ranked on the KPIs. **Print / save as PDF**, **Downlo
 CSV attached) through the tracker's Apps Script, only to the addresses in its `REPORT_EMAILS` script property
 (see apps-script/README.md); it needs the edit key.
 
+**Weekly email.** Every Monday at 11:00 Pacific, `.github/workflows/weekly-report.yml` opens the live site in a
+headless browser and emails both reports (trainers and clubs, all brands) in one email with a combined CSV, to the
+same `REPORT_EMAILS` addresses. If the Apps Script has an `EDIT_KEY`, add it as the **`TRACKER_EDIT_KEY`** repo
+secret. It won't send if the staff lists or KPI sheets fail to load. To send one now, run "Weekly report email"
+from the Actions tab.
+
 ### App adoption
 Each trainer's client app adoption = their **active clients in Lumin** ÷ their *Total Clients #* on the app
 adoption sheet, capped at 100%. The Lumin numbers (plus star rating and review count) are a snapshot in

@@ -1,0 +1,36 @@
+name: Weekly report email
+
+# Emails the top & bottom 5 trainers and clubs report every Monday at 11:00 Pacific
+# (scripts/send_weekly_report.mjs). Cron is UTC, so it starts at 10:45 Pacific in both
+# standard time (18:45 UTC) and daylight time (17:45 UTC); the script ignores the other line
+# and waits until 11:00 to send. Run it by hand from the Actions tab to send one now.
+on:
+  schedule:
+    - cron: "45 17 * * 1"
+    - cron: "45 18 * * 1"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Send now instead of waiting for Monday 11:00 Pacific"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm install --no-save playwright@1.48.2
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/send_weekly_report.mjs
+        env:
+          SITE_URL: https://torin-perkins.github.io/Interactible-gym-map/
+          TRACKER_EDIT_KEY: ${{ secrets.TRACKER_EDIT_KEY }}
+          FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force }}
