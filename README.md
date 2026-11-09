@@ -73,6 +73,12 @@ Browsers can't download Drive files or list a folder without an API key, so the 
 `scripts/build_drive_data.py` to read the folder into `drive-data.json`. That file keeps only names, clubs, job
 titles and session differences (no emails, phones or addresses) and is published with the site, never committed.
 
+### Top & bottom 5 reports
+**Top & bottom 5** on Trainer stats (trainer tracker) and Gym stats (Club KPIs) opens a report of the 5 best and 5
+worst trainers or clubs on every stat, for whoever is in the Company / Region / Club filters (pick a club to rank
+its own trainers). Ties at the cut-off are counted ("+12 more tied at 0"), star ratings need 3+ reviews, and clubs
+with no clients yet aren't ranked on the KPIs. **Print / save as PDF** and **Download CSV** are in the report.
+
 ### App adoption
 Each trainer's client app adoption = their **active clients in Lumin** ÷ their *Total Clients #* on the app
 adoption sheet, capped at 100%. The Lumin numbers (plus star rating and review count) are a snapshot in
