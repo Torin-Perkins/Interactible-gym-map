@@ -27,6 +27,22 @@ if (!force) {
   }
 }
 
+// When sending fails, show what the Apps Script actually answers (read-only GETs; nothing is sent).
+async function diagnose(url) {
+  console.log(`Apps Script URL: ${url}`);
+  for (const q of ["?email=1", ""]) {
+    try {
+      const r = await fetch(url + q, { redirect: "follow" });
+      const text = await r.text();
+      const plain = text.replace(/<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      console.log(`GET ${q || "(tracker)"} -> ${r.status} ${r.headers.get("content-type")} at ${r.url.split("?")[0]}`);
+      console.log(`  ${plain.slice(0, 400)}`);
+    } catch (e) {
+      console.log(`GET ${q || "(tracker)"} -> failed: ${e.message}`);
+    }
+  }
+}
+
 const browser = await chromium.launch();
 try {
   const page = await browser.newPage();
@@ -38,7 +54,14 @@ try {
     console.log(`Data loaded; waiting ${Math.round(wait / 60000)} min until 11:00 Pacific.`);
     await new Promise((r) => setTimeout(r, wait));
   }
-  const res = await page.evaluate((key) => window.sendWeeklyReport({ key, by: "Weekly report (automatic)" }), process.env.TRACKER_EDIT_KEY || "");
+  const url = await page.evaluate(() => TRACKER_DB.url);
+  let res;
+  try {
+    res = await page.evaluate((key) => window.sendWeeklyReport({ key, by: "Weekly report (automatic)" }), process.env.TRACKER_EDIT_KEY || "");
+  } catch (err) {
+    await diagnose(url);
+    throw err;
+  }
   if (!res || !res.ok) throw new Error(`Apps Script refused: ${res && res.error}`);
   console.log(`Weekly report sent to ${res.sent} recipient(s).`);
 } finally {
