@@ -1050,4 +1050,4 @@ const CLUB_TAGS = { billingWarn: 94, billingBad: 90, lostPctMax: 25, unloggedMax
 
 // Shared trainer tracker: the Apps Script web app URL (ends in /exec) from apps-script/README.md.
 // Leave blank to keep tracker edits in each person's browser only.
-const TRACKER_DB = { url: "https://script.google.com/macros/s/AKfycbzVnvAUwMKs1_iUUPHEFUIVhyx9yAGVxPwKFnbPKxJCbqohSVb6RRME9MZbhw5sk90xqg/exec" };
+const TRACKER_DB = { url: "https://script.google.com/macros/s/AKfycbyLb1wXD2YtuUF2Vvkccr7ItlID4Jy1xPkjBrfWMXbxXRKB09Sre3Q-k5PvpJOzQjHESw/exec" };
