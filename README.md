@@ -77,7 +77,9 @@ titles and session differences (no emails, phones or addresses) and is published
 **Top & bottom 5** on Trainer stats (trainer tracker) and Gym stats (Club KPIs) opens a report of the 5 best and 5
 worst trainers or clubs on every stat, for whoever is in the Company / Region / Club filters (pick a club to rank
 its own trainers). Ties at the cut-off are counted ("+12 more tied at 0"), star ratings need 3+ reviews, and clubs
-with no clients yet aren't ranked on the KPIs. **Print / save as PDF** and **Download CSV** are in the report.
+with no clients yet aren't ranked on the KPIs. **Print / save as PDF**, **Download CSV** and **Email report** are in the report. Email report sends it (with the
+CSV attached) through the tracker's Apps Script, only to the addresses in its `REPORT_EMAILS` script property
+(see apps-script/README.md); it needs the edit key.
 
 ### App adoption
 Each trainer's client app adoption = their **active clients in Lumin** ÷ their *Total Clients #* on the app

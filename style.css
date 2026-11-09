@@ -320,3 +320,4 @@ button.btn-secondary { background: none; }
 }
 
 .tie-note { margin: 4px 0 0 18px; }
+#rpStatus.bad { color: var(--bad); } #rpStatus { margin: 8px 0 0; font-size: 13px; }

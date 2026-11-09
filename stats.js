@@ -1033,6 +1033,7 @@ function rankSection(stat, items, who) {
 }
 
 function openReport(kind) {
+  rpStatus("");
   const f = F();
   const scope = [f.company, f.region, f.club && (MODEL.clubs.find((c) => c.key === f.club) || {}).club].filter(Boolean).join(" · ") || "All brands";
   const trainers = kind === "trainers";
@@ -1093,17 +1094,82 @@ $("rpPrint").onclick = () => {
   window.print();
 };
 window.addEventListener("afterprint", endPrintReport);
-$("rpCsv").onclick = () => {
+function reportCsv() {
   const R = REPORT;
   const lines = [["Stat", "Better", "List", "Rank", R.kind === "trainers" ? "Trainer" : "Club", "Where", "Value", "Detail"].join(",")];
   R.sections.forEach((s) => [["Best", s.best], ["Worst", s.worst]].forEach(([side, rows]) => rows.forEach((r) =>
     lines.push([s.label, s.better === "up" ? "higher" : "lower", side, r.rank, r.name, r.where, r.value,
       [r.extra, r.rank === rows.length && s[side === "Best" ? "tiedBest" : "tiedWorst"] ? `+${s[side === "Best" ? "tiedBest" : "tiedWorst"]} more tied` : ""].filter(Boolean).join("; ")].map(csvCell).join(",")))));
+  return lines.join("\n");
+}
+const reportFilename = () => `top-bottom-5-${REPORT.kind}-${REPORT.scope.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${REPORT.date.toISOString().slice(0, 10)}.csv`;
+$("rpCsv").onclick = () => {
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
-  a.download = `top-bottom-5-${R.kind}-${R.scope.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${R.date.toISOString().slice(0, 10)}.csv`;
+  a.href = URL.createObjectURL(new Blob([reportCsv()], { type: "text/csv" }));
+  a.download = reportFilename();
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+
+// ---------- Emailing a report ----------
+// Sent by the tracker's Apps Script (apps-script/Code.gs) from the sheet owner's Google account,
+// only to the addresses in its REPORT_EMAILS property; the page never chooses recipients.
+// Email clients ignore stylesheets, so the email body uses inline styles.
+function reportEmailHtml() {
+  const R = REPORT;
+  const td = "padding:4px 8px;border-bottom:1px solid #e4e7ec;font-size:13px;vertical-align:top";
+  const list = (rows, color, tied, label) => `<td style="width:50%;vertical-align:top;padding:0 8px 0 0">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.04em;color:${color};margin:4px 0">${label} ${rows.length}</div>
+      <table style="border-collapse:collapse;width:100%">${rows.map((r) => `<tr><td style="${td};color:#667085;width:20px">${r.rank}.</td>
+        <td style="${td}"><b>${esc(r.name)}</b><br><span style="color:#667085;font-size:11px">${esc(r.where)}</span></td>
+        <td style="${td};text-align:right;white-space:nowrap"><b>${esc(r.value)}</b>${r.extra ? `<br><span style="color:#667085;font-size:11px">${esc(r.extra)}</span>` : ""}</td></tr>`).join("")
+      || `<tr><td style="${td};color:#667085">—</td></tr>`}</table>
+      ${tied ? `<div style="color:#667085;font-size:11px;margin-top:4px">+${fmtNum(tied)} more tied at ${esc(rows[rows.length - 1].value)}</div>` : ""}</td>`;
+  return `<div style="font-family:Arial,Helvetica,sans-serif;color:#1d2330;max-width:760px">
+    <h2 style="margin:0 0 4px;font-size:18px">${esc(R.title)}</h2>
+    <p style="margin:0 0 16px;color:#667085;font-size:13px">${esc(R.scope)} · ${R.count} ${R.kind} · ${esc(R.date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }))}</p>
+    ${R.sections.map((s) => `<div style="border:1px solid #e4e7ec;border-radius:8px;padding:10px 12px;margin-bottom:12px">
+      <div style="font-size:14px;font-weight:700">${esc(s.label)} <span style="font-weight:400;color:#667085;font-size:12px">${esc(s.sub)} · ${s.better === "up" ? "higher" : "lower"} is better</span></div>
+      ${s.n ? `<table style="width:100%;border-collapse:collapse"><tr>${list(s.best, "#1f8a43", s.tiedBest, "▲ BEST")}${list(s.worst, "#c0392b", s.tiedWorst, "▼ WORST")}</tr></table>`
+        : `<p style="color:#667085;font-size:12px">No data for this stat in these filters.</p>`}</div>`).join("")}
+    <p style="color:#667085;font-size:12px">The full report is attached as a CSV.</p></div>`;
+}
+function rpStatus(text, bad) {
+  $("rpStatus").textContent = text;
+  $("rpStatus").classList.toggle("bad", !!bad);
+}
+$("rpEmail").onclick = async () => {
+  if (!TRACKER_DB.url) return rpStatus("Emailing needs the shared tracker (TRACKER_DB.url in data.js).", true);
+  const btn = $("rpEmail");
+  btn.disabled = true;
+  try {
+    rpStatus("Checking who reports go to…");
+    const info = await (await fetch(`${TRACKER_DB.url}?email=1`, { credentials: "omit" })).json();
+    if (!("recipients" in info)) throw new Error("the tracker's Apps Script needs the latest Code.gs (see apps-script/README.md)");
+    if (!info.recipients) throw new Error("no one is set up to get reports yet: add REPORT_EMAILS in the Apps Script's script properties");
+    if (!confirm(`Email this report to the ${info.recipients} ${info.recipients === 1 ? "person" : "people"} set up for reports?`)) return rpStatus("");
+    const send = async () => (await fetch(TRACKER_DB.url, {
+      method: "POST", credentials: "omit",
+      headers: { "Content-Type": "text/plain;charset=utf-8" }, // simple request: no CORS preflight
+      body: JSON.stringify({ key: pref("trackerEditKey"), by: pref("trackerName"),
+        email: { subject: `${REPORT.title} · ${REPORT.scope} · ${REPORT.date.toLocaleDateString()}`, html: reportEmailHtml(), csv: reportCsv(), filename: reportFilename() } }),
+    })).json();
+    rpStatus("Sending…");
+    let res = await send();
+    if (!res.ok && res.error === "bad key") {
+      const key = prompt("Enter the edit key to send reports:", "");
+      if (key == null) return rpStatus("Not sent.", true);
+      pref("trackerEditKey", key.trim());
+      res = await send();
+    }
+    if (!res.ok) throw new Error(res.error === "bad key" ? "that edit key didn't work" : res.error);
+    rpStatus(`Sent to ${res.sent} ${res.sent === 1 ? "person" : "people"} at ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`);
+  } catch (err) {
+    console.error(err);
+    rpStatus(`Couldn't send the report: ${err.message}`, true);
+  } finally {
+    btn.disabled = false;
+  }
 };
 
 // ---------- Render ----------

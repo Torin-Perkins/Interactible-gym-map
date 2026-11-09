@@ -17,6 +17,11 @@
  *        Appends a new version to the "Rates" tab (older versions stay as history). base is the
  *        version the edit started from; if someone saved since, the save is refused ("conflict").
  *
+ * Emailing reports (Top & bottom 5): sends to the addresses in the REPORT_EMAILS script property
+ * only, so the public page can't email anyone else.
+ *   GET  <web app url>?email=1        -> { ok, recipients: <how many addresses are set up> }
+ *   POST <web app url>  body: { key, by, email: { subject, html, csv, filename } }
+ *
  * Setup: see apps-script/README.md.
  */
 
@@ -28,6 +33,7 @@ const RATES_HEADERS = ["Saved", "Saved by", "Encrypted rates"];
 
 function doGet(e) {
   if (e && e.parameter && e.parameter.rates) return json_({ ok: true, rates: latestRates_() });
+  if (e && e.parameter && e.parameter.email) return json_({ ok: true, recipients: reportRecipients_().length });
   const sheet = getSheet_();
   const rows = sheet.getDataRange().getValues().slice(1);
   const records = rows.filter((r) => r[0] !== "").map((r) => ({
@@ -58,6 +64,7 @@ function doPost(e) {
   lock.waitLock(20000);
   try {
     if (body.rates) return json_(saveRates_(body.rates, String(body.by || "").slice(0, 80)));
+    if (body.email) return json_(emailReport_(body.email, String(body.by || "").slice(0, 80)));
     const sheet = getSheet_();
     const values = sheet.getDataRange().getValues();
     const rowOf = new Map(values.slice(1).map((r, i) => [String(r[0]), i + 2]));
@@ -142,6 +149,30 @@ function saveRates_(rates, by) {
   const sheet = ratesSheet_();
   sheet.appendRow([new Date(), by, blob]);
   return { ok: true, version: sheet.getLastRow() };
+}
+
+// REPORT_EMAILS script property: comma-separated addresses that reports go to.
+function reportRecipients_() {
+  const raw = PropertiesService.getScriptProperties().getProperty("REPORT_EMAILS") || "";
+  return raw.split(/[,;\s]+/).map((s) => s.trim()).filter((s) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s));
+}
+
+function emailReport_(email, by) {
+  const to = reportRecipients_();
+  if (!to.length) return { ok: false, error: "no recipients: add REPORT_EMAILS in the script's properties" };
+  const subject = String(email.subject || "Report").replace(/[\r\n]+/g, " ").slice(0, 200);
+  const html = String(email.html || "");
+  const csv = String(email.csv || "");
+  if (!html || html.length > 300000 || csv.length > 500000) return { ok: false, error: "Bad request" };
+  const filename = (String(email.filename || "report.csv").replace(/[^\w.-]+/g, "-").slice(0, 120) || "report.csv").replace(/(\.csv)?$/, ".csv");
+  MailApp.sendEmail({
+    to: to.join(","),
+    subject: subject,
+    htmlBody: html + (by ? `<p style="color:#667085;font-size:12px">Sent from the gym map by ${by.replace(/[<>&"]/g, "")}.</p>` : ""),
+    attachments: csv ? [Utilities.newBlob(csv, "text/csv", filename)] : [],
+    name: "USA PT Gym Map",
+  });
+  return { ok: true, sent: to.length };
 }
 
 function yesNo_(v) {

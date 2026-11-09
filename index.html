@@ -247,9 +247,11 @@
     <div class="card-tools no-print">
       <button type="button" id="rpPrint" class="btn-secondary">Print / save as PDF</button>
       <button type="button" id="rpCsv" class="btn-secondary">Download CSV</button>
+      <button type="button" id="rpEmail" class="btn-secondary" title="Send this report (with the CSV attached) to the people set up for reports">Email report</button>
       <button type="button" id="rpClose" class="btn-secondary">Close</button>
     </div>
   </div>
+  <p id="rpStatus" class="status no-print" role="status"></p>
   <div id="rpBody" class="report-grid"></div>
 </dialog>
 
