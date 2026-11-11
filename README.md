@@ -81,8 +81,10 @@ with the date and who ticked it. When every item is done ("Shadowed sessions" ca
 trainer counts as onboarded; unticking one takes that back. A Yes/No set by hand on the tracker still wins.
 
 **Onboarding %** = done ÷ 33: the 32 checklist items plus a certification on file (the tracker's Cert on file), so
-100% needs a cert. A trainer with a cert on file who filled in the onboarding form (on the onboarding sheet) gets
-all of Week 1 ticked automatically. The tracker has a sortable Onboarding % column (click it to open the page), an
+100% needs a cert. Trainers hired more than 3 months ago (staff list hire date, `ONBOARDED_AFTER_MONTHS` in
+`stats.js`) get every item ticked automatically: 100% with a cert on file, 97% ("needs cert") without. A newer
+trainer with a cert on file who filled in the onboarding form (on the onboarding sheet) gets all of Week 1 ticked
+automatically. The tracker has a sortable Onboarding % column (click it to open the page), an
 average tile, and onboarding % is in the Top & bottom 5 reports for trainers and clubs.
 
 ### Top & bottom 5 reports

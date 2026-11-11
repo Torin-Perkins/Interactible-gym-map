@@ -156,9 +156,18 @@ const autoValue = (t, f) => (f === "cert" ? !!t.certText
 // ---------- Onboarding checklist ----------
 // ONBOARDING_CHECKLIST (data.js); each trainer's ticks are TRACKER[id].checklist =
 // { itemId: { d: "YYYY-MM-DD", by } | "na" } ("na" = an optional item marked not needed).
-// Onboarding % counts those items plus a cert on file (the tracker's Cert on file). A trainer with a
-// cert on file who filled in the onboarding form gets the whole first section (Week 1) automatically.
+// Onboarding % counts those items plus a cert on file (the tracker's Cert on file). Automatic ticks:
+// - hired more than ONBOARDED_AFTER_MONTHS ago (staff list hire date): every item, so they're at 100%
+//   with a cert on file, or one short of it without;
+// - a cert on file and the onboarding form filled in: the whole first section (Week 1).
+const ONBOARDED_AFTER_MONTHS = 3;
 const CHECK_ITEMS = ONBOARDING_CHECKLIST.flatMap((s) => s.items);
+function hiredOver(t, months) {
+  if (!t || !t.hired) return false;
+  const d = new Date(`${t.hired}T12:00`);
+  d.setMonth(d.getMonth() + months);
+  return d <= new Date();
+}
 const AUTO_WEEK1 = new Set(ONBOARDING_CHECKLIST[0].items.map((i) => i.id));
 let DB_HAS_CHECKLIST = true; // false when the tracker's Apps Script predates the checklist column
 const trainerById = (id) => (MODEL._byId ||= new Map(MODEL.trainers.map((t) => [t.id, t]))).get(id);
@@ -166,10 +175,13 @@ function checklistProgress(id) {
   const t = MODEL && trainerById(id), r = TRACKER[id] || {}, c = r.checklist || {};
   // Cert as on the tracker, worked out directly (eff() would loop back here through onboarded).
   const certOn = !!t && (r.cert ?? !!t.certText);
-  const auto = certOn && !!t.onbForm;
-  const itemDone = (i) => (c[i.id] && (c[i.id] !== "na" || i.optional)) || (auto && AUTO_WEEK1.has(i.id));
+  const tenured = hiredOver(t, ONBOARDED_AFTER_MONTHS);
+  const auto = !tenured && certOn && !!t.onbForm;
+  const autoItem = (i) => tenured || (auto && AUTO_WEEK1.has(i.id));
+  const itemDone = (i) => (c[i.id] && (c[i.id] !== "na" || i.optional)) || autoItem(i);
   const done = CHECK_ITEMS.filter(itemDone).length + (certOn ? 1 : 0), total = CHECK_ITEMS.length + 1;
-  return { done, total, pct: Math.round((done / total) * 100), complete: done === total, started: done > 0, certOn, auto, itemDone };
+  return { done, total, pct: Math.round((done / total) * 100), complete: done === total, started: done > 0, certOn, auto, tenured, autoItem, itemDone,
+    autoWhy: tenured ? `hired over ${ONBOARDED_AFTER_MONTHS} months ago` : "cert on file + onboarding form" };
 }
 function eff(t) {
   const r = TRACKER[t.id] || {};
@@ -1011,7 +1023,7 @@ function checklistChip(t) {
   const p = checklistProgress(t.id);
   return `<button type="button" class="ob-pct${p.complete ? " done" : ""}" data-onboard title="Open the onboarding checklist">
       <b>${p.pct}%</b><span class="ob-mini"><i style="width:${p.pct}%"></i></span></button>
-    <span class="cell-sub">${p.complete ? "✓ complete" : `${p.done} of ${p.total}`}${p.auto ? " · Week 1 auto" : ""}</span>`;
+    <span class="cell-sub">${p.complete ? "✓ complete" : `${p.done} of ${p.total}`}${p.tenured ? ` · ${ONBOARDED_AFTER_MONTHS}+ months${p.certOn ? "" : ", needs cert"}` : p.auto ? " · Week 1 auto" : ""}</span>`;
 }
 const isoToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const fmtDay = (d) => new Date(`${d}T12:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
@@ -1043,7 +1055,8 @@ function renderOnboarding() {
     <ul class="ob-list"><li class="${p.certOn ? "on" : ""}"><label><input type="checkbox" disabled ${p.certOn ? "checked" : ""}> <span>Certification on file</span></label>
       <span class="cell-sub">${p.certOn ? esc(e.certExpires ? `expires ${fmtDay(e.certExpires)}` : t.certText || "on the tracker") : "Not yet: tick Cert on file on the tracker when it's in."}</span>
       ${e.certLink ? `<a class="ob-link" href="${esc(e.certLink)}" target="_blank" rel="noopener">View cert ↗</a>` : ""}
-      <span class="cell-sub">${p.auto ? "Cert on file + onboarding form filled in: Week 1 is ticked automatically."
+      <span class="cell-sub">${p.tenured ? `Hired over ${ONBOARDED_AFTER_MONTHS} months ago: every item is ticked automatically${p.certOn ? "." : ", so a cert on file is all that's left."}`
+        : p.auto ? "Cert on file + onboarding form filled in: Week 1 is ticked automatically."
         : p.certOn ? "When they fill in the onboarding form, Week 1 is ticked automatically." : t.onbForm ? "Onboarding form filled in: with a cert on file, Week 1 is ticked automatically." : ""}</span></li></ul></section>`;
   $("obBody").innerHTML = certHtml + ONBOARDING_CHECKLIST.map((s) => {
     const left = s.items.filter((i) => !p.itemDone(i)).length;
@@ -1055,11 +1068,11 @@ function renderOnboarding() {
         ? ` · <span class="${late ? "ob-late" : ""}">${late ? "overdue, was due" : "due"} ${esc(fmtDay(dueIso))}</span>` : ""}</span></div>
       ${s.note ? `<p class="cell-sub ob-note">${esc(s.note)}</p>` : ""}
       <ul class="ob-list">${s.items.map((i) => {
-        const v = c[i.id], na = v === "na", auto = !v && p.auto && AUTO_WEEK1.has(i.id);
+        const v = c[i.id], na = v === "na", auto = !v && p.autoItem(i);
         return `<li class="${v || auto ? "on" : ""}">
           <label><input type="checkbox" data-item="${esc(i.id)}" ${(v && !na) || auto ? "checked" : ""}${na || auto ? " disabled" : ""}> <span>${esc(i.label)}</span></label>
           ${i.optional && !auto ? `<label class="ob-na"><input type="checkbox" data-na="${esc(i.id)}" ${na ? "checked" : ""}> ${esc(i.optional)}</label>` : ""}
-          ${auto ? `<span class="cell-sub">automatic: cert on file + onboarding form</span>` : ""}
+          ${auto ? `<span class="cell-sub">automatic: ${esc(p.autoWhy)}</span>` : ""}
           ${v ? `<span class="cell-sub">${na ? "marked not needed" : `done ${esc(fmtDay(v.d))}${v.by ? ` by ${esc(v.by)}` : ""}`}</span>` : ""}
           ${i.hint ? `<span class="cell-sub">${esc(i.hint)}</span>` : ""}
           ${(i.links || []).map(([text, url]) => `<a class="ob-link" href="${esc(url)}" target="_blank" rel="noopener">${esc(text)} ↗</a>`).join("")}
