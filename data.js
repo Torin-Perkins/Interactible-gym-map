@@ -1119,4 +1119,5 @@ const ONBOARDING_AUTO = {
   minRating: 4.8,     // Lumin star rating ...
   minReviews: 5,      // ... from at least this many reviews, for "high-energy, professional experience"
   billingPct: 94,     // billing health for "knows their billing health"
+  clubReadyFromStaffList: true, // on a ClubReady staff list = all the ClubReady items done
 };
