@@ -481,10 +481,6 @@ function renderTrainers() {
     { key: "hired", label: "Hired", sort: (t) => t.hired || null, html: (t) => (t.hired
       ? `<span class="nowrap">${esc(fmtHired(t.hired))}</span><span class="cell-sub">${esc(tenure(t.hired))}</span>` : `<span class="cell-sub">not on staff list</span>`) },
     { key: "club", label: "Club", sort: (t) => `${t.club}|${t.name}`, html: (t) => `${esc(t.club)}<span class="cell-sub">${esc(t.region)}</span>` },
-    { key: "onboarded", label: "Onboarded", sort: (t) => +eff(t).onboarded, html: (t) =>
-      `<label class="yn"><input type="checkbox" data-f="onboarded" ${eff(t).onboarded ? "checked" : ""}> ${eff(t).onboarded ? "Yes" : "No"}</label>
-       <span class="cell-sub">${manual(t, "onboarded") ? byWho(t) : esc([...t.onbSources, checklistProgress(t.id).complete ? "onboarding checklist complete" : ""].filter(Boolean).join(", ") || "not on onboarding sheet")}${resetLink(t, "onboarded")}</span>
-` },
     { key: "obpct", label: "Onboarding<br><small>checklist + cert</small>", num: true, sort: (t) => checklistProgress(t.id).pct, html: (t) => checklistChip(t) },
     { key: "cert", label: "Cert on file", sort: (t) => +eff(t).cert, html: (t) =>
       `<label class="yn"><input type="checkbox" data-f="cert" ${eff(t).cert ? "checked" : ""}> ${eff(t).cert ? "Yes" : "No"}</label>
