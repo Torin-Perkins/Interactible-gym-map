@@ -1050,7 +1050,7 @@ const CLUB_TAGS = { billingWarn: 94, billingBad: 90, lostPctMax: 25, unloggedMax
 
 // Shared trainer tracker: the Apps Script web app URL (ends in /exec) from apps-script/README.md.
 // Leave blank to keep tracker edits in each person's browser only.
-const TRACKER_DB = { url: "https://script.google.com/macros/s/AKfycbyLb1wXD2YtuUF2Vvkccr7ItlID4Jy1xPkjBrfWMXbxXRKB09Sre3Q-k5PvpJOzQjHESw/exec" };
+const TRACKER_DB = { url: "https://script.google.com/macros/s/AKfycbwjGu8JWkeHRO5g_2mTZCTeSG84TQ_BxJOX9Z8h4ECiThaqdwHApQCWrtb8HSKs7X1NMg/exec" };
 
 // Trainer onboarding checklist, from "Trainer Onboarding Expectations (LA Fitness Transition)".
 // Each item is one tick on the trainer's onboarding page (click a trainer's name on Trainer stats).
