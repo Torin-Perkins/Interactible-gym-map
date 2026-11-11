@@ -61,7 +61,7 @@ function buildModel(data) {
     const lost = ls && ls.index[s.company] && lookupName(ls.index[s.company], s.name);
     const hasLostReport = ls && ls.reports.some((r) => r.company === s.company);
     return {
-      id: s.id, name: s.name, club: s.club, company: s.company, key, hired: s.hired, onbForm: !!onb,
+      id: s.id, name: s.name, club: s.club, company: s.company, key, hired: s.hired, onbForm: !!onb, staffFile: s.file,
       onbSources: [onb && "onboarding sheet", ...certSources.map((x) => `cert on ${x}`)].filter(Boolean),
       certText: (certRow && (certRow.detail || "on cert list")) || (onb && onb.certUploaded && "uploaded on onboarding form")
         || (adopt && adopt.cert) || "",
@@ -173,7 +173,10 @@ function dataChecks(t) {
     ? `100% adoption (${fmtNum(a.clientsInApp)} active in Lumin, ${fmtNum(a.totalClients)} total on the adoption sheet)`
     : `100% adoption (all ${fmtNum(a.totalClients)} clients in Lumin)`;
   const comp = a.completion != null ? a.completion : null;
+  // On a staff list (the staff lists are ClubReady exports) = their ClubReady account exists and is set up.
+  const cr = A.clubReadyFromStaffList && t.staffFile ? `on the ClubReady staff list (${t.staffFile})` : "";
   return {
+    cr_scheduling: cr, cr_schedule_ok: cr, cr_login: cr, cr_webinar: cr, cr_add_clients: cr, cr_barcodes: cr,
     lumin_app: a.inLumin ? "has a Lumin Pro account" : "",
     clients_app: adoptWhy,
     clients_lumin: adoptWhy,
