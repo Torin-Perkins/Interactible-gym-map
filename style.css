@@ -356,3 +356,15 @@ button.btn-secondary { background: none; }
 .ob-mini i { display: block; height: 100%; background: var(--accent); }
 .ob-pct.done .ob-mini i { background: var(--good); }
 .ob-pct:hover b { text-decoration: underline; }
+
+/* Trainer sub-divisions (hybrid / head trainers) */
+.role-tag { display: inline-block; margin: 2px 4px 0 0; padding: 0 7px; font-size: 10.5px; font-weight: 700; border-radius: 9px;
+  border: 1px solid var(--line); color: var(--muted); }
+.role-tag.hybrid { color: #2b6cb0; border-color: #2b6cb0; } .role-tag.head { color: #8a5a00; border-color: #d98e04; }
+.stat-link { background: none; color: var(--fg); padding: 0; font-weight: 700; font-variant-numeric: tabular-nums; cursor: pointer;
+  text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.stat-link:hover { text-decoration-color: var(--fg); }
+.tile-btn { font: inherit; text-align: left; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+.tile-btn:hover { border-color: var(--fg); }
+.trend-big { margin: 10px 0 12px; }
+#tRole { font: inherit; }

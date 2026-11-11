@@ -103,6 +103,8 @@ function loadStaff(drive) {
     club: clubFromLocation(r.location), company: companyOf(r.location || r.file),
     role: staffRole(r.type), terminated: /terminated/i.test(r.type), file: r.file,
     hired: r.hired || "", // YYYY-MM-DD, the staff list's "date added"
+    // Trainer sub-division from the job title: head trainers, hybrid trainers, personal trainers.
+    kind: /head trainer/i.test(r.type) ? "head" : /hybrid/i.test(r.type) ? "hybrid" : "pt",
   }));
   if (!staff.length) throw new Error("No staff list files found in the Drive folder");
   return { staff, files: drive.staffFiles };
