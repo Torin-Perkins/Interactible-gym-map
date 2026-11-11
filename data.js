@@ -1111,3 +1111,12 @@ const ONBOARDING_CHECKLIST = [
     { id: "coaching_booked", label: "Booked a one-on-one coaching session", links: [["Schedule here", "https://calendly.com/maddy-lamb-872/one-on-one"]] },
   ] },
 ];
+
+// Onboarding items ticked automatically from the data (see dataChecks in stats.js).
+const ONBOARDING_AUTO = {
+  adoptionPct: 100,   // client app adoption (Lumin clients ÷ adoption sheet total) for the "every client" items
+  completionPct: 75,  // workout completion % (adoption sheet) for "tracks progress" / "assigned workouts"
+  minRating: 4.8,     // Lumin star rating ...
+  minReviews: 5,      // ... from at least this many reviews, for "high-energy, professional experience"
+  billingPct: 94,     // billing health for "knows their billing health"
+};

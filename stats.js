@@ -126,7 +126,7 @@ function appMatcher(rows) {
 function appAdoption(sheet, app, haveExport) {
   if (!haveExport) return sheet;
   const clients = app ? app.clients : 0;
-  if (!sheet && !clients) return null;
+  if (!sheet && !app) return null;
   const total = sheet ? sheet.totalClients : null;
   return {
     ...(sheet || {}),
@@ -136,6 +136,7 @@ function appAdoption(sheet, app, haveExport) {
     adoption: total ? Math.min(100, (clients / total) * 100) : null,
     rating: app && app.rating != null ? app.rating : sheet ? sheet.stars : null,
     reviews: app ? app.reviews || 0 : null,
+    inLumin: !!app, // has a Lumin Pro account (matched in the Lumin snapshot), even with 0 clients
     fromExport: true,
   };
 }
@@ -161,6 +162,29 @@ const autoValue = (t, f) => (f === "cert" ? !!t.certText
 //   with a cert on file, or one short of it without;
 // - a cert on file and the onboarding form filled in: the whole first section (Week 1).
 const ONBOARDED_AFTER_MONTHS = 3;
+// Items ticked from the data we have (thresholds in ONBOARDING_AUTO, data.js). Each returns the reason
+// shown on the onboarding page, or "" when the data doesn't show it. Worked out on every load, so a
+// tick comes off again if the numbers drop.
+function dataChecks(t) {
+  const A = ONBOARDING_AUTO, a = t.adopt || {}, r = TRACKER[t.id] || {};
+  const billing = r.billing ?? a.billing ?? null;
+  const full = a.adoption != null && a.adoption >= A.adoptionPct;
+  const adoptWhy = !full ? "" : a.clientsInApp > a.totalClients
+    ? `100% adoption (${fmtNum(a.clientsInApp)} active in Lumin, ${fmtNum(a.totalClients)} total on the adoption sheet)`
+    : `100% adoption (all ${fmtNum(a.totalClients)} clients in Lumin)`;
+  const comp = a.completion != null ? a.completion : null;
+  return {
+    lumin_app: a.inLumin ? "has a Lumin Pro account" : "",
+    clients_app: adoptWhy,
+    clients_lumin: adoptWhy,
+    app_every_client: adoptWhy,
+    workout_cards: full && comp > 0 ? `${adoptWhy}, completing ${fmtPct(comp, 0)} of their workouts` : "",
+    app_workouts: full && comp >= A.completionPct ? `${adoptWhy}, ${fmtPct(comp, 0)} workout completion` : "",
+    progress_tracked: comp >= A.completionPct ? `${fmtPct(comp, 0)} workout completion (adoption sheet)` : "",
+    high_energy: a.rating >= A.minRating && (a.reviews || 0) >= A.minReviews ? `★ ${a.rating.toFixed(1)} from ${fmtNum(a.reviews)} Lumin reviews` : "",
+    billing_health: billing != null && billing >= A.billingPct ? `billing health ${fmtPct(billing, 0)}` : "",
+  };
+}
 const CHECK_ITEMS = ONBOARDING_CHECKLIST.flatMap((s) => s.items);
 function hiredOver(t, months) {
   if (!t || !t.hired) return false;
@@ -177,11 +201,15 @@ function checklistProgress(id) {
   const certOn = !!t && (r.cert ?? !!t.certText);
   const tenured = hiredOver(t, ONBOARDED_AFTER_MONTHS);
   const auto = !tenured && certOn && !!t.onbForm;
-  const autoItem = (i) => tenured || (auto && AUTO_WEEK1.has(i.id));
+  const data = t ? dataChecks(t) : {};
+  // Why an item is ticked automatically ("" = it isn't): tenure, then the data, then cert + form for Week 1.
+  const autoWhy = (i) => (tenured ? `hired over ${ONBOARDED_AFTER_MONTHS} months ago` : data[i.id]
+    || (auto && AUTO_WEEK1.has(i.id) ? "cert on file + onboarding form" : ""));
+  const autoItem = (i) => !!autoWhy(i);
   const itemDone = (i) => (c[i.id] && (c[i.id] !== "na" || i.optional)) || autoItem(i);
   const done = CHECK_ITEMS.filter(itemDone).length + (certOn ? 1 : 0), total = CHECK_ITEMS.length + 1;
-  return { done, total, pct: Math.round((done / total) * 100), complete: done === total, started: done > 0, certOn, auto, tenured, autoItem, itemDone,
-    autoWhy: tenured ? `hired over ${ONBOARDED_AFTER_MONTHS} months ago` : "cert on file + onboarding form" };
+  const fromData = !tenured ? CHECK_ITEMS.filter((i) => !c[i.id] && data[i.id]).length : 0;
+  return { done, total, pct: Math.round((done / total) * 100), complete: done === total, started: done > 0, certOn, auto, tenured, autoItem, itemDone, autoWhy, fromData };
 }
 function eff(t) {
   const r = TRACKER[t.id] || {};
@@ -1023,7 +1051,7 @@ function checklistChip(t) {
   const p = checklistProgress(t.id);
   return `<button type="button" class="ob-pct${p.complete ? " done" : ""}" data-onboard title="Open the onboarding checklist">
       <b>${p.pct}%</b><span class="ob-mini"><i style="width:${p.pct}%"></i></span></button>
-    <span class="cell-sub">${p.complete ? "✓ complete" : `${p.done} of ${p.total}`}${p.tenured ? ` · ${ONBOARDED_AFTER_MONTHS}+ months${p.certOn ? "" : ", needs cert"}` : p.auto ? " · Week 1 auto" : ""}</span>`;
+    <span class="cell-sub">${p.complete ? "✓ complete" : `${p.done} of ${p.total}`}${p.tenured ? ` · ${ONBOARDED_AFTER_MONTHS}+ months${p.certOn ? "" : ", needs cert"}` : [p.auto ? "Week 1 auto" : "", p.fromData ? `${p.fromData} from data` : ""].filter(Boolean).map((x) => ` · ${x}`).join("")}</span>`;
 }
 const isoToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const fmtDay = (d) => new Date(`${d}T12:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
@@ -1072,7 +1100,7 @@ function renderOnboarding() {
         return `<li class="${v || auto ? "on" : ""}">
           <label><input type="checkbox" data-item="${esc(i.id)}" ${(v && !na) || auto ? "checked" : ""}${na || auto ? " disabled" : ""}> <span>${esc(i.label)}</span></label>
           ${i.optional && !auto ? `<label class="ob-na"><input type="checkbox" data-na="${esc(i.id)}" ${na ? "checked" : ""}> ${esc(i.optional)}</label>` : ""}
-          ${auto ? `<span class="cell-sub">automatic: ${esc(p.autoWhy)}</span>` : ""}
+          ${auto ? `<span class="cell-sub">automatic: ${esc(p.autoWhy(i))}</span>` : ""}
           ${v ? `<span class="cell-sub">${na ? "marked not needed" : `done ${esc(fmtDay(v.d))}${v.by ? ` by ${esc(v.by)}` : ""}`}</span>` : ""}
           ${i.hint ? `<span class="cell-sub">${esc(i.hint)}</span>` : ""}
           ${(i.links || []).map(([text, url]) => `<a class="ob-link" href="${esc(url)}" target="_blank" rel="noopener">${esc(text)} ↗</a>`).join("")}
