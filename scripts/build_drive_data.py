@@ -56,8 +56,11 @@ def list_folder(folder_id, path):
 
 
 def read_workbook(file_id, name):
-    """Returns {sheet name: rows} for a shared .xls or .xlsx file."""
-    data = get(f"https://drive.usercontent.google.com/download?id={file_id}&export=download", binary=True)
+    """Returns {sheet name: rows} for a shared .xls or .xlsx file, or a Google Sheet (exported as .xlsx)."""
+    if len(file_id) > 40:  # Google Sheets have long ids and can't be downloaded as files
+        data = get(f"https://docs.google.com/spreadsheets/d/{file_id}/export?format=xlsx", binary=True)
+    else:
+        data = get(f"https://drive.usercontent.google.com/download?id={file_id}&export=download", binary=True)
     if data[:2] == b"PK":  # .xlsx
         wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
         sheets = {ws.title: [list(r) for r in ws.iter_rows(values_only=True)] for ws in wb.worksheets}
@@ -197,6 +200,71 @@ def read_lost_sheep(f):
             "rows": [{"trainer": t, "location": loc, "count": n} for (t, loc), n in sorted(counts.items())]}
 
 
+def company_of(text_):
+    t = text_.lower()
+    return ("Elevate" if re.search(r"elevate|fitness connection", t) else "GRIP" if re.search(r"grip|la fitness", t)
+            else "Lighthouse" if re.search(r"lighthouse|10gym|\blfm\b", t) else "Other")
+
+
+def pay_period(name):
+    """"... 2026-10-01 - 2026-10-15.xls" -> {"start", "end", "label": "Oct 1-15, 2026"} (None if no dates)."""
+    m = re.search(r"(\d{4})-(\d{2})-(\d{2})\s*-\s*(\d{4})-(\d{2})-(\d{2})", name)
+    if not m:
+        return None
+    s = datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    e = datetime(int(m.group(4)), int(m.group(5)), int(m.group(6)))
+    label = f"{s:%b} {s.day}-{e.day}, {e.year}" if s.month == e.month else f"{s:%b} {s.day}-{e:%b} {e.day}, {e.year}"
+    return {"start": s.strftime("%Y-%m-%d"), "end": e.strftime("%Y-%m-%d"), "label": label}
+
+
+def read_agreements(f, sales, period):
+    """Agreements Log: one row per agreement. Adds each salesperson's invoice total for the pay period
+    (the Invoice column = the agreement's total value), leaving out cancelled agreements; an agreement
+    sold by two people ("Noah R.\n+ Addison Compton") is split evenly. Keeps no customer details."""
+    rows = next(iter(read_workbook(f["id"], f["name"]).values()))
+    hi, h = header_index(rows, "salesperson")
+    if hi is None:
+        return 0
+    c = {k: h.index(k) for k in ("user id", "customer", "description", "salesperson", "invoice")}
+    cancelled = 0
+    for r in rows[hi + 1:]:
+        if not text(r[c["user id"]]):
+            continue
+        if re.search(r"^cancelled\b", text(r[c["description"]]), re.I | re.M):
+            cancelled += 1
+            continue
+        names = [n.strip() for n in re.split(r"\n|\+", text(r[c["salesperson"]])) if n.strip()]
+        if not names:
+            continue
+        loc = text(r[c["customer"]]).split("\n")[-1]
+        company = company_of(loc)
+        club = re.sub(r"^.*?(fitness|connection|10gym)\s*-\s*", "", loc, flags=re.I).strip()
+        share = number(r[c["invoice"]]) / len(names)
+        for n in names:
+            s = sales.setdefault((company, n), {"company": company, "trainer": n, "clubs": [], "periods": {}})
+            if club and club not in s["clubs"]:
+                s["clubs"].append(club)
+            p = s["periods"].setdefault(period["label"], {"invoice": 0.0, "agreements": 0})
+            p["invoice"] = round(p["invoice"] + share, 2)
+            p["agreements"] += 1
+    return cancelled
+
+
+def read_time_clock(f, hours, period):
+    """Time Clock Payroll summary: total clocked minutes per employee (by user ID) for the pay period."""
+    rows = next(iter(read_workbook(f["id"], f["name"]).values()))
+    hi, h = header_index(rows, "employee user id")
+    if hi is None:
+        return
+    c = {k: h.index(k) for k in ("employee user id", "location name", "total minutes")}
+    for r in rows[hi + 1:]:
+        uid = text(r[c["employee user id"]])
+        if not uid:
+            continue
+        e = hours.setdefault(uid, {"id": uid, "company": company_of(text(r[c["location name"]])), "periods": {}})
+        e["periods"][period["label"]] = e["periods"].get(period["label"], 0) + int(number(r[c["total minutes"]]))
+
+
 APP_CLIENTS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "app-clients.json")
 
 
@@ -261,11 +329,15 @@ def main():
     files = list_folder(ROOT_FOLDER, [])
     keep_staff = newest_staff_lists([f for f in files if f["kind"] == "file" and re.search(r"staff list", f["folder"], re.I)])
     staff, unlogged, lost_sheep, errors, billing_files = [], [], [], [], []
+    sales, hours, periods, cancelled = {}, {}, {}, 0  # trainer payroll stats (agreements, time clock)
     # Staff contact details, only when the rates password is set (RATES_PASSWORD, a GitHub secret).
     password = os.environ.get("RATES_PASSWORD", "")
     contacts = [] if password else None
     for f in files:
         if f["kind"] != "file":
+            continue
+        if len(f["id"]) > 40 and re.search(r"staff list|unlogged|lost sheep|trainer payroll", f["folder"], re.I):
+            errors.append(f"{f['name']}: is a Google Doc, so its table can't be read; save it as a Google Sheet or Excel file")
             continue
         try:
             if re.search(r"staff list", f["folder"], re.I):
@@ -275,6 +347,17 @@ def main():
                 u = read_unlogged(f)
                 if u:
                     unlogged.append(u)
+            elif re.search(r"trainer payroll", f["folder"], re.I):
+                period = pay_period(f["name"])
+                if not period:
+                    continue
+                if re.search(r"agreements", f["name"], re.I):
+                    cancelled += read_agreements(f, sales, period)
+                elif re.search(r"time clock", f["name"], re.I):
+                    read_time_clock(f, hours, period)
+                else:
+                    continue
+                periods.setdefault(period["label"], {**period, "files": []})["files"].append(f["name"])
             elif re.search(r"billing health", f["folder"], re.I) and f["name"].lower().endswith(".csv"):
                 billing_files.append(f)
             elif re.search(r"lost sheep", f["folder"], re.I):
@@ -303,6 +386,11 @@ def main():
         "unlogged": unlogged,
         "lostSheep": lost_sheep,
         "appClients": app_clients,
+        # Per pay period: invoice totals per salesperson (cancelled agreements left out) and clocked
+        # minutes per employee, from the "Trainer Payroll Stats" folder.
+        "payrollStats": {"periods": sorted(({k: v for k, v in p.items() if k != "files"} for p in periods.values()), key=lambda p: p["start"]),
+                         "sales": sorted(sales.values(), key=lambda s: (s["company"], s["trainer"])),
+                         "hours": sorted(hours.values(), key=lambda e: e["id"]), "cancelledLeftOut": cancelled},
         "errors": errors,
     }
     with open(out, "w", encoding="utf-8") as fh:

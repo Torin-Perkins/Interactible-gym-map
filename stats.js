@@ -61,7 +61,7 @@ function buildModel(data) {
     const lost = ls && ls.index[s.company] && lookupName(ls.index[s.company], s.name);
     const hasLostReport = ls && ls.reports.some((r) => r.company === s.company);
     return {
-      id: s.id, name: s.name, club: s.club, company: s.company, key, hired: s.hired, onbForm: !!onb, staffFile: s.file,
+      id: s.id, name: s.name, club: s.club, company: s.company, key, hired: s.hired, onbForm: !!onb, staffFile: s.file, kind: s.kind,
       onbSources: [onb && "onboarding sheet", ...certSources.map((x) => `cert on ${x}`)].filter(Boolean),
       certText: (certRow && (certRow.detail || "on cert list")) || (onb && onb.certUploaded && "uploaded on onboarding form")
         || (adopt && adopt.cert) || "",
@@ -75,6 +75,8 @@ function buildModel(data) {
       lostSheepClubs: lost ? lost.clubs : {},
     };
   });
+
+  attachPayrollStats(trainers, data);
 
   const clubs = new Map();
   kpiByKey.forEach((k) => clubs.set(k.key, { key: k.key, company: k.company, region: k.region, club: k.club, sheetName: k.sheetName, kpi: k.kpi }));
@@ -148,6 +150,43 @@ function tenure(d) {
   if (months < 1) return "new this month";
   return months < 12 ? `${months} mo` : `${Math.floor(months / 12)} yr${months % 12 ? ` ${months % 12} mo` : ""}`;
 }
+
+// ---------- Trainer payroll stats (hybrid and head trainers) ----------
+// From the "Trainer Payroll Stats" Drive folder (drive-data.json payrollStats), per pay period:
+// - invoice = total value of the agreements a trainer sold (cancelled ones left out, shared sales
+//   split), matched to the staff list by name like the Lumin names; for hybrid trainers;
+// - clocked hours from the time clock summary, by user ID; for head trainers.
+// Pay periods before the hire date don't count; a period with no sales / no clock-ins counts as 0.
+let PAY_PERIODS = [];
+const fmtMoney = (v) => (v == null || isNaN(v) ? "—" : `$${fmtNum(v, 0)}`);
+const fmtHours = (v) => (v == null || isNaN(v) ? "—" : `${fmtNum(v, 1)} hrs`);
+function attachPayrollStats(trainers, data) {
+  const ps = data.drive && data.drive.payrollStats;
+  PAY_PERIODS = ps ? ps.periods : [];
+  if (!ps) return;
+  const findSales = appMatcher(ps.sales);
+  const hoursById = new Map(ps.hours.map((h) => [h.id, h]));
+  trainers.forEach((t) => {
+    const periods = PAY_PERIODS.filter((p) => !t.hired || p.end >= t.hired);
+    const at = (p) => new Date(`${p.end}T12:00`);
+    const sales = findSales(t);
+    const sold = (p) => (sales && sales.periods[p.label]) || { invoice: 0, agreements: 0 };
+    t.invoiceSeries = periods.map((p) => ({ date: at(p), label: p.label, v: sold(p).invoice, n: sold(p).agreements }));
+    t.avgInvoice = t.invoiceSeries.length ? mean(t.invoiceSeries.map((x) => x.v)) : null;
+    const h = hoursById.get(t.id);
+    t.hoursSeries = h ? periods.map((p) => ({ date: at(p), label: p.label, v: (h.periods[p.label] || 0) / 60 })) : [];
+    t.avgHours = t.hoursSeries.length ? mean(t.hoursSeries.map((x) => x.v)) : null;
+  });
+}
+// Which payroll stat each trainer sub-division is measured on.
+const PAY_STATS = {
+  invoice: { kind: "hybrid", who: "hybrid trainers", label: "Avg invoice", series: (t) => t.invoiceSeries || [], avg: (t) => t.avgInvoice, fmt: fmtMoney,
+    sub: "total value of agreements sold per pay period, cancelled ones left out" },
+  hours: { kind: "head", who: "head trainers", label: "Avg clocked hours", series: (t) => t.hoursSeries || [], avg: (t) => t.avgHours, fmt: fmtHours,
+    sub: "time clock hours per pay period" },
+};
+const roleOk = (t) => !$("tRole").value || t.kind === $("tRole").value;
+const ROLE_LABEL = { head: "Head trainer", hybrid: "Hybrid trainer", pt: "Personal trainer" };
 
 // Effective values: a manual entry wins over the automatic one.
 // A cert ticked by hand, or a complete onboarding checklist, also counts toward onboarded.
@@ -378,7 +417,7 @@ function renderFilters() {
 // ---------- Tiles ----------
 function renderTiles() {
   const f = F();
-  const ts = MODEL.trainers.filter((t) => inFilter(t, f));
+  const ts = MODEL.trainers.filter((t) => inFilter(t, f) && roleOk(t));
   const cs = MODEL.clubs.filter((c) => inFilter(c, f));
   const e = ts.map(eff);
   const n = ts.length;
@@ -404,14 +443,22 @@ function renderTiles() {
       `average of the checklist + cert · ${ts.filter((t) => checklistProgress(t.id).complete).length} at 100%`],
     ["Avg unlogged sessions", fmtNum(mean(ul.map((t) => t.unlogged)), 2),
       `per trainer per pay period · ${[...new Set(periods.map((p) => p.label))].join(", ") || "no payroll files"}`],
+    // Sub-division tiles (click for the trend by pay period), shown when the role filter includes them.
+    ...Object.entries(PAY_STATS).filter(([, s]) => !$("tRole").value || $("tRole").value === s.kind).map(([key, s]) => {
+      const who = ts.filter((t) => t.kind === s.kind), with_ = who.filter((t) => s.avg(t) != null);
+      return [`${ROLE_LABEL[s.kind]}s: ${s.label.toLowerCase()}`, s.fmt(mean(with_.map(s.avg))),
+        `per pay period · ${with_.length} of ${who.length} ${s.who}${key === "hours" ? " with time clock entries" : ""}`, "trainers", key];
+    }),
     ["Lost sheep by trainer", fmtNum(tls.reduce((s, t) => s + t.lostSheep, 0)),
       `last session with ${tls.filter((t) => t.lostSheep).length} of ${n} trainers · ${lsRanges || "no lost sheep report"}`],
     ["On the app", `${onApp} / ${n}`, `${MODEL.data.drive && MODEL.data.drive.appClients ? `active clients in ${MODEL.data.drive.appClients.source || "the billing export"} or marked on the adoption sheet` : "matched on the app adoption sheet"}${share(onApp)}`],
     ["Billing health", fmtPct(mean(bh.map((x) => x.v))), `avg of ${bh.length} clubs · ${fmtDate(bh.length ? new Date(Math.max(...bh.map((x) => x.date))) : null)}`, "gyms"],
     ["Lost sheep", fmtNum(ls.reduce((s, x) => s + x.v, 0)), `${fmtNum(npls.reduce((s, x) => s + x.v, 0))} non-prospect · incl. prospects`, "gyms"],
   ];
-  $("tiles").innerHTML = tiles.map(([label, value, sub, tab = "trainers"]) =>
-    `<div class="tile ${tab}-only"><div class="tile-label">${esc(label)}</div><div class="tile-value">${esc(value)}</div><div class="tile-sub">${esc(sub)}</div></div>`).join("");
+  // A 5th entry (a PAY_STATS key) makes the tile a button that opens its trend.
+  $("tiles").innerHTML = tiles.map(([label, value, sub, tab = "trainers", trend]) => trend
+    ? `<button type="button" class="tile tile-btn ${tab}-only" data-trend="${trend}" title="Show the trend by pay period"><div class="tile-label">${esc(label)} ↗</div><div class="tile-value">${esc(value)}</div><div class="tile-sub">${esc(sub)}</div></button>`
+    : `<div class="tile ${tab}-only"><div class="tile-label">${esc(label)}</div><div class="tile-value">${esc(value)}</div><div class="tile-sub">${esc(sub)}</div></div>`).join("");
 }
 
 // ---------- Sortable tables ----------
@@ -479,7 +526,7 @@ function renderTrainers() {
   const q = norm($("tSearch").value);
   const show = $("tShow").value;
   const rows = MODEL.trainers.filter((t) => {
-    if (!inFilter(t, f)) return false;
+    if (!inFilter(t, f) || !roleOk(t)) return false;
     if (q && !norm(t.name).includes(q)) return false;
     const e = eff(t);
     if (show === "notOnboarded" && e.onboarded) return false;
@@ -496,7 +543,17 @@ function renderTrainers() {
   const resetLink = (t, f) => (manual(t, f) ? ` <button type="button" class="link reset" data-reset="${f}" title="Go back to the automatic value">reset</button>` : "");
   const cols = [
     { key: "name", label: "Trainer", sort: (t) => t.name, html: (t) => `<button type="button" class="name-link" data-onboard title="Open ${esc(t.name)}'s onboarding checklist">${esc(t.name)}</button><span class="cell-sub">${esc(t.company)}</span>`
+      + (t.kind !== "pt" ? `<span class="role-tag ${t.kind}">${esc(ROLE_LABEL[t.kind])}</span>` : "")
       + `<button type="button" class="graph-btn" data-graph title="Graph ${esc(t.name)}'s stats">Graph</button>` },
+    // Sub-division stats: avg invoice for hybrid trainers, avg clocked hours for head trainers (click for the trend).
+    ...Object.entries(PAY_STATS).filter(([, s]) => !$("tRole").value || $("tRole").value === s.kind).map(([key, s]) => ({
+      key, label: `${s.label}<br><small>${s.who}, per pay period</small>`, num: true,
+      sort: (t) => (t.kind === s.kind ? s.avg(t) : null),
+      html: (t) => (t.kind !== s.kind ? `<span class="cell-sub">—</span>`
+        : s.avg(t) == null ? `<span class="cell-sub">${key === "hours" ? "no time clock entries" : "no pay periods since hire"}</span>`
+        : `<button type="button" class="stat-link" data-trend="${key}" title="Show the trend">${esc(s.fmt(s.avg(t)))}</button>`
+          + `<span class="cell-sub">${s.series(t).length} pay period${s.series(t).length === 1 ? "" : "s"}${key === "invoice" ? ` · ${fmtNum(s.series(t).reduce((n, x) => n + x.n, 0))} agreements` : ""}</span>`),
+    })),
     { key: "hired", label: "Hired", sort: (t) => t.hired || null, html: (t) => (t.hired
       ? `<span class="nowrap">${esc(fmtHired(t.hired))}</span><span class="cell-sub">${esc(tenure(t.hired))}</span>` : `<span class="cell-sub">not on staff list</span>`) },
     { key: "club", label: "Club", sort: (t) => `${t.club}|${t.name}`, html: (t) => `${esc(t.club)}<span class="cell-sub">${esc(t.region)}</span>` },
@@ -564,6 +621,7 @@ $("trainerTable").addEventListener("change", (e) => {
 });
 $("trainerTable").addEventListener("click", (e) => {
   if (e.target.closest("[data-graph]")) return openTrainerGraph(e.target.closest("tr").dataset.id);
+  if (e.target.closest("[data-trend]")) return openPayTrend(e.target.closest("[data-trend]").dataset.trend, e.target.closest("tr").dataset.id);
   if (e.target.closest("[data-onboard]")) return openOnboarding(e.target.closest("tr").dataset.id);
   if (e.target.closest("[data-certlink]")) {
     const id = e.target.closest("tr").dataset.id;
@@ -582,7 +640,7 @@ $("trainerTable").addEventListener("click", (e) => {
 
 // ---------- Export / import ----------
 const CSV_COLS = ["User ID", "Trainer", "Hire date", "Company", "Region", "Club", "Onboarded", "Onboarded via", "Onboarding %", "Onboarding checklist", "Cert on file", "Cert",
-  "Cert expires", "Cert link", "Lost sheep", "Billing health %", "On app", "Clients on app", "Total clients", "Client adoption %", "Star rating", "Reviews", "Avg unlogged sessions", "Notes"];
+  "Cert expires", "Cert link", "Lost sheep", "Billing health %", "On app", "Clients on app", "Total clients", "Client adoption %", "Star rating", "Reviews", "Avg unlogged sessions", "Notes", "Role", "Avg invoice per pay period", "Avg clocked hours per pay period"];
 const csvCell = (v) => (/[",\n]/.test(String(v ?? "")) ? `"${String(v).replace(/"/g, '""')}"` : String(v ?? ""));
 
 $("exportBtn").onclick = () => {
@@ -596,7 +654,8 @@ $("exportBtn").onclick = () => {
       t.adopt ? (t.adopt.onApp ? "Yes" : "No") : "", t.adopt ? t.adopt.clientsInApp ?? "" : "", t.adopt ? t.adopt.totalClients ?? "" : "",
       t.adopt && t.adopt.adoption != null ? Math.round(t.adopt.adoption * 10) / 10 : "",
       t.adopt && t.adopt.rating ? Math.round(t.adopt.rating * 100) / 100 : "", t.adopt && t.adopt.rating ? t.adopt.reviews || 0 : "",
-      t.unlogged ?? "", e.notes].map(csvCell).join(","));
+      t.unlogged ?? "", e.notes, ROLE_LABEL[t.kind] || "",
+      t.kind === "hybrid" && t.avgInvoice != null ? Math.round(t.avgInvoice) : "", t.kind === "head" && t.avgHours != null ? Math.round(t.avgHours * 10) / 10 : ""].map(csvCell).join(","));
   });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
@@ -701,6 +760,12 @@ function renderSources(data) {
       `${esc(p.company)} ${esc(p.label)}: ${p.total} sessions across ${p.trainers} PTs`).join(" · ") || "no payroll comparison files" : err("unlogged")),
     line("Lost sheep reports", st.lostSheep && st.lostSheep.ok, data.lostSheep ? data.lostSheep.reports.map((r) =>
       `${esc(r.company)}${r.range ? ` ${esc(r.range)}` : ""}: ${fmtNum(r.total)} lost sheep · ${fmtNum(r.total - r.noBooking)} with a last session, across ${r.trainers} trainers · ${MODEL.trainers.filter((t) => t.company === r.company && t.lostSheep).length} matched to current PTs`).join(" · ") || "no lost sheep reports" : err("lostSheep")),
+    line("Trainer payroll stats", !!(data.drive && data.drive.payrollStats && PAY_PERIODS.length), PAY_PERIODS.length
+      ? `${PAY_PERIODS.map((p) => esc(p.label)).join(", ")} · agreements: ${fmtNum(data.drive.payrollStats.sales.length)} salespeople, `
+        + `${fmtNum(data.drive.payrollStats.cancelledLeftOut)} cancelled agreements left out · time clock: ${fmtNum(data.drive.payrollStats.hours.length)} employees · `
+        + `${MODEL.trainers.filter((t) => t.kind === "hybrid" && t.invoiceSeries && t.invoiceSeries.some((x) => x.n)).length} of ${MODEL.trainers.filter((t) => t.kind === "hybrid").length} hybrid trainers with sales, `
+        + `${MODEL.trainers.filter((t) => t.kind === "head" && t.avgHours != null).length} of ${MODEL.trainers.filter((t) => t.kind === "head").length} head trainers with time clock entries`
+      : "no Agreements Log / Time Clock Payroll files in the Trainer Payroll Stats folder"),
     line("App clients", !!(data.drive && data.drive.appClients), data.drive && data.drive.appClients
       ? `${esc(data.drive.appClients.file)}: ${fmtNum(data.drive.appClients.total)} clients across ${data.drive.appClients.rows.length} trainers · ${MODEL.trainers.filter((t) => t.adopt && t.adopt.clientsInApp > 0).length} matched to current PTs · adoption % = clients on the app ÷ total clients on the adoption sheet (max 100%)${data.drive.appClients.generated ? ` · pulled ${new Date(data.drive.appClients.generated).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}` : ""}`
       : "no billing health export (Billing Health folder in Drive, or app-clients.json)"),
@@ -974,6 +1039,7 @@ window.addEventListener("resize", () => {
   clearTimeout(trendResize);
   trendResize = setTimeout(() => {
     if (MODEL && statsTab() === "gyms") renderTrends();
+    if ($("trendDialog").open) openPayTrend($("trendDialog").dataset.key, $("trendDialog").dataset.id || undefined);
     if ($("trainerDialog").open) openTrainerGraph($("trainerDialog").dataset.id);
   }, 150);
 });
@@ -1148,6 +1214,50 @@ $("obBy").onchange = () => { pref("trackerName", $("obBy").value.trim()); $("dbN
 $("obClose").onclick = () => $("onboardDialog").close();
 $("onboardDialog").addEventListener("click", (e) => { if (e.target === $("onboardDialog")) $("onboardDialog").close(); });
 
+// ---------- Sub-division trends (click a tile or a trainer's stat) ----------
+// The trend of a PAY_STATS stat by pay period: for a tile, the average of the filtered trainers in
+// that sub-division, one line per brand; for one trainer, their values next to their brand's average.
+function payAverageSeries(stat, trainers, name, company) {
+  const by = new Map();
+  trainers.forEach((t) => stat.series(t).forEach((x) => {
+    const k = +x.date, e = by.get(k) || { date: x.date, sum: 0, n: 0 };
+    e.sum += x.v; e.n++; by.set(k, e);
+  }));
+  return { name, company, points: [...by.values()].sort((a, b) => a.date - b.date).map((e) => ({ date: e.date, v: e.sum / e.n })) };
+}
+function openPayTrend(key, trainerId) {
+  const s = PAY_STATS[key], f = F();
+  const group = MODEL.trainers.filter((t) => t.kind === s.kind && s.avg(t) != null);
+  let series, title, sub;
+  if (trainerId) {
+    const t = MODEL.trainers.find((x) => x.id === trainerId);
+    series = [{ name: t.name, company: t.company, points: s.series(t) },
+      payAverageSeries(s, group.filter((x) => x.company === t.company && x.id !== t.id), `${t.company} ${s.who} avg`, "")];
+    title = `${t.name}: ${s.label.toLowerCase()}`;
+    sub = `${ROLE_LABEL[t.kind]} · ${t.club} · ${s.sub}`;
+  } else {
+    const ts = group.filter((t) => inFilter(t, f));
+    series = [...new Set(ts.map((t) => t.company))].sort().map((co) => payAverageSeries(s, ts.filter((t) => t.company === co), co, co));
+    title = `${ROLE_LABEL[s.kind]}s: ${s.label.toLowerCase()}`;
+    sub = `average of ${ts.length} ${s.who}${f.company || f.region || f.club ? " in the filters" : ""} · ${s.sub}`;
+  }
+  series = series.filter((x) => x.points.length);
+  $("tdTrendTitle").textContent = title;
+  $("tdTrendSub").textContent = `${sub} · ${PAY_PERIODS.length} pay period${PAY_PERIODS.length === 1 ? "" : "s"} so far`;
+  const dlg = $("trendDialog");
+  dlg.dataset.key = key; dlg.dataset.id = trainerId || "";
+  if (!dlg.open) dlg.showModal();
+  lineChart($("tdTrendChart"), { series, fmt: (v, axis) => (key === "invoice" ? (axis && v >= 1000 ? `$${fmtNum(v / 1000, v % 1000 ? 1 : 0)}k` : fmtMoney(v)) : fmtHours(v)), height: 240 });
+  const dates = [...new Set(series.flatMap((x) => x.points.map((p) => +p.date)))].sort((a, b) => b - a);
+  const label = (d) => (PAY_PERIODS.find((p) => +new Date(`${p.end}T12:00`) === d) || {}).label || fmtDate(new Date(d));
+  $("tdTrendTable").innerHTML = dates.length ? `<div class="table-scroll"><table class="grid"><thead><tr><th>Pay period</th>${series.map((x) => `<th class="num">${esc(x.name)}</th>`).join("")}</tr></thead>
+    <tbody>${dates.map((d) => `<tr><td>${esc(label(d))}</td>${series.map((x) => { const p = x.points.find((q) => +q.date === d); return `<td class="num">${p ? esc(s.fmt(p.v)) : "—"}</td>`; }).join("")}</tr>`).join("")}</tbody></table></div>`
+    : `<p class="chart-empty">No pay periods with data yet.</p>`;
+}
+$("tiles").addEventListener("click", (e) => { const b = e.target.closest("[data-trend]"); if (b) openPayTrend(b.dataset.trend); });
+$("tdTrendClose").onclick = () => $("trendDialog").close();
+$("trendDialog").addEventListener("click", (e) => { if (e.target === $("trendDialog")) $("trendDialog").close(); });
+
 // ---------- Top & bottom 5 reports ----------
 // For each stat, the 5 best and 5 worst trainers (Trainer stats) or clubs (Gym stats) among those
 // in the filters. Nobody is in both lists: with fewer than 10 ranked, the list splits in half.
@@ -1160,6 +1270,8 @@ function trainerReportStats() {
   const a = (t) => t.adopt || {};
   return [
     { label: "Onboarding", sub: "% of the checklist + cert on file", better: "up", get: (t) => checklistProgress(t.id).pct, fmt: (v) => `${v}%` },
+    { label: "Avg invoice (hybrid trainers)", sub: PAY_STATS.invoice.sub, better: "up", get: (t) => (t.kind === "hybrid" ? t.avgInvoice : null), fmt: fmtMoney },
+    { label: "Avg clocked hours (head trainers)", sub: PAY_STATS.hours.sub, better: "up", get: (t) => (t.kind === "head" ? t.avgHours : null), fmt: fmtHours },
     { label: "Lost sheep", sub: "last session with them", better: "down", get: (t) => t.lostSheep, fmt: num1 },
     { label: "Billing health", sub: "% of their clients in good standing", better: "up", get: (t) => eff(t).billing, fmt: (v) => fmtPct(v) },
     { label: "Unlogged sessions", sub: "average per pay period", better: "down", get: (t) => t.unlogged, fmt: num1 },
@@ -1211,7 +1323,8 @@ function rankSection(stat, items, who) {
 function buildReport(kind, f) {
   const scope = [f.company, f.region, f.club && (MODEL.clubs.find((c) => c.key === f.club) || {}).club].filter(Boolean).join(" · ") || "All brands";
   const trainers = kind === "trainers";
-  const items = trainers ? MODEL.trainers.filter((t) => inFilter(t, f)) : MODEL.clubs.filter((c) => inFilter(c, f) && (c.pts || Object.keys(c.kpi).length));
+  const items = trainers ? MODEL.trainers.filter((t) => inFilter(t, f) && (!f.role || t.kind === f.role))
+    : MODEL.clubs.filter((c) => inFilter(c, f) && (c.pts || Object.keys(c.kpi).length));
   const who = trainers
     ? (t) => ({ name: t.name, where: `${t.club} · ${t.company}` })
     : (c) => ({ name: c.club, where: [c.company, c.region].filter(Boolean).join(" · ") });
@@ -1225,7 +1338,7 @@ function buildReport(kind, f) {
 
 function openReport(kind) {
   rpStatus("");
-  REPORT = buildReport(kind, F());
+  REPORT = buildReport(kind, { ...F(), role: $("tRole").value });
   renderReport();
   if (!$("reportDialog").open) $("reportDialog").showModal();
 }
@@ -1433,6 +1546,7 @@ $("dbMigrate").onclick = () => {
 };
 window.addEventListener("beforeunload", (e) => { if (dirty.size) { e.preventDefault(); e.returnValue = ""; } });
 $("tShow").onchange = renderTrainers;
+$("tRole").onchange = () => { renderTiles(); renderTrainers(); };
 $("statsRefresh").onclick = () => {
   $("statsStatus").textContent = "Reloading…";
   $("statsRefresh").disabled = true;

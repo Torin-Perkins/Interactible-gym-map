@@ -161,6 +161,12 @@
         <h2>Trainer tracker</h2>
         <div class="card-tools">
           <input id="tSearch" type="search" placeholder="Search trainer">
+          <select id="tRole" title="Trainer sub-division">
+            <option value="">All roles</option>
+            <option value="pt">Personal trainers</option>
+            <option value="hybrid">Hybrid trainers</option>
+            <option value="head">Head trainers</option>
+          </select>
           <select id="tShow">
             <option value="">All trainers</option>
             <option value="notOnboarded">Not onboarded</option>
@@ -257,7 +263,16 @@
   <div id="rpBody" class="report-grid"></div>
 </dialog>
 
-<dialog id="onboardDialog" class="chart-dialog onboard-dialog" aria-labelledby="obName">
+<dialog id="trendDialog" class="chart-dialog" aria-labelledby="tdTrendTitle">
+  <div class="dlg-head">
+    <div><h2 id="tdTrendTitle"></h2><p class="sub" id="tdTrendSub"></p></div>
+    <button type="button" id="tdTrendClose" class="btn-secondary">Close</button>
+  </div>
+  <div id="tdTrendChart" class="trend-body trend-big"></div>
+  <div id="tdTrendTable"></div>
+</dialog>
+
+<dialog id="onboardDialog"class="chart-dialog onboard-dialog" aria-labelledby="obName">
   <div class="dlg-head">
     <div><h2 id="obName"></h2><p class="sub" id="obSub"></p></div>
     <button type="button" id="obClose" class="btn-secondary">Close</button>

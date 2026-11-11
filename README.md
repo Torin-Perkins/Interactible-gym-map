@@ -73,6 +73,19 @@ Browsers can't download Drive files or list a folder without an API key, so the 
 `scripts/build_drive_data.py` to read the folder into `drive-data.json`. That file keeps only names, clubs, job
 titles and session differences (no emails, phones or addresses) and is published with the site, never committed.
 
+### Hybrid and head trainers
+Trainer stats has a **Role** filter (personal / hybrid / head trainers, from the staff list job title) and a stat for
+each sub-division, from the **Trainer Payroll Stats** Drive folder (one file per brand per pay period, the pay
+period read from the file name's dates):
+- **Hybrid trainers: avg invoice** = the total value (Invoice) of the agreements they sold per pay period, averaged
+  over the pay periods since their hire date, from the *Agreements Log* files. Cancelled agreements are left out;
+  an agreement credited to two salespeople is split evenly. Salespeople are matched to the staff list by name.
+- **Head trainers: avg clocked hours** = their time clock hours per pay period, from the *Time Clock Payroll –
+  Chain Summary* files, by user ID. Head trainers with no time clock entries show as such.
+
+Click either tile, or a trainer's number in the tracker, to see the trend by pay period (a trainer next to their
+brand's average). Both are in the Top & bottom 5 report and Export CSV. The build keeps only per-person totals.
+
 ### Onboarding checklist
 Click a trainer's name on Trainer stats to open their onboarding page: the 32 expectations from *Trainer Onboarding
 Expectations (LA Fitness Transition)* (`ONBOARDING_CHECKLIST` in `data.js`), grouped by section, with the doc's
