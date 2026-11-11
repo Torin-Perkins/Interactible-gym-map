@@ -350,3 +350,9 @@ button.btn-secondary { background: none; }
 .ob-link { display: inline-block; font-size: 12px; margin-right: 10px; }
 .ob-late { color: var(--bad); font-weight: 600; }
 #obStatus.bad { color: var(--bad); }
+.ob-pct { display: inline-flex; align-items: center; gap: 6px; background: none; color: var(--fg); padding: 2px 0; cursor: pointer; font-variant-numeric: tabular-nums; }
+.ob-pct b { min-width: 34px; text-align: right; }
+.ob-mini { width: 54px; height: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; display: inline-block; }
+.ob-mini i { display: block; height: 100%; background: var(--accent); }
+.ob-pct.done .ob-mini i { background: var(--good); }
+.ob-pct:hover b { text-decoration: underline; }

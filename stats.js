@@ -52,6 +52,7 @@ function buildModel(data) {
     const key = `${s.company}|${s.club}`;
     const adopt = appAdoption(lookupName(adoptIdx, s.name) || null, findApp(s), appRows.length > 0);
     const onb = onbIdx && lookupName(onbIdx, s.name);
+    // (onbForm: filled in the onboarding form, i.e. on the onboarding sheet)
     const certRow = certIdx && lookupName(certIdx, s.name);
     const certSources = [certRow && "cert list", onb && onb.certUploaded && "onboarding form",
       adopt && adopt.cert && "app adoption sheet"].filter(Boolean);
@@ -60,7 +61,7 @@ function buildModel(data) {
     const lost = ls && ls.index[s.company] && lookupName(ls.index[s.company], s.name);
     const hasLostReport = ls && ls.reports.some((r) => r.company === s.company);
     return {
-      id: s.id, name: s.name, club: s.club, company: s.company, key, hired: s.hired,
+      id: s.id, name: s.name, club: s.club, company: s.company, key, hired: s.hired, onbForm: !!onb,
       onbSources: [onb && "onboarding sheet", ...certSources.map((x) => `cert on ${x}`)].filter(Boolean),
       certText: (certRow && (certRow.detail || "on cert list")) || (onb && onb.certUploaded && "uploaded on onboarding form")
         || (adopt && adopt.cert) || "",
@@ -155,12 +156,32 @@ const autoValue = (t, f) => (f === "cert" ? !!t.certText
 // ---------- Onboarding checklist ----------
 // ONBOARDING_CHECKLIST (data.js); each trainer's ticks are TRACKER[id].checklist =
 // { itemId: { d: "YYYY-MM-DD", by } | "na" } ("na" = an optional item marked not needed).
+// Onboarding % counts those items plus a cert on file (the tracker's Cert on file). Automatic ticks:
+// - hired more than ONBOARDED_AFTER_MONTHS ago (staff list hire date): every item, so they're at 100%
+//   with a cert on file, or one short of it without;
+// - a cert on file and the onboarding form filled in: the whole first section (Week 1).
+const ONBOARDED_AFTER_MONTHS = 3;
 const CHECK_ITEMS = ONBOARDING_CHECKLIST.flatMap((s) => s.items);
+function hiredOver(t, months) {
+  if (!t || !t.hired) return false;
+  const d = new Date(`${t.hired}T12:00`);
+  d.setMonth(d.getMonth() + months);
+  return d <= new Date();
+}
+const AUTO_WEEK1 = new Set(ONBOARDING_CHECKLIST[0].items.map((i) => i.id));
 let DB_HAS_CHECKLIST = true; // false when the tracker's Apps Script predates the checklist column
+const trainerById = (id) => (MODEL._byId ||= new Map(MODEL.trainers.map((t) => [t.id, t]))).get(id);
 function checklistProgress(id) {
-  const c = (TRACKER[id] || {}).checklist || {};
-  const done = CHECK_ITEMS.filter((i) => c[i.id] && (c[i.id] !== "na" || i.optional)).length;
-  return { done, total: CHECK_ITEMS.length, complete: done === CHECK_ITEMS.length, started: done > 0 };
+  const t = MODEL && trainerById(id), r = TRACKER[id] || {}, c = r.checklist || {};
+  // Cert as on the tracker, worked out directly (eff() would loop back here through onboarded).
+  const certOn = !!t && (r.cert ?? !!t.certText);
+  const tenured = hiredOver(t, ONBOARDED_AFTER_MONTHS);
+  const auto = !tenured && certOn && !!t.onbForm;
+  const autoItem = (i) => tenured || (auto && AUTO_WEEK1.has(i.id));
+  const itemDone = (i) => (c[i.id] && (c[i.id] !== "na" || i.optional)) || autoItem(i);
+  const done = CHECK_ITEMS.filter(itemDone).length + (certOn ? 1 : 0), total = CHECK_ITEMS.length + 1;
+  return { done, total, pct: Math.round((done / total) * 100), complete: done === total, started: done > 0, certOn, auto, tenured, autoItem, itemDone,
+    autoWhy: tenured ? `hired over ${ONBOARDED_AFTER_MONTHS} months ago` : "cert on file + onboarding form" };
 }
 function eff(t) {
   const r = TRACKER[t.id] || {};
@@ -332,6 +353,8 @@ function renderTiles() {
     ["Trainers", fmtNum(n), `${cs.filter((c) => c.pts).length} clubs`],
     ["Onboarded", `${onb} / ${n}`, `${n - onb} not onboarded${share(onb)}`],
     ["Cert on file", `${cert} / ${n}`, `${n - cert} missing${share(cert)}`],
+    ["Onboarding", fmtPct(mean(ts.map((t) => checklistProgress(t.id).pct)), 0),
+      `average of the checklist + cert · ${ts.filter((t) => checklistProgress(t.id).complete).length} at 100%`],
     ["Avg unlogged sessions", fmtNum(mean(ul.map((t) => t.unlogged)), 2),
       `per trainer per pay period · ${[...new Set(periods.map((p) => p.label))].join(", ") || "no payroll files"}`],
     ["Lost sheep by trainer", fmtNum(tls.reduce((s, t) => s + t.lostSheep, 0)),
@@ -433,7 +456,8 @@ function renderTrainers() {
     { key: "onboarded", label: "Onboarded", sort: (t) => +eff(t).onboarded, html: (t) =>
       `<label class="yn"><input type="checkbox" data-f="onboarded" ${eff(t).onboarded ? "checked" : ""}> ${eff(t).onboarded ? "Yes" : "No"}</label>
        <span class="cell-sub">${manual(t, "onboarded") ? byWho(t) : esc([...t.onbSources, checklistProgress(t.id).complete ? "onboarding checklist complete" : ""].filter(Boolean).join(", ") || "not on onboarding sheet")}${resetLink(t, "onboarded")}</span>
-       ${checklistChip(t)}` },
+` },
+    { key: "obpct", label: "Onboarding<br><small>checklist + cert</small>", num: true, sort: (t) => checklistProgress(t.id).pct, html: (t) => checklistChip(t) },
     { key: "cert", label: "Cert on file", sort: (t) => +eff(t).cert, html: (t) =>
       `<label class="yn"><input type="checkbox" data-f="cert" ${eff(t).cert ? "checked" : ""}> ${eff(t).cert ? "Yes" : "No"}</label>
        ${eff(t).certLink ? `<a class="cert-link" href="${esc(eff(t).certLink)}" target="_blank" rel="noopener">View cert ↗</a>` : ""}
@@ -514,7 +538,7 @@ $("trainerTable").addEventListener("click", (e) => {
 });
 
 // ---------- Export / import ----------
-const CSV_COLS = ["User ID", "Trainer", "Hire date", "Company", "Region", "Club", "Onboarded", "Onboarded via", "Onboarding checklist", "Cert on file", "Cert",
+const CSV_COLS = ["User ID", "Trainer", "Hire date", "Company", "Region", "Club", "Onboarded", "Onboarded via", "Onboarding %", "Onboarding checklist", "Cert on file", "Cert",
   "Cert expires", "Cert link", "Lost sheep", "Billing health %", "On app", "Clients on app", "Total clients", "Client adoption %", "Star rating", "Reviews", "Avg unlogged sessions", "Notes"];
 const csvCell = (v) => (/[",\n]/.test(String(v ?? "")) ? `"${String(v).replace(/"/g, '""')}"` : String(v ?? ""));
 
@@ -524,7 +548,7 @@ $("exportBtn").onclick = () => {
     const e = eff(t);
     lines.push([t.id, t.name, t.hired, t.company, t.region, t.club, e.onboarded ? "Yes" : "No",
       (TRACKER[t.id] || {}).onboarded !== undefined ? "set by hand" : t.onbSources.join("; "),
-      `${checklistProgress(t.id).done}/${checklistProgress(t.id).total}`,
+      checklistProgress(t.id).pct, `${checklistProgress(t.id).done}/${checklistProgress(t.id).total}`,
       e.cert ? "Yes" : "No", t.certText || t.certNote, e.certExpires, e.certLink, t.lostSheep ?? "", e.billing ?? "",
       t.adopt ? (t.adopt.onApp ? "Yes" : "No") : "", t.adopt ? t.adopt.clientsInApp ?? "" : "", t.adopt ? t.adopt.totalClients ?? "" : "",
       t.adopt && t.adopt.adoption != null ? Math.round(t.adopt.adoption * 10) / 10 : "",
@@ -997,7 +1021,9 @@ function shareClubAdoption() {
 // ---------- Onboarding page (click a trainer's name) ----------
 function checklistChip(t) {
   const p = checklistProgress(t.id);
-  return `<button type="button" class="ob-chip${p.complete ? " done" : ""}" data-onboard title="Onboarding checklist">${p.complete ? "✓ Checklist done" : `Checklist ${p.done}/${p.total}`}</button>`;
+  return `<button type="button" class="ob-pct${p.complete ? " done" : ""}" data-onboard title="Open the onboarding checklist">
+      <b>${p.pct}%</b><span class="ob-mini"><i style="width:${p.pct}%"></i></span></button>
+    <span class="cell-sub">${p.complete ? "✓ complete" : `${p.done} of ${p.total}`}${p.tenured ? ` · ${ONBOARDED_AFTER_MONTHS}+ months${p.certOn ? "" : ", needs cert"}` : p.auto ? " · Week 1 auto" : ""}</span>`;
 }
 const isoToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const fmtDay = (d) => new Date(`${d}T12:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
@@ -1020,13 +1046,20 @@ function openOnboarding(id) {
 function renderOnboarding() {
   const id = $("onboardDialog").dataset.id, t = MODEL.trainers.find((x) => x.id === id);
   const c = (TRACKER[id] || {}).checklist || {}, p = checklistProgress(id), e = eff(t);
-  $("obBar").style.width = `${(p.done / p.total) * 100}%`;
+  $("obBar").style.width = `${p.pct}%`;
   $("obBar").classList.toggle("done", p.complete);
-  $("obCount").textContent = `${p.done} of ${p.total} done` + (p.complete ? " · onboarded" : "")
+  $("obCount").textContent = `${p.pct}% · ${p.done} of ${p.total} done` + (p.complete ? " · onboarded" : "")
     + ((TRACKER[id] || {}).onboarded !== undefined ? ` · onboarded is set by hand to ${e.onboarded ? "Yes" : "No"} on the tracker` : "");
   const today = isoToday();
-  $("obBody").innerHTML = ONBOARDING_CHECKLIST.map((s) => {
-    const left = s.items.filter((i) => !c[i.id]).length;
+  const certHtml = `<section class="ob-sec"><div class="trend-head"><h3>Certification</h3><span class="cell-sub">${p.certOn ? "1/1" : "0/1"}</span></div>
+    <ul class="ob-list"><li class="${p.certOn ? "on" : ""}"><label><input type="checkbox" disabled ${p.certOn ? "checked" : ""}> <span>Certification on file</span></label>
+      <span class="cell-sub">${p.certOn ? esc(e.certExpires ? `expires ${fmtDay(e.certExpires)}` : t.certText || "on the tracker") : "Not yet: tick Cert on file on the tracker when it's in."}</span>
+      ${e.certLink ? `<a class="ob-link" href="${esc(e.certLink)}" target="_blank" rel="noopener">View cert ↗</a>` : ""}
+      <span class="cell-sub">${p.tenured ? `Hired over ${ONBOARDED_AFTER_MONTHS} months ago: every item is ticked automatically${p.certOn ? "." : ", so a cert on file is all that's left."}`
+        : p.auto ? "Cert on file + onboarding form filled in: Week 1 is ticked automatically."
+        : p.certOn ? "When they fill in the onboarding form, Week 1 is ticked automatically." : t.onbForm ? "Onboarding form filled in: with a cert on file, Week 1 is ticked automatically." : ""}</span></li></ul></section>`;
+  $("obBody").innerHTML = certHtml + ONBOARDING_CHECKLIST.map((s) => {
+    const left = s.items.filter((i) => !p.itemDone(i)).length;
     const due = s.due && t.hired ? new Date(new Date(`${t.hired}T12:00`).getTime() + s.due * 864e5) : null;
     const dueIso = due && `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, "0")}-${String(due.getDate()).padStart(2, "0")}`;
     const late = due && left && dueIso < today;
@@ -1035,10 +1068,11 @@ function renderOnboarding() {
         ? ` · <span class="${late ? "ob-late" : ""}">${late ? "overdue, was due" : "due"} ${esc(fmtDay(dueIso))}</span>` : ""}</span></div>
       ${s.note ? `<p class="cell-sub ob-note">${esc(s.note)}</p>` : ""}
       <ul class="ob-list">${s.items.map((i) => {
-        const v = c[i.id], na = v === "na";
-        return `<li class="${v ? "on" : ""}">
-          <label><input type="checkbox" data-item="${esc(i.id)}" ${v && !na ? "checked" : ""}${na ? " disabled" : ""}> <span>${esc(i.label)}</span></label>
-          ${i.optional ? `<label class="ob-na"><input type="checkbox" data-na="${esc(i.id)}" ${na ? "checked" : ""}> ${esc(i.optional)}</label>` : ""}
+        const v = c[i.id], na = v === "na", auto = !v && p.autoItem(i);
+        return `<li class="${v || auto ? "on" : ""}">
+          <label><input type="checkbox" data-item="${esc(i.id)}" ${(v && !na) || auto ? "checked" : ""}${na || auto ? " disabled" : ""}> <span>${esc(i.label)}</span></label>
+          ${i.optional && !auto ? `<label class="ob-na"><input type="checkbox" data-na="${esc(i.id)}" ${na ? "checked" : ""}> ${esc(i.optional)}</label>` : ""}
+          ${auto ? `<span class="cell-sub">automatic: ${esc(p.autoWhy)}</span>` : ""}
           ${v ? `<span class="cell-sub">${na ? "marked not needed" : `done ${esc(fmtDay(v.d))}${v.by ? ` by ${esc(v.by)}` : ""}`}</span>` : ""}
           ${i.hint ? `<span class="cell-sub">${esc(i.hint)}</span>` : ""}
           ${(i.links || []).map(([text, url]) => `<a class="ob-link" href="${esc(url)}" target="_blank" rel="noopener">${esc(text)} ↗</a>`).join("")}
@@ -1082,6 +1116,7 @@ const num1 = (v) => fmtNum(v, Math.abs(v - Math.round(v)) < 0.05 ? 0 : 1);
 function trainerReportStats() {
   const a = (t) => t.adopt || {};
   return [
+    { label: "Onboarding", sub: "% of the checklist + cert on file", better: "up", get: (t) => checklistProgress(t.id).pct, fmt: (v) => `${v}%` },
     { label: "Lost sheep", sub: "last session with them", better: "down", get: (t) => t.lostSheep, fmt: num1 },
     { label: "Billing health", sub: "% of their clients in good standing", better: "up", get: (t) => eff(t).billing, fmt: (v) => fmtPct(v) },
     { label: "Unlogged sessions", sub: "average per pay period", better: "down", get: (t) => t.unlogged, fmt: num1 },
@@ -1108,6 +1143,8 @@ function clubReportStats() {
     ...METRICS.map((m) => ({ label: m.label, sub: "latest report", better: m.better, get: (c) => (lv("clients")(c) > 0 ? lv(m.key)(c) : null),
       fmt: m.pct ? (v) => fmtPct(v) : (v) => fmtNum(v) })),
     { label: "Unlogged sessions", sub: "average per trainer per pay period", better: "down", get: (c) => c.unlogged, fmt: (v) => fmtNum(v, 2) },
+    { label: "Onboarding", sub: "average % of the trainers' checklist + cert", better: "up",
+      get: (c) => (c.pts ? mean(clubCounts(c).ts.map((t) => checklistProgress(t.id).pct)) : null), fmt: (v) => fmtPct(v, 0) },
     { label: "Trainers onboarded", sub: "% of the club's trainers", better: "up", get: (c) => share(c, "onboarded"), fmt: (v) => fmtPct(v, 0), extra: (c) => `${clubCounts(c).onboarded} of ${c.pts}` },
     { label: "Cert on file", sub: "% of the club's trainers", better: "up", get: (c) => share(c, "cert"), fmt: (v) => fmtPct(v, 0), extra: (c) => `${clubCounts(c).cert} of ${c.pts}` },
     { label: "Client app adoption", sub: "trainers' clients on the app ÷ total clients", better: "up", get: app, fmt: (v) => fmtPct(v, 0) },
