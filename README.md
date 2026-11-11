@@ -78,8 +78,12 @@ Click a trainer's name on Trainer stats to open their onboarding page: the 32 ex
 Expectations (LA Fitness Transition)* (`ONBOARDING_CHECKLIST` in `data.js`), grouped by section, with the doc's
 links and due dates for the Week 1 and Week 1–2 sections from the hire date. Each tick saves to the shared tracker
 with the date and who ticked it. When every item is done ("Shadowed sessions" can be marked *Not needed*), the
-trainer counts as onboarded; unticking one takes that back. A Yes/No set by hand on the tracker still wins. The
-tracker shows each trainer's progress (Checklist 12/32), with a filter for checklists in progress.
+trainer counts as onboarded; unticking one takes that back. A Yes/No set by hand on the tracker still wins.
+
+**Onboarding %** = done ÷ 33: the 32 checklist items plus a certification on file (the tracker's Cert on file), so
+100% needs a cert. A trainer with a cert on file who filled in the onboarding form (on the onboarding sheet) gets
+all of Week 1 ticked automatically. The tracker has a sortable Onboarding % column (click it to open the page), an
+average tile, and onboarding % is in the Top & bottom 5 reports for trainers and clubs.
 
 ### Top & bottom 5 reports
 **Top & bottom 5** on Trainer stats (trainer tracker) and Gym stats (Club KPIs) opens a report of the 5 best and 5
