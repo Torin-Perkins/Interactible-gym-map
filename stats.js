@@ -250,6 +250,11 @@ let retryBy = ""; // label of a save that's waiting on the edit key or a retry
 function dbStatus(text, bad) {
   $("dbStatus").textContent = text;
   $("dbStatus").classList.toggle("bad", !!bad);
+  // The tracker bar is hidden behind an open onboarding page, so show it there too.
+  if ($("onboardDialog").open) {
+    $("obStatus").textContent = text;
+    $("obStatus").classList.toggle("bad", !!bad);
+  }
 }
 async function dbLoad() {
   const res = await fetch(TRACKER_DB.url, { credentials: "omit" });
@@ -303,9 +308,20 @@ async function dbSave(byOverride) {
       ids.forEach((id) => dirty.add(id));
       retryBy = byOverride || "";
       if (body.error === "bad key") {
+        const msg = pref("trackerEditKey") ? "That edit key didn't work — check it and save again" : "Enter the edit key to save your changes";
+        // With a pop-up open (onboarding page) the key box behind it can't be reached: ask here.
+        if (document.querySelector("dialog[open]")) {
+          const key = prompt(`${msg}. Edit key:`, "");
+          if (key) {
+            pref("trackerEditKey", key.trim());
+            $("dbKey").value = key.trim();
+            dbStatus("Saving…");
+            return dbSave();
+          }
+        }
         $("dbKeyRow").hidden = false;
-        dbStatus(pref("trackerEditKey") ? "That edit key didn't work — check it and save again" : "Enter the edit key to save your changes", true);
-        $("dbKey").focus();
+        dbStatus(msg, true);
+        if (!document.querySelector("dialog[open]")) $("dbKey").focus();
       } else dbStatus(`Couldn't save: ${body.error}`, true);
       return;
     }
