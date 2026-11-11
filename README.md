@@ -84,7 +84,11 @@ trainer counts as onboarded; unticking one takes that back. A Yes/No set by hand
 100% needs a cert. Trainers hired more than 3 months ago (staff list hire date, `ONBOARDED_AFTER_MONTHS` in
 `stats.js`) get every item ticked automatically: 100% with a cert on file, 97% ("needs cert") without. A newer
 trainer with a cert on file who filled in the onboarding form (on the onboarding sheet) gets all of Week 1 ticked
-automatically. The tracker has a sortable Onboarding % column (click it to open the page), an
+automatically. Items the data can show are ticked from it too (thresholds in `ONBOARDING_AUTO`, `data.js`): Lumin
+Pro set up (has a Lumin account); the "every client on the app / in Lumin" items (100% client adoption); workout
+cards and assigned workouts (100% adoption plus workout completion); tracks progress (workout completion ≥ 75%);
+high-energy experience (Lumin ★4.8+ from 5+ reviews); knows their billing health (billing health ≥ 94%). These
+are worked out on each load, so a tick comes off if the numbers drop; the page shows the reason for each. The tracker has a sortable Onboarding % column (click it to open the page), an
 average tile, and onboarding % is in the Top & bottom 5 reports for trainers and clubs.
 
 ### Top & bottom 5 reports
