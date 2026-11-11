@@ -148,8 +148,20 @@ function tenure(d) {
 }
 
 // Effective values: a manual entry wins over the automatic one.
-// A cert ticked by hand also counts toward onboarded.
-const autoValue = (t, f) => (f === "cert" ? !!t.certText : t.onbSources.length > 0 || (TRACKER[t.id] || {}).cert === true);
+// A cert ticked by hand, or a complete onboarding checklist, also counts toward onboarded.
+const autoValue = (t, f) => (f === "cert" ? !!t.certText
+  : t.onbSources.length > 0 || (TRACKER[t.id] || {}).cert === true || checklistProgress(t.id).complete);
+
+// ---------- Onboarding checklist ----------
+// ONBOARDING_CHECKLIST (data.js); each trainer's ticks are TRACKER[id].checklist =
+// { itemId: { d: "YYYY-MM-DD", by } | "na" } ("na" = an optional item marked not needed).
+const CHECK_ITEMS = ONBOARDING_CHECKLIST.flatMap((s) => s.items);
+let DB_HAS_CHECKLIST = true; // false when the tracker's Apps Script predates the checklist column
+function checklistProgress(id) {
+  const c = (TRACKER[id] || {}).checklist || {};
+  const done = CHECK_ITEMS.filter((i) => c[i.id] && (c[i.id] !== "na" || i.optional)).length;
+  return { done, total: CHECK_ITEMS.length, complete: done === CHECK_ITEMS.length, started: done > 0 };
+}
 function eff(t) {
   const r = TRACKER[t.id] || {};
   return {
@@ -192,6 +204,7 @@ async function dbLoad() {
   const body = await res.json();
   if (!body.ok) throw new Error(body.error || "couldn't read the tracker");
   const t = {}, meta = {};
+  DB_HAS_CHECKLIST = !body.records.length || "checklist" in body.records[0];
   body.records.forEach((r) => {
     const x = {};
     if (r.onboarded != null) x.onboarded = r.onboarded;
@@ -200,6 +213,7 @@ async function dbLoad() {
     if (r.notes) x.notes = r.notes;
     if (r.certLink) x.certLink = r.certLink;
     if (r.certExpires) x.certExpires = r.certExpires;
+    if (r.checklist && Object.keys(r.checklist).length) x.checklist = r.checklist;
     if (Object.keys(x).length) t[r.id] = x;
     meta[r.id] = { updated: r.updated, by: r.by };
   });
@@ -223,7 +237,7 @@ async function dbSave(byOverride) {
   const records = ids.map((id) => {
     const r = TRACKER[id] || {}, t = byId.get(id) || {};
     return { id, name: t.name, club: t.club, onboarded: r.onboarded ?? null, cert: r.cert ?? null, billing: r.billing ?? null, notes: r.notes || "",
-      certLink: r.certLink || "", certExpires: r.certExpires || "" };
+      certLink: r.certLink || "", certExpires: r.certExpires || "", checklist: r.checklist || null };
   });
   dbStatus("Saving…");
   try {
@@ -399,6 +413,7 @@ function renderTrainers() {
     if (q && !norm(t.name).includes(q)) return false;
     const e = eff(t);
     if (show === "notOnboarded" && e.onboarded) return false;
+    if (show === "checklistStarted" && !(checklistProgress(t.id).started && !checklistProgress(t.id).complete)) return false;
     if (show === "noCert" && e.cert) return false;
     if (show === "certExpiring" && !certExpiry(e.certExpires)) return false;
     if (show === "unlogged" && !(t.unlogged > 0)) return false;
@@ -410,14 +425,15 @@ function renderTrainers() {
   const byWho = (t) => { const m = TRACKER_META[t.id]; return m && m.by ? `set by ${esc(m.by)}` : "set by hand"; };
   const resetLink = (t, f) => (manual(t, f) ? ` <button type="button" class="link reset" data-reset="${f}" title="Go back to the automatic value">reset</button>` : "");
   const cols = [
-    { key: "name", label: "Trainer", sort: (t) => t.name, html: (t) => `<b>${esc(t.name)}</b><span class="cell-sub">${esc(t.company)}</span>`
+    { key: "name", label: "Trainer", sort: (t) => t.name, html: (t) => `<button type="button" class="name-link" data-onboard title="Open ${esc(t.name)}'s onboarding checklist">${esc(t.name)}</button><span class="cell-sub">${esc(t.company)}</span>`
       + `<button type="button" class="graph-btn" data-graph title="Graph ${esc(t.name)}'s stats">Graph</button>` },
     { key: "hired", label: "Hired", sort: (t) => t.hired || null, html: (t) => (t.hired
       ? `<span class="nowrap">${esc(fmtHired(t.hired))}</span><span class="cell-sub">${esc(tenure(t.hired))}</span>` : `<span class="cell-sub">not on staff list</span>`) },
     { key: "club", label: "Club", sort: (t) => `${t.club}|${t.name}`, html: (t) => `${esc(t.club)}<span class="cell-sub">${esc(t.region)}</span>` },
     { key: "onboarded", label: "Onboarded", sort: (t) => +eff(t).onboarded, html: (t) =>
       `<label class="yn"><input type="checkbox" data-f="onboarded" ${eff(t).onboarded ? "checked" : ""}> ${eff(t).onboarded ? "Yes" : "No"}</label>
-       <span class="cell-sub">${manual(t, "onboarded") ? byWho(t) : esc(t.onbSources.join(", ") || "not on onboarding sheet")}${resetLink(t, "onboarded")}</span>` },
+       <span class="cell-sub">${manual(t, "onboarded") ? byWho(t) : esc([...t.onbSources, checklistProgress(t.id).complete ? "onboarding checklist complete" : ""].filter(Boolean).join(", ") || "not on onboarding sheet")}${resetLink(t, "onboarded")}</span>
+       ${checklistChip(t)}` },
     { key: "cert", label: "Cert on file", sort: (t) => +eff(t).cert, html: (t) =>
       `<label class="yn"><input type="checkbox" data-f="cert" ${eff(t).cert ? "checked" : ""}> ${eff(t).cert ? "Yes" : "No"}</label>
        ${eff(t).certLink ? `<a class="cert-link" href="${esc(eff(t).certLink)}" target="_blank" rel="noopener">View cert ↗</a>` : ""}
@@ -481,6 +497,7 @@ $("trainerTable").addEventListener("change", (e) => {
 });
 $("trainerTable").addEventListener("click", (e) => {
   if (e.target.closest("[data-graph]")) return openTrainerGraph(e.target.closest("tr").dataset.id);
+  if (e.target.closest("[data-onboard]")) return openOnboarding(e.target.closest("tr").dataset.id);
   if (e.target.closest("[data-certlink]")) {
     const id = e.target.closest("tr").dataset.id;
     const v = prompt("Link to this trainer's certification (e.g. its Google Drive link). Leave blank to remove it.", (TRACKER[id] || {}).certLink || "");
@@ -497,7 +514,7 @@ $("trainerTable").addEventListener("click", (e) => {
 });
 
 // ---------- Export / import ----------
-const CSV_COLS = ["User ID", "Trainer", "Hire date", "Company", "Region", "Club", "Onboarded", "Onboarded via", "Cert on file", "Cert",
+const CSV_COLS = ["User ID", "Trainer", "Hire date", "Company", "Region", "Club", "Onboarded", "Onboarded via", "Onboarding checklist", "Cert on file", "Cert",
   "Cert expires", "Cert link", "Lost sheep", "Billing health %", "On app", "Clients on app", "Total clients", "Client adoption %", "Star rating", "Reviews", "Avg unlogged sessions", "Notes"];
 const csvCell = (v) => (/[",\n]/.test(String(v ?? "")) ? `"${String(v).replace(/"/g, '""')}"` : String(v ?? ""));
 
@@ -507,6 +524,7 @@ $("exportBtn").onclick = () => {
     const e = eff(t);
     lines.push([t.id, t.name, t.hired, t.company, t.region, t.club, e.onboarded ? "Yes" : "No",
       (TRACKER[t.id] || {}).onboarded !== undefined ? "set by hand" : t.onbSources.join("; "),
+      `${checklistProgress(t.id).done}/${checklistProgress(t.id).total}`,
       e.cert ? "Yes" : "No", t.certText || t.certNote, e.certExpires, e.certLink, t.lostSheep ?? "", e.billing ?? "",
       t.adopt ? (t.adopt.onApp ? "Yes" : "No") : "", t.adopt ? t.adopt.clientsInApp ?? "" : "", t.adopt ? t.adopt.totalClients ?? "" : "",
       t.adopt && t.adopt.adoption != null ? Math.round(t.adopt.adoption * 10) / 10 : "",
@@ -975,6 +993,83 @@ function shareClubAdoption() {
   });
   document.dispatchEvent(new CustomEvent("clubadoption", { detail: byGym }));
 }
+
+// ---------- Onboarding page (click a trainer's name) ----------
+function checklistChip(t) {
+  const p = checklistProgress(t.id);
+  return `<button type="button" class="ob-chip${p.complete ? " done" : ""}" data-onboard title="Onboarding checklist">${p.complete ? "✓ Checklist done" : `Checklist ${p.done}/${p.total}`}</button>`;
+}
+const isoToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+const fmtDay = (d) => new Date(`${d}T12:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+
+function openOnboarding(id) {
+  const t = MODEL.trainers.find((x) => x.id === id);
+  if (!t) return;
+  const dlg = $("onboardDialog");
+  dlg.dataset.id = id;
+  $("obName").textContent = `${t.name}: onboarding`;
+  $("obSub").textContent = [t.club, t.company, t.region, t.hired ? `hired ${fmtHired(t.hired)} (${tenure(t.hired)})` : ""].filter(Boolean).join(" · ");
+  $("obBy").value = pref("trackerName");
+  $("obStatus").textContent = SHARED && !DB_HAS_CHECKLIST
+    ? "The tracker's Apps Script needs the latest Code.gs (see apps-script/README.md) before checklist ticks can be saved." : "";
+  $("obStatus").classList.toggle("bad", SHARED && !DB_HAS_CHECKLIST);
+  renderOnboarding();
+  if (!dlg.open) dlg.showModal();
+}
+
+function renderOnboarding() {
+  const id = $("onboardDialog").dataset.id, t = MODEL.trainers.find((x) => x.id === id);
+  const c = (TRACKER[id] || {}).checklist || {}, p = checklistProgress(id), e = eff(t);
+  $("obBar").style.width = `${(p.done / p.total) * 100}%`;
+  $("obBar").classList.toggle("done", p.complete);
+  $("obCount").textContent = `${p.done} of ${p.total} done` + (p.complete ? " · onboarded" : "")
+    + ((TRACKER[id] || {}).onboarded !== undefined ? ` · onboarded is set by hand to ${e.onboarded ? "Yes" : "No"} on the tracker` : "");
+  const today = isoToday();
+  $("obBody").innerHTML = ONBOARDING_CHECKLIST.map((s) => {
+    const left = s.items.filter((i) => !c[i.id]).length;
+    const due = s.due && t.hired ? new Date(new Date(`${t.hired}T12:00`).getTime() + s.due * 864e5) : null;
+    const dueIso = due && `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, "0")}-${String(due.getDate()).padStart(2, "0")}`;
+    const late = due && left && dueIso < today;
+    return `<section class="ob-sec">
+      <div class="trend-head"><h3>${esc(s.section)}</h3><span class="cell-sub">${s.items.length - left}/${s.items.length}${dueIso
+        ? ` · <span class="${late ? "ob-late" : ""}">${late ? "overdue, was due" : "due"} ${esc(fmtDay(dueIso))}</span>` : ""}</span></div>
+      ${s.note ? `<p class="cell-sub ob-note">${esc(s.note)}</p>` : ""}
+      <ul class="ob-list">${s.items.map((i) => {
+        const v = c[i.id], na = v === "na";
+        return `<li class="${v ? "on" : ""}">
+          <label><input type="checkbox" data-item="${esc(i.id)}" ${v && !na ? "checked" : ""}${na ? " disabled" : ""}> <span>${esc(i.label)}</span></label>
+          ${i.optional ? `<label class="ob-na"><input type="checkbox" data-na="${esc(i.id)}" ${na ? "checked" : ""}> ${esc(i.optional)}</label>` : ""}
+          ${v ? `<span class="cell-sub">${na ? "marked not needed" : `done ${esc(fmtDay(v.d))}${v.by ? ` by ${esc(v.by)}` : ""}`}</span>` : ""}
+          ${i.hint ? `<span class="cell-sub">${esc(i.hint)}</span>` : ""}
+          ${(i.links || []).map(([text, url]) => `<a class="ob-link" href="${esc(url)}" target="_blank" rel="noopener">${esc(text)} ↗</a>`).join("")}
+        </li>`;
+      }).join("")}</ul></section>`;
+  }).join("");
+}
+
+function setChecklistItem(id, item, value) {
+  const was = checklistProgress(id).complete;
+  const c = { ...((TRACKER[id] || {}).checklist || {}) };
+  if (value) c[item] = value; else delete c[item];
+  setTracker(id, "checklist", Object.keys(c).length ? c : undefined);
+  const now = checklistProgress(id).complete;
+  if (now !== was) {
+    $("obStatus").textContent = now ? "Every item is done: marked onboarded on the tracker." : "Checklist no longer complete: no longer counted as onboarded.";
+    $("obStatus").classList.remove("bad");
+  }
+  renderOnboarding();
+  renderTrainers();
+  renderTiles();
+}
+$("obBody").addEventListener("change", (e) => {
+  const id = $("onboardDialog").dataset.id, el = e.target;
+  const stamp = { d: isoToday(), by: ($("obBy").value || "").trim().slice(0, 60) };
+  if (el.dataset.item) setChecklistItem(id, el.dataset.item, el.checked ? stamp : undefined);
+  else if (el.dataset.na) setChecklistItem(id, el.dataset.na, el.checked ? "na" : undefined);
+});
+$("obBy").onchange = () => { pref("trackerName", $("obBy").value.trim()); $("dbName").value = pref("trackerName"); };
+$("obClose").onclick = () => $("onboardDialog").close();
+$("onboardDialog").addEventListener("click", (e) => { if (e.target === $("onboardDialog")) $("onboardDialog").close(); });
 
 // ---------- Top & bottom 5 reports ----------
 // For each stat, the 5 best and 5 worst trainers (Trainer stats) or clubs (Gym stats) among those

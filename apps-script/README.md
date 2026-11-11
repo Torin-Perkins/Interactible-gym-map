@@ -39,3 +39,8 @@ can't choose recipients. After pasting in the new `Code.gs`, deploy a new versio
 in the editor's function list and click Run**: Google asks for permission to send email as you (deploying alone
 doesn't ask), and a short test email goes to the recipients. Until that's done, sending fails with "You do not
 have permission to call MailApp.sendEmail". Saving needs the `EDIT_KEY`, like other edits.
+
+**Onboarding checklist.** Ticks from each trainer's onboarding page are saved as JSON in the Tracker tab's
+"Onboarding checklist" column (L, added automatically). This needs the current `Code.gs`: paste it in and deploy a
+**new version of the existing deployment** (Deploy → Manage deployments → pencil → Version: New version), so the
+web app URL in `data.js` stays the same.

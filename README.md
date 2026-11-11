@@ -73,6 +73,14 @@ Browsers can't download Drive files or list a folder without an API key, so the 
 `scripts/build_drive_data.py` to read the folder into `drive-data.json`. That file keeps only names, clubs, job
 titles and session differences (no emails, phones or addresses) and is published with the site, never committed.
 
+### Onboarding checklist
+Click a trainer's name on Trainer stats to open their onboarding page: the 32 expectations from *Trainer Onboarding
+Expectations (LA Fitness Transition)* (`ONBOARDING_CHECKLIST` in `data.js`), grouped by section, with the doc's
+links and due dates for the Week 1 and Week 1–2 sections from the hire date. Each tick saves to the shared tracker
+with the date and who ticked it. When every item is done ("Shadowed sessions" can be marked *Not needed*), the
+trainer counts as onboarded; unticking one takes that back. A Yes/No set by hand on the tracker still wins. The
+tracker shows each trainer's progress (Checklist 12/32), with a filter for checklists in progress.
+
 ### Top & bottom 5 reports
 **Top & bottom 5** on Trainer stats (trainer tracker) and Gym stats (Club KPIs) opens a report of the 5 best and 5
 worst trainers or clubs on every stat, for whoever is in the Company / Region / Club filters (pick a club to rank

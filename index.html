@@ -164,6 +164,7 @@
           <select id="tShow">
             <option value="">All trainers</option>
             <option value="notOnboarded">Not onboarded</option>
+            <option value="checklistStarted">Onboarding checklist in progress</option>
             <option value="noCert">No cert on file</option>
             <option value="certExpiring">Cert expired or expiring soon</option>
             <option value="unlogged">Has unlogged sessions</option>
@@ -253,6 +254,18 @@
   </div>
   <p id="rpStatus" class="status no-print" role="status"></p>
   <div id="rpBody" class="report-grid"></div>
+</dialog>
+
+<dialog id="onboardDialog" class="chart-dialog onboard-dialog" aria-labelledby="obName">
+  <div class="dlg-head">
+    <div><h2 id="obName"></h2><p class="sub" id="obSub"></p></div>
+    <button type="button" id="obClose" class="btn-secondary">Close</button>
+  </div>
+  <div class="ob-progress"><div class="ob-bar"><i id="obBar"></i></div><span id="obCount"></span></div>
+  <p id="obStatus" class="status" role="status"></p>
+  <div class="ob-who"><label>Ticking as <input id="obBy" type="text" placeholder="your name" autocomplete="name"></label>
+    <span class="cell-sub">Saved to the shared tracker with today's date. Every item done = onboarded.</span></div>
+  <div id="obBody"></div>
 </dialog>
 
 <dialog id="trainerDialog" class="chart-dialog" aria-labelledby="tdName">

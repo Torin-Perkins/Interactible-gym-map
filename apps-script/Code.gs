@@ -5,9 +5,10 @@
  * billing health, notes) in a "Tracker" tab of the Google Sheet this script is attached to.
  * The sheet itself can stay private: the web app runs as you and only exposes these two calls.
  *
- *   GET  <web app url>                -> { ok, records: [{ id, onboarded, cert, billing, notes, certLink, certExpires, updated, by }] }
+ *   GET  <web app url>                -> { ok, records: [{ id, onboarded, cert, billing, notes, certLink, certExpires, checklist, updated, by }] }
  *   POST <web app url>  body (JSON as text/plain):
- *        { key, by, records: [{ id, name, club, onboarded, cert, billing, notes, certLink, certExpires }] }
+ *        { key, by, records: [{ id, name, club, onboarded, cert, billing, notes, certLink, certExpires, checklist }] }
+ *        checklist = the trainer's onboarding checklist: { itemId: { d: "YYYY-MM-DD", by } | "na" }.
  *        Each record replaces that trainer's row; a blank / null value means "use the automatic value".
  *
  * Rates page (trainer pay rates): the page encrypts the rates with the rates password before
@@ -26,7 +27,7 @@
  */
 
 const TAB = "Tracker";
-const HEADERS = ["User ID", "Trainer", "Club", "Onboarded", "Cert on file", "Billing health %", "Notes", "Updated", "Updated by", "Cert link", "Cert expires"];
+const HEADERS = ["User ID", "Trainer", "Club", "Onboarded", "Cert on file", "Billing health %", "Notes", "Updated", "Updated by", "Cert link", "Cert expires", "Onboarding checklist"];
 
 const RATES_TAB = "Rates";
 const RATES_HEADERS = ["Saved", "Saved by", "Encrypted rates"];
@@ -46,6 +47,7 @@ function doGet(e) {
     by: String(r[8] || ""),
     certLink: String(r[9] || ""),
     certExpires: dateText_(r[10]),
+    checklist: parseChecklist_(r[11]),
   }));
   return json_({ ok: true, records });
 }
@@ -83,8 +85,9 @@ function doPost(e) {
         now, by,
         /^https:\/\//.test(String(rec.certLink || "")) ? String(rec.certLink).slice(0, 500) : "",
         /^\d{4}-\d{2}-\d{2}$/.test(String(rec.certExpires || "")) ? String(rec.certExpires) : "",
+        checklistText_(rec.checklist),
       ];
-      const empty = [3, 4, 5, 6, 9, 10].every((i) => row[i] === "");
+      const empty = [3, 4, 5, 6, 9, 10, 11].every((i) => row[i] === "");
       if (rowOf.has(id)) {
         sheet.getRange(rowOf.get(id), 1, 1, row.length).setValues([row]);
       } else if (!empty) {
@@ -114,6 +117,22 @@ function getSheet_() {
     sheet.getRange("K:K").setNumberFormat("@"); // keep expiry dates as YYYY-MM-DD text
   }
   return sheet;
+}
+
+// Onboarding checklist cell: JSON of { itemId: { d: "YYYY-MM-DD", by } | "na" }, cleaned of anything else.
+function checklistText_(c) {
+  if (!c || typeof c !== "object") return "";
+  const out = {};
+  Object.keys(c).slice(0, 100).forEach((k) => {
+    if (!/^[a-z0-9_]{1,40}$/.test(k)) return;
+    const v = c[k];
+    if (v === "na") out[k] = "na";
+    else if (v && /^\d{4}-\d{2}-\d{2}$/.test(String(v.d || ""))) out[k] = { d: String(v.d), by: String(v.by || "").slice(0, 60) };
+  });
+  return Object.keys(out).length ? JSON.stringify(out) : "";
+}
+function parseChecklist_(v) {
+  try { return v ? JSON.parse(String(v)) : null; } catch (e) { return null; }
 }
 
 function dateText_(v) {

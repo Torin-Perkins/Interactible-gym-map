@@ -1051,3 +1051,63 @@ const CLUB_TAGS = { billingWarn: 94, billingBad: 90, lostPctMax: 25, unloggedMax
 // Shared trainer tracker: the Apps Script web app URL (ends in /exec) from apps-script/README.md.
 // Leave blank to keep tracker edits in each person's browser only.
 const TRACKER_DB = { url: "https://script.google.com/macros/s/AKfycbyLb1wXD2YtuUF2Vvkccr7ItlID4Jy1xPkjBrfWMXbxXRKB09Sre3Q-k5PvpJOzQjHESw/exec" };
+
+// Trainer onboarding checklist, from "Trainer Onboarding Expectations (LA Fitness Transition)".
+// Each item is one tick on the trainer's onboarding page (click a trainer's name on Trainer stats).
+// All items ticked (or "Not needed" for optional ones) = onboarded on the tracker. `due` = days
+// after the hire date the section should be done by. Item ids are what's saved: keep them stable.
+const ONBOARDING_CHECKLIST = [
+  { section: "Immediate (Week 1)", due: 7, items: [
+    { id: "lumin_app", label: "Downloaded and set up the Lumin Pro fitness app", links: [
+      ["Lumin Pro on the App Store", "https://apps.apple.com/us/app/lumin-pro-trainer/id6759797814"],
+      ["Lumin Pro on Google Play", "https://play.google.com/store/apps/details?id=fitness.mixed.protrainer&pcampaignid=web_share"]] },
+    { id: "groupme", label: "Joined GroupMe for their area and Lumin Trainers", links: [
+      ["GroupMe links", "https://docs.google.com/document/d/13m8CDyq3bDQuAeJcs_FDeZVPdaEv3soKtoCYOlfVbJ4/edit?usp=drive_link"]] },
+    { id: "cr_scheduling", label: "ClubReady account activated and set up for scheduling" },
+    { id: "cr_schedule_ok", label: "ClubReady scheduling is correct" },
+    { id: "cr_login", label: "ClubReady login information completed" },
+    { id: "cr_webinar", label: "Watched the ClubReady Foundations for Trainers webinar", links: [
+      ["Recorded webinar", "https://clubready.zendesk.com/hc/en-us/articles/7498567357837-Recorded-Webinar-Foundations-for-Trainers"]] },
+    { id: "cr_add_clients", label: "Knows how to add clients to the schedule" },
+    { id: "cr_barcodes", label: "Knows how to create barcodes for sessions" },
+    { id: "session_flow", label: "Understands the 30-minute session structure and flow" },
+    { id: "shadowing", label: "Shadowed sessions", optional: "Not needed" },
+  ] },
+  { section: "Client Setup (Week 1–2)", due: 14, note: "Clients booking in the GRIP PT app can check in for their sessions in the app.", items: [
+    { id: "clients_app", label: "100% of active clients onboarded into the GRIP PT app",
+      hint: "Clients log in to the GRIP PT ClubReady app: GRIP PT app > My profile > My account > Reset password." },
+    { id: "clients_lumin", label: "Clients connected to Lumin (Lumin Pro button in the app)", hint: "Tutorial: how to onboard clients." },
+    { id: "workout_cards", label: "Workout cards created for each client in Lumin" },
+    { id: "client_folders", label: "Client folders / books created in the club" },
+    { id: "client_goals", label: "Goals entered for each client" },
+    { id: "client_nutrition", label: "Basic nutrition guidance entered (calorie + protein targets)" },
+  ] },
+  { section: "Session Execution Standard", items: [
+    { id: "sessions_structured", label: "Sessions are structured, intentional and aligned with client goals" },
+    { id: "progress_tracked", label: "Tracks and updates client progress consistently" },
+    { id: "high_energy", label: "Delivers a high-energy, professional experience" },
+  ] },
+  { section: "App Usage", items: [
+    { id: "app_every_client", label: "Every client is on the GRIP PT app and logged into Lumin Pro" },
+    { id: "app_workouts", label: "Every client has assigned workouts and tracked progress in the app" },
+    { id: "app_uses", label: "Uses the app for communication, accountability, retention, workouts, nutrition guidance and evaluations" },
+  ] },
+  { section: "Scheduling & Attendance", items: [
+    { id: "availability", label: "Keeps availability accurate in ClubReady" },
+    { id: "no_missed", label: "No missed sessions without communication" },
+    { id: "on_time", label: "On time for all sessions" },
+  ] },
+  { section: "Team & Culture", items: [
+    { id: "on_floor", label: "Present and engaged on the floor" },
+    { id: "supports_team", label: "Supports other trainers, not just their own clients" },
+    { id: "team_meetings", label: "Takes part in team meetings and GroupMe communication" },
+    { id: "club_culture", label: "Contributes to a strong, positive club culture" },
+  ] },
+  { section: "Client Retention", items: [
+    { id: "past_due", label: "Knows how to run a past due payment in ClubReady" },
+    { id: "billing_health", label: "Knows their billing health" },
+  ] },
+  { section: "Ongoing Coaching", items: [
+    { id: "coaching_booked", label: "Booked a one-on-one coaching session", links: [["Schedule here", "https://calendly.com/maddy-lamb-872/one-on-one"]] },
+  ] },
+];
