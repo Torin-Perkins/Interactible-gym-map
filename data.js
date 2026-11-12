@@ -987,8 +987,26 @@ const PAYROLL = {
 };
 
 // "Likelihood of needing a new trainer" model (see hiringNeed() in app.js). Tune here.
+// Trainer availability sheets (one per brand): an "Availability" tab with a row per trainer and the
+// hours they're available each day (Sun–Sat) plus "Weekly Hours Available". Read live by the map.
+const AVAILABILITY_SHEETS = {
+  GRIP: "1uglnBZUwn2FPI6_91P4j2ZWXSrzRL-r1hCsovY8FUYU",
+  Elevate: "1XgN-63L9Pa1yPvGLy3TVv_wHERAXCAb1vqxMtvd-UKM",
+  Lighthouse: "1GlJlV-MtbV_bmoXUNc81oJMcoCiBCdUFtDCeu7F5bUI",
+};
+// Trainer availability Location names that don't match the gym's name or label.
+const AVAILABILITY_ALIASES = {};
+
+// "Need more trainers" on the map (hiringNeed in app.js): bookings vs bookable capacity, with member
+// growth and the time of year projected HIRING.horizonWeeks ahead.
 const HIRING = {
-  trainerCapacity: 80,      // sessions/week one trainer can carry (40 hrs of 30-min sessions)
+  horizonWeeks: 8,          // how far ahead to project (about the time to hire and start a trainer)
+  sessionMinutes: 30,       // a session; bookable capacity = available hours × 60 / sessionMinutes
+  targetUtilization: 0.85,  // aim to keep projected bookings at or under this share of capacity
+  // Busyness by month (1 = average). Bookings now are scaled by the busiest month in the horizon ÷ this
+  // month, so clubs get flagged ahead of the New Year rush. A starting point: tune to your history.
+  seasonality: { 1: 1.2, 2: 1.1, 3: 1.05, 4: 1.0, 5: 1.0, 6: 0.95, 7: 0.92, 8: 0.95, 9: 1.03, 10: 1.0, 11: 0.97, 12: 0.92 },
+  trainerCapacity: 80,      // sessions/week per trainer when a club isn't on an availability sheet (40 hrs)
   sessionsPerNewClient: 1.5, // sessions/week each net new client adds
   lookbackWeeks: 4,          // window for weekly client growth from the stats sheets
   highUtilization: 0.9,      // High if already this full ...

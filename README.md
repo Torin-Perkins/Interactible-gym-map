@@ -10,8 +10,8 @@ staff counts, and the home areas of trainer candidates, plus **Gym stats** and *
 - **Color gyms by** a stat (red → green, scaled within each brand) or size them by clients / staff.
 - **Gym table** for the selected region, sortable by clients, lost %, billing, or staff.
 - **App adoption** (popup + color mode): trainers on the app, clients on the app, avg. profile completion.
-- **Need for a new trainer** (High / Medium / Low): compares each club's weekly session load (payroll) with
-  trainer capacity, and projects how fast weekly client growth (stats sheet) will fill the remaining capacity.
+- **Need for more trainers** (High / Medium / Low): bookings vs the club's bookable capacity from the trainer
+  availability sheets, projected 8 weeks ahead with member growth and the time of year (see below).
 - **Candidate regions** colored by best grade (A green, B blue, C orange, gray ungraded); solid outline = interview set.
 - **Nearest-gym search** — search a place, click the map, or click a candidate area.
 
@@ -32,15 +32,30 @@ Candidate "where do you live" answers are pre-located in `CANDIDATE_GEO` (place 
 looked up on OpenStreetMap in the browser and cached. Street-address answers are only placed to ~1 km and
 labeled by neighborhood.
 
-## Hiring-need model
-For each club with payroll data (`HIRING` in `data.js` holds the tunable numbers):
-- **Capacity used** = sessions per week ÷ (trainers × `trainerCapacity`, default 80 sessions/week = 40 hrs of 30-min sessions).
-- **Net new clients/week** = change in the stats sheet's total clients over the last `lookbackWeeks` (default 4).
-- **Weeks until full** = spare capacity ÷ (new clients/week × `sessionsPerNewClient`, default 1.5).
-- **High**: capacity used ≥ 90%, full within 4 weeks, or no active trainers. **Medium**: ≥ 70% or full within 10 weeks. Otherwise **Low**.
-- **Suggested extra trainers**: trainers needed to cover the projected load 8 weeks out.
+## Hiring## Hiring-need model
+For each club with bookings (payroll) data; the tunable numbers are `HIRING` in `data.js`:
+- **Bookable capacity** = the hours the club's trainers are available each week (the brand's **Trainer
+  Availability Report** sheet, `AVAILABILITY_SHEETS`, "Availability" tab) × 2 thirty-minute sessions per hour. A club
+  not on a sheet (or with 0 hours there) falls back to trainers × `trainerCapacity` (80 sessions/week).
+- **Booked now** = payroll sessions per week (`PAYROLL`); **capacity used now** = booked ÷ capacity.
+- **Member growth** = net new clients per week from the stats sheets over the last `lookbackWeeks`, each adding
+  `sessionsPerNewClient` (1.5) sessions a week.
+- **Time of year** = the busiest month in the next `horizonWeeks` (8) ÷ this month, from `seasonality` (a monthly
+  index, highest in January). It flags clubs ahead of a busy season. The values are a starting point to tune.
+- **Projected in 8 weeks** = (booked + growth × 8 weeks) × time-of-year factor, as a share of capacity.
+- **High**: projected ≥ 90% of capacity, or it reaches 85% (`targetUtilization`) within 4 weeks. **Medium**:
+  projected ≥ 70% or 85% within 10 weeks. Otherwise **Low**.
+- **Suggested extra trainers**: how many more trainers, each with the club's average availability, bring the
+  projection back under 85%.
 
-## Gym stats and Trainer stats tabs
+The club popup shows each step, plus the club's available hours by day of the week.
+
+**Needs action**: a box in the map's top-right corner lists the clubs rated High in the current brand / region view
+(projected % of capacity and trainers to add), with Medium ones under "Watch". High clubs get a pulsing red ring
+and a "Needs action" banner in their popup. Click a club in the box to go to it; close the box with × and bring
+it back with the "Needs action" button (remembered in this browser).
+
+ats and Trainer stats tabs
 Two tabs over the same data, sharing the Company / Region / Club filters.
 
 **Gym stats** — club KPIs from the stats sheets, with a Table / Map switch:
