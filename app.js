@@ -344,6 +344,8 @@ function gymPopup(g) {
     : `<div class="section-title">App adoption</div><div class="muted">Not in the adoption sheet.</div>`;
 
   return `<div class="popup">
+    ${h && h.level === "High" ? `<div class="needs-banner"><b>⚠ Needs action: hire ${h.extra ? `+${h.extra} trainer${h.extra === 1 ? "" : "s"}` : "trainers"}</b>
+      <span>Projected ${h.projUtil === Infinity ? "over" : pct0(h.projUtil)} of capacity in ${HIRING.horizonWeeks} weeks${n ? ` · ${n} candidate${n === 1 ? "" : "s"} within ${NEARBY_MILES} mi` : ""}</span></div>` : ""}
     <div class="chip" style="background:${b.color}">${esc(g.brand)} · ${esc(g.region)}</div>
     <b>${esc(gymLabel(g))}</b><br>${esc(g.address)}${g.approx ? " <i>(approx. location)</i>" : ""}<br>
     <a href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(g.address)}" target="_blank" rel="noopener">Directions</a>
@@ -728,9 +730,61 @@ function buildRegionSelect() {
   sel.value = state.region;
 }
 
+// ---------- Needs action ----------
+// A box over the map listing the clubs whose hiring need is High (and Medium ones to watch), in the
+// current brand / region view, with a pulsing ring on those clubs. Click a club to go to it. It can
+// be closed; the "Needs action" button brings it back.
+const needLayer = L.layerGroup().addTo(map);
+const needsControl = L.control({ position: "topright" });
+needsControl.onAdd = () => {
+  const div = L.DomUtil.create("div", "needs-action");
+  L.DomEvent.disableClickPropagation(div);
+  L.DomEvent.disableScrollPropagation(div);
+  div.addEventListener("click", (e) => {
+    const go = e.target.closest("[data-gym]");
+    if (go) {
+      const g = GYMS[+go.dataset.gym];
+      map.setView([g.lat, g.lng], Math.max(map.getZoom(), 12));
+      g.marker.openPopup();
+      return;
+    }
+    if (e.target.closest("[data-needs-toggle]")) {
+      state.needsOpen = !state.needsOpen;
+      try { localStorage.setItem("needsActionOpen", state.needsOpen ? "1" : "0"); } catch {}
+      renderNeeds();
+    }
+  });
+  return div;
+};
+needsControl.addTo(map);
+try { state.needsOpen = localStorage.getItem("needsActionOpen") !== "0"; } catch { state.needsOpen = true; }
+
+function renderNeeds() {
+  const el = needsControl.getContainer();
+  const rated = GYMS.filter(visibleGym).map((g) => ({ g, h: hiringNeed(g) })).filter((x) => x.h && x.h.level !== "Low")
+    .sort((a, b) => (a.h.level === b.h.level ? b.h.projUtil - a.h.projUtil : a.h.level === "High" ? -1 : 1));
+  const high = rated.filter((x) => x.h.level === "High"), watch = rated.filter((x) => x.h.level === "Medium");
+  needLayer.clearLayers();
+  high.forEach(({ g }) => L.circleMarker([g.lat, g.lng], { radius: 15, className: "need-pulse", interactive: false, fill: false, weight: 3, color: HIRE_COLORS.High }).addTo(needLayer));
+  if (!high.length && !watch.length) { el.hidden = true; return; }
+  el.hidden = false;
+  const item = ({ g, h }) => `<li><button type="button" data-gym="${GYMS.indexOf(g)}">
+      <span class="na-name"><b>${esc(gymLabel(g))}</b><span class="muted">${esc(g.brand)} · ${esc(g.region)}</span></span>
+      <span class="na-num"><b>${h.projUtil === Infinity ? "—" : pct0(h.projUtil)}</b><span class="muted">${h.extra ? `+${h.extra} trainer${h.extra === 1 ? "" : "s"}` : "full soon"}</span></span>
+    </button></li>`;
+  el.classList.toggle("open", state.needsOpen);
+  el.innerHTML = state.needsOpen
+    ? `<div class="na-head"><b>⚠ Needs action</b><button type="button" class="na-close" data-needs-toggle title="Hide" aria-label="Hide">×</button></div>
+       <p class="muted na-sub">${high.length ? `${high.length} club${high.length === 1 ? "" : "s"} need${high.length === 1 ? "s" : ""} more trainers` : "No clubs need trainers right now"}: projected % of capacity in ${HIRING.horizonWeeks} weeks.</p>
+       ${high.length ? `<ul class="na-list">${high.map(item).join("")}</ul>` : ""}
+       ${watch.length ? `<details class="na-watch"><summary>Watch (${watch.length})</summary><ul class="na-list">${watch.map(item).join("")}</ul></details>` : ""}`
+    : `<button type="button" class="na-pill" data-needs-toggle>⚠ Needs action${high.length ? ` (${high.length})` : ""}</button>`;
+}
+
 function renderAll() {
   renderGyms();
   styleGyms();
+  renderNeeds();
   renderTable();
   renderAreas();
 }

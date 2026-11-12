@@ -50,6 +50,11 @@ For each club with bookings (payroll) data; the tunable numbers are `HIRING` in 
 
 The club popup shows each step, plus the club's available hours by day of the week.
 
+**Needs action**: a box in the map's top-right corner lists the clubs rated High in the current brand / region view
+(projected % of capacity and trainers to add), with Medium ones under "Watch". High clubs get a pulsing red ring
+and a "Needs action" banner in their popup. Click a club in the box to go to it; close the box with × and bring
+it back with the "Needs action" button (remembered in this browser).
+
 ats and Trainer stats tabs
 Two tabs over the same data, sharing the Company / Region / Club filters.
 

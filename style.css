@@ -368,3 +368,28 @@ button.btn-secondary { background: none; }
 .tile-btn:hover { border-color: var(--fg); }
 .trend-big { margin: 10px 0 12px; }
 #tRole { font: inherit; }
+
+/* Needs action (map) */
+.needs-action { background: var(--bg); color: var(--fg); border: 2px solid #d62828; border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.18);
+  font-size: 12.5px; max-width: 300px; }
+.needs-action.open { width: 300px; max-height: 60vh; overflow: auto; padding: 10px 12px; }
+.needs-action:not(.open) { border-width: 0; }
+.na-head { display: flex; justify-content: space-between; align-items: center; color: #d62828; font-size: 14px; }
+.na-close { background: none; color: var(--muted); font-size: 20px; line-height: 1; padding: 0 4px; }
+.na-sub { margin: 2px 0 6px; font-size: 11.5px; }
+.na-list { list-style: none; margin: 0; padding: 0; }
+.na-list li + li { border-top: 1px solid var(--line); }
+.na-list button { display: flex; justify-content: space-between; gap: 8px; width: 100%; text-align: left; background: none; color: var(--fg); padding: 6px 2px; border-radius: 0; }
+.na-list button:hover { background: var(--panel); }
+.na-name, .na-num { display: flex; flex-direction: column; }
+.na-num { text-align: right; font-variant-numeric: tabular-nums; }
+.na-name .muted, .na-num .muted { font-size: 11px; }
+.na-watch summary { cursor: pointer; margin-top: 6px; color: var(--muted); }
+.na-pill { background: #d62828; color: #fff; font-weight: 700; border-radius: 8px; padding: 7px 12px; }
+.needs-banner { background: #fde8e8; color: #8b1a1a; border: 1px solid #d62828; border-radius: 6px; padding: 6px 8px; margin-bottom: 8px; }
+.needs-banner span { display: block; font-size: 12px; }
+:root[data-theme="dark"] .needs-banner { background: #3a1c1f; color: #ffb4ab; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .needs-banner { background: #3a1c1f; color: #ffb4ab; } }
+.need-pulse { animation: need-pulse 1.6s ease-out infinite; transform-origin: center; transform-box: fill-box; }
+@keyframes need-pulse { 0% { stroke-opacity: .9; transform: scale(.7); } 100% { stroke-opacity: 0; transform: scale(1.6); } }
+@media (prefers-reduced-motion: reduce) { .need-pulse { animation: none; } }
