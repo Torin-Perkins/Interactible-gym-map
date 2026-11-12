@@ -530,6 +530,8 @@ function renderTrainers() {
     if (q && !norm(t.name).includes(q)) return false;
     const e = eff(t);
     if (show === "notOnboarded" && e.onboarded) return false;
+    if (show === "needsAction" && !trainerFlags(t).length) return false;
+    if (show.startsWith("act:") && !trainerFlags(t).some((x) => x.key === show.slice(4))) return false;
     if (show === "checklistStarted" && !(checklistProgress(t.id).started && !checklistProgress(t.id).complete)) return false;
     if (show === "noCert" && e.cert) return false;
     if (show === "certExpiring" && !certExpiry(e.certExpires)) return false;
@@ -1258,6 +1260,140 @@ $("tiles").addEventListener("click", (e) => { const b = e.target.closest("[data-
 $("tdTrendClose").onclick = () => $("trendDialog").close();
 $("trendDialog").addEventListener("click", (e) => { if (e.target === $("trendDialog")) $("trendDialog").close(); });
 
+// ---------- Trainers that need action ----------
+// Each trainer's problems (thresholds in TRAINER_ACTION, data.js), most serious first. Shown in the
+// Needs action card on Trainer stats, as tracker filters, and in the weekly email.
+const ACTION_CATS = {
+  rating: { label: "Low rating", weight: 3 },
+  onboarding: { label: "Onboarding behind", weight: 3 },
+  certExpired: { label: "Cert expired", weight: 3 },
+  noCert: { label: "No cert on file", weight: 2 },
+  lostSheep: { label: "Lost sheep", weight: 2 },
+  unlogged: { label: "Unlogged sessions", weight: 2 },
+  billing: { label: "Billing health", weight: 2 },
+  adoption: { label: "Low app adoption", weight: 1 },
+  certSoon: { label: "Cert expiring", weight: 1 },
+};
+function trainerFlags(t) {
+  const A = TRAINER_ACTION, e = eff(t), a = t.adopt || {}, out = [];
+  const add = (key, detail) => out.push({ key, label: ACTION_CATS[key].label, detail, weight: ACTION_CATS[key].weight });
+  if (a.rating && (a.reviews || 0) >= A.minReviews && a.rating < A.minRating) add("rating", `★ ${a.rating.toFixed(1)} from ${fmtNum(a.reviews)} reviews`);
+  // Onboarding sections past their due date (from the hire date) and not done; trainers past 3 months are auto-complete.
+  const p = checklistProgress(t.id);
+  if (t.hired && !p.tenured) {
+    const late = ONBOARDING_CHECKLIST.filter((s) => s.due && new Date(new Date(`${t.hired}T12:00`).getTime() + s.due * 864e5) < new Date())
+      .map((s) => ({ s, done: s.items.filter((i) => p.itemDone(i)).length })).filter((x) => x.done < x.s.items.length);
+    const when = (s) => (s.section.match(/\(([^)]+)\)/) || [])[1] || s.section; // "Immediate (Week 1)" -> "Week 1"
+    if (late.length) add("onboarding", `${late.map((x) => `${when(x.s)} overdue (${x.done}/${x.s.items.length})`).join(", ")} · ${p.pct}% onboarded`);
+  }
+  const days = e.certExpires ? (new Date(`${e.certExpires}T23:59:59`) - new Date()) / 864e5 : null;
+  if (e.cert && days != null && days < 0) add("certExpired", `expired ${fmtDay(e.certExpires)}`);
+  else if (!e.cert) add("noCert", "no certification on file");
+  else if (days != null && days <= A.certSoonDays) add("certSoon", `expires ${fmtDay(e.certExpires)}`);
+  if (t.lostSheep != null && t.lostSheep >= A.lostSheepMax) add("lostSheep", `${fmtNum(t.lostSheep)} lost sheep`);
+  if (t.unlogged != null && t.unlogged >= A.unloggedMax) add("unlogged", `${num1(t.unlogged)} unlogged per pay period`);
+  if (e.billing != null && e.billing < A.billingMin) add("billing", `billing health ${fmtPct(e.billing, 0)}`);
+  if (a.adoption != null && (a.totalClients || 0) >= A.adoptionMinClients && a.adoption < A.adoptionMin)
+    add("adoption", `${fmtPct(a.adoption, 0)} of ${fmtNum(a.totalClients)} clients on the app`);
+  return out.sort((x, y) => y.weight - x.weight);
+}
+const flagScore = (fl) => fl.reduce((s, f) => s + f.weight, 0);
+
+function renderTrainerActions() {
+  const card = $("trainerActions"), f = F();
+  const ts = MODEL.trainers.filter((t) => inFilter(t, f) && roleOk(t)).map((t) => ({ t, fl: trainerFlags(t) })).filter((x) => x.fl.length);
+  const counts = {};
+  ts.forEach(({ fl }) => fl.forEach((x) => (counts[x.key] = (counts[x.key] || 0) + 1)));
+  // Most problems first; a lone "no cert" (common, and on the tracker already) goes last.
+  ts.sort((a, b) => flagScore(b.fl) - flagScore(a.fl) || b.fl.length - a.fl.length || a.t.name.localeCompare(b.t.name));
+  const top = ts.slice(0, 12);
+  const show = $("tShow").value;
+  const certOnly = ts.filter(({ fl }) => fl.length === 1 && fl[0].key === "noCert").length;
+  card.innerHTML = `<div class="card-head"><h2 class="ta-title">⚠ Needs action</h2>
+      <span class="sub">${fmtNum(ts.length - certOnly)} of ${fmtNum(MODEL.trainers.filter((t) => inFilter(t, f) && roleOk(t)).length)} trainers need action${certOnly ? ` · ${fmtNum(certOnly)} more only need a cert on file` : ""}</span></div>
+    <div class="ta-cats">${Object.entries(ACTION_CATS).filter(([k]) => counts[k]).map(([k, c]) =>
+      `<button type="button" class="ta-cat${show === `act:${k}` ? " on" : ""}" data-act="${k}" title="Show these trainers in the tracker">${esc(c.label)} <b>${fmtNum(counts[k])}</b></button>`).join("")}
+      ${show.startsWith("act:") || show === "needsAction" ? `<button type="button" class="link" data-act="">clear filter</button>` : ""}</div>
+    ${top.length ? `<ul class="ta-list">${top.map(({ t, fl }) => `<li><button type="button" class="ta-who" data-graph-id="${esc(t.id)}">
+        <b>${esc(t.name)}</b><span class="cell-sub">${esc(t.club)} · ${esc(t.company)}${t.kind !== "pt" ? ` · ${esc(ROLE_LABEL[t.kind])}` : ""}</span></button>
+        <span class="ta-flags">${fl.map((x) => `<span class="tag ${x.weight >= 3 ? "bad" : "warn"}" title="${esc(x.detail)}">${esc(x.label)}</span>`).join("")}
+        <span class="cell-sub">${esc(fl.map((x) => x.detail).join(" · "))}</span></span></li>`).join("")}</ul>
+      ${ts.length > top.length ? `<p class="cell-sub">and ${fmtNum(ts.length - top.length)} more: <button type="button" class="link" data-act="*">show them all in the tracker</button></p>` : ""}`
+      : `<p class="chart-empty">Nothing needs action for these trainers.</p>`}`;
+}
+$("trainerActions").addEventListener("click", (e) => {
+  const who = e.target.closest("[data-graph-id]");
+  if (who) return openTrainerGraph(who.dataset.graphId);
+  const b = e.target.closest("[data-act]");
+  if (!b) return;
+  const v = b.dataset.act === "*" ? "needsAction" : b.dataset.act ? `act:${b.dataset.act}` : "";
+  if (v && ![...$("tShow").options].some((o) => o.value === v)) $("tShow").add(new Option(`Needs action: ${ACTION_CATS[b.dataset.act].label}`, v));
+  $("tShow").value = v;
+  renderTrainers();
+  renderTrainerActions();
+  if (v) $("trainerTable").scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+// ---------- Big improvements (weekly email) ----------
+// Clubs: change in the stats sheets over the last ~4 weeks. Trainers: agreements sold, latest pay
+// period vs the one before.
+function clubImprovements(days = 28) {
+  const change = (s) => {
+    if (!s || s.length < 2) return null;
+    const lastP = s[s.length - 1], cut = +lastP.date - days * 864e5;
+    const base = [...s].reverse().find((x) => +x.date <= cut) || (+lastP.date - +s[0].date >= 14 * 864e5 ? s[0] : null);
+    return base ? { d: lastP.v - base.v, from: base.date, to: lastP.date } : null;
+  };
+  // Clubs with at least 50 clients: a few clients at a new club swing the percentages wildly.
+  const open = MODEL.clubs.filter((c) => (last(c.kpi.clients) || {}).v >= 50);
+  const top = (metric, sign, fmt) => open.map((c) => ({ c, ch: change(c.kpi[metric]) })).filter((x) => x.ch && x.ch.d * sign > 0)
+    .sort((a, b) => b.ch.d * sign - a.ch.d * sign).slice(0, 3)
+    .map(({ c, ch }) => ({ name: c.club, where: [c.company, c.region].filter(Boolean).join(" · "), value: fmt(ch.d) }));
+  return [
+    { label: "Billing health up", rows: top("billing", 1, (d) => `+${d.toFixed(1)} pts`) },
+    { label: "Lost sheep % down", rows: top("lostPct", -1, (d) => `${d.toFixed(1)} pts`) },
+    { label: "Clients up", rows: top("clients", 1, (d) => `+${fmtNum(d)}`) },
+  ];
+}
+function trainerImprovements() {
+  const rows = MODEL.trainers.map((t) => {
+    const s = t.invoiceSeries || [];
+    return s.length >= 2 ? { t, d: s[s.length - 1].v - s[s.length - 2].v, s } : null;
+  }).filter((x) => x && x.d > 0).sort((a, b) => b.d - a.d).slice(0, 3);
+  return { label: "Agreements sold up (pay period over pay period)",
+    rows: rows.map(({ t, d, s }) => ({ name: t.name, where: `${t.club} · ${t.company}`, value: `+${fmtMoney(d)} (${s[s.length - 2].label.replace(/, \d{4}$/, "")} → ${s[s.length - 1].label.replace(/, \d{4}$/, "")})` })) };
+}
+
+// The "Needs action" and "Big improvements" part of the weekly email (inline styles for email clients).
+function actionEmailHtml() {
+  const h2 = (t) => `<h2 style="margin:18px 0 6px;font-size:17px">${t}</h2>`;
+  const box = (title, inner) => `<div style="border:1px solid #e4e7ec;border-radius:8px;padding:10px 12px;margin-bottom:10px"><div style="font-size:14px;font-weight:700;margin-bottom:4px">${title}</div>${inner}</div>`;
+  const li = (rows) => rows.length ? `<ul style="margin:4px 0 0;padding-left:18px;font-size:13px">${rows.join("")}</ul>` : `<div style="color:#667085;font-size:12px">None.</div>`;
+  const clubs = typeof window.clubNeeds === "function" ? window.clubNeeds() : [];
+  const high = clubs.filter((c) => c.level === "High"), watch = clubs.filter((c) => c.level === "Medium");
+  const flagged = MODEL.trainers.map((t) => ({ t, fl: trainerFlags(t) })).filter((x) => x.fl.length);
+  const byCat = {};
+  flagged.forEach(({ t, fl }) => fl.forEach((x) => (byCat[x.key] ||= []).push({ t, x })));
+  const trainerBoxes = Object.entries(ACTION_CATS).filter(([k]) => byCat[k]).map(([k, c]) => {
+    const list = byCat[k].sort((a, b) => flagScore(trainerFlags(b.t)) - flagScore(trainerFlags(a.t)));
+    const shown = k === "noCert" ? [] : list.slice(0, 8);
+    return box(`${esc(c.label)} <span style="color:#667085;font-weight:400">(${fmtNum(list.length)} trainer${list.length === 1 ? "" : "s"})</span>`,
+      shown.length ? li(shown.map(({ t, x }) => `<li><b>${esc(t.name)}</b> <span style="color:#667085">${esc(t.club)} · ${esc(t.company)}</span>: ${esc(x.detail)}</li>`))
+        + (list.length > shown.length ? `<div style="color:#667085;font-size:12px;margin-top:4px">${shown.length ? `and ${fmtNum(list.length - shown.length)} more` : "See the Trainer stats tab for the list"}.</div>` : "")
+      : `<div style="color:#667085;font-size:12px">See the Trainer stats tab for the list.</div>`);
+  }).join("");
+  const imp = [...clubImprovements(), trainerImprovements()];
+  return `<div style="font-family:Arial,Helvetica,sans-serif;color:#1d2330;max-width:760px">
+    ${h2("⚠ Needs action")}
+    ${box(`Clubs that need more trainers <span style="color:#667085;font-weight:400">(projected in ${HIRING.horizonWeeks} weeks)</span>`,
+      li(high.map((c) => `<li><b>${esc(c.name)}</b> <span style="color:#667085">${esc(c.brand)} · ${esc(c.region)}</span>: ${c.projUtil === Infinity ? "over" : `${Math.round(c.projUtil * 100)}%`} of capacity, hire +${c.extra || 1}</li>`))
+      + (watch.length ? `<div style="color:#667085;font-size:12px;margin-top:4px">Watch: ${watch.map((c) => esc(c.name)).join(", ")}</div>` : ""))}
+    ${trainerBoxes || box("Trainers", `<div style="color:#667085;font-size:12px">No trainers flagged.</div>`)}
+    ${h2("★ Big improvements")}
+    ${imp.map((g) => box(esc(g.label), li(g.rows.map((r) => `<li><b>${esc(r.name)}</b> <span style="color:#667085">${esc(r.where)}</span>: ${esc(r.value)}</li>`)))).join("")}
+  </div>`;
+}
+
 // ---------- Top & bottom 5 reports ----------
 // For each stat, the 5 best and 5 worst trainers (Trainer stats) or clubs (Gym stats) among those
 // in the filters. Nobody is in both lists: with fewer than 10 ranked, the list splits in half.
@@ -1455,9 +1591,10 @@ window.sendWeeklyReport = async ({ key = "", by = "Weekly report", build = false
   const reports = [buildReport("trainers", all), buildReport("clubs", all)];
   const date = reports[0].date;
   const day = date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/Los_Angeles" });
-  const html = `<div style="font-family:Arial,Helvetica,sans-serif;color:#1d2330;font-size:13px;margin-bottom:12px">Weekly top &amp; bottom 5 report for ${esc(day)}: trainers first, then clubs. The CSV has both.</div>`
-    + reports.map((R) => reportEmailHtml(R)).join('<hr style="border:0;border-top:2px solid #e4e7ec;margin:20px 0">');
-  const email = { subject: `Weekly top & bottom 5 · trainers and clubs · ${day}`, html, csv: reportCsv(reports),
+  const hr = '<hr style="border:0;border-top:2px solid #e4e7ec;margin:20px 0">';
+  const html = `<div style="font-family:Arial,Helvetica,sans-serif;color:#1d2330;font-size:13px;margin-bottom:12px">Weekly report for ${esc(day)}: what needs action, big improvements, then the top &amp; bottom 5 trainers and clubs. The CSV has the top &amp; bottom 5.</div>`
+    + actionEmailHtml() + hr + reports.map((R) => reportEmailHtml(R)).join(hr);
+  const email = { subject: `Weekly report · needs action, improvements, top & bottom 5 · ${day}`, html, csv: reportCsv(reports),
     filename: `weekly-top-bottom-5-${date.toISOString().slice(0, 10)}.csv` };
   if (build) return { url: TRACKER_DB.url, email }; // the weekly job sends it itself (so it can log errors)
   return postReportEmail(email, key, by);
@@ -1504,6 +1641,7 @@ function renderAll() {
   if (statsTab() === "gyms") renderTrends();
   renderClubs();
   renderTrainers();
+  renderTrainerActions();
   if (statsView === "map") setStatsView("map");
 }
 
@@ -1545,8 +1683,8 @@ $("dbMigrate").onclick = () => {
   dbSave();
 };
 window.addEventListener("beforeunload", (e) => { if (dirty.size) { e.preventDefault(); e.returnValue = ""; } });
-$("tShow").onchange = renderTrainers;
-$("tRole").onchange = () => { renderTiles(); renderTrainers(); };
+$("tShow").onchange = () => { renderTrainers(); renderTrainerActions(); };
+$("tRole").onchange = () => { renderTiles(); renderTrainers(); renderTrainerActions(); };
 $("statsRefresh").onclick = () => {
   $("statsStatus").textContent = "Reloading…";
   $("statsRefresh").disabled = true;

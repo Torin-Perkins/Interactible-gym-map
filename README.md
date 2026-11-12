@@ -88,6 +88,14 @@ Browsers can't download Drive files or list a folder without an API key, so the 
 `scripts/build_drive_data.py` to read the folder into `drive-data.json`. That file keeps only names, clubs, job
 titles and session differences (no emails, phones or addresses) and is published with the site, never committed.
 
+### Needs action (trainers)
+A **⚠ Needs action** card at the top of Trainer stats lists the trainers who need attention, for the current
+filters and role, most problems first (thresholds in `TRAINER_ACTION`, `data.js`): low Lumin rating (under 4.5 from
+3+ reviews), onboarding behind (a Week 1 / Week 1–2 section past due, for trainers hired in the last 3 months), cert
+expired / expiring within 60 days / none on file, 20+ lost sheep, 5+ unlogged sessions per pay period, billing
+health under 90%, and app adoption under 50% (10+ clients). Click a category to filter the tracker to it, or a
+trainer to open their graph. Trainers whose only issue is a missing cert are counted separately.
+
 ### Hybrid and head trainers
 Trainer stats has a **Role** filter (personal / hybrid / head trainers, from the staff list job title) and a stat for
 each sub-division, from the **Trainer Payroll Stats** Drive folder (one file per brand per pay period, the pay
@@ -128,8 +136,12 @@ CSV attached) through the tracker's Apps Script, only to the addresses in its `R
 (see apps-script/README.md); it needs the edit key.
 
 **Weekly email.** Every Monday at 11:00 Pacific, `.github/workflows/weekly-report.yml` opens the live site in a
-headless browser and emails both reports (trainers and clubs, all brands) in one email with a combined CSV, to the
-same `REPORT_EMAILS` addresses. If the Apps Script has an `EDIT_KEY`, add it as the **`TRACKER_EDIT_KEY`** repo
+headless browser and emails, to the same `REPORT_EMAILS` addresses:
+- **⚠ Needs action**: clubs that need more trainers (the map's High rating, Medium ones to watch) and trainers
+  flagged per category (as on Trainer stats, up to 8 names each);
+- **★ Big improvements**: the clubs with the biggest gains over the last 4 weeks in billing health, lost sheep %
+  and clients (clubs with 50+ clients), and the trainers whose agreements sold rose most since the pay period before;
+- both top & bottom 5 reports (trainers and clubs, all brands), with a combined CSV. If the Apps Script has an `EDIT_KEY`, add it as the **`TRACKER_EDIT_KEY`** repo
 secret. It won't send if the staff lists or KPI sheets fail to load. To send one now, run "Weekly report email"
 from the Actions tab.
 
