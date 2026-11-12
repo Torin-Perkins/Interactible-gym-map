@@ -1130,6 +1130,16 @@ const ONBOARDING_CHECKLIST = [
   ] },
 ];
 
+// Trainers flagged in "Needs action" on Trainer stats and in the weekly email (trainerFlags in stats.js).
+const TRAINER_ACTION = {
+  minRating: 4.5, minReviews: 3, // Lumin rating under this, from at least this many reviews
+  lostSheepMax: 20,              // lost sheep (last session with them) at or over this
+  unloggedMax: 5,                // average unlogged sessions per pay period at or over this
+  billingMin: 90,                // billing health % under this
+  adoptionMin: 50, adoptionMinClients: 10, // client app adoption % under this, for trainers with this many clients
+  certSoonDays: 60,              // cert expiring within this many days
+};
+
 // Onboarding items ticked automatically from the data (see dataChecks in stats.js).
 const ONBOARDING_AUTO = {
   adoptionPct: 100,   // client app adoption (Lumin clients ÷ adoption sheet total) for the "every client" items

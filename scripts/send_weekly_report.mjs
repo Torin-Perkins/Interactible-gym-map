@@ -49,6 +49,9 @@ try {
   page.on("pageerror", (e) => console.warn("page error:", e.message));
   await page.goto(`${SITE}?weekly=${Date.now()}`, { waitUntil: "load" });
   await page.waitForFunction(() => typeof MODEL !== "undefined" && MODEL && MODEL.trainers.length, null, { timeout: 180000 });
+  // The map's data (bookings, availability) feeds "clubs that need trainers"; send without it if it's slow.
+  await page.waitForFunction(() => window.mapDataReady, null, { timeout: 120000 })
+    .catch(() => console.warn("Map data didn't load in time; the email won't list clubs that need trainers."));
   const wait = force ? 0 : Math.max(0, (11 * 60 - pacificNow().minutes) * 60000);
   if (wait) {
     console.log(`Data loaded; waiting ${Math.round(wait / 60000)} min until 11:00 Pacific.`);

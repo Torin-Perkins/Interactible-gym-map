@@ -854,7 +854,12 @@ async function refresh() {
     : `Live from Google Sheets · updated ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
   $("refreshBtn").disabled = false;
   renderAll();
+  window.mapDataReady = true; // the weekly email waits for this before reading clubNeeds()
 }
+// Clubs' hiring need for the weekly email (stats.js): High and Medium, most urgent first.
+window.clubNeeds = () => GYMS.map((g) => ({ g, h: hiringNeed(g) })).filter((x) => x.h && x.h.level !== "Low")
+  .sort((a, b) => (a.h.level === b.h.level ? b.h.projUtil - a.h.projUtil : a.h.level === "High" ? -1 : 1))
+  .map(({ g, h }) => ({ name: gymLabel(g), brand: g.brand, region: g.region, level: h.level, projUtil: h.projUtil, extra: h.extra }));
 
 $("refreshBtn").onclick = () => { refresh(); loadAllData(true); };
 $("staffDate").textContent = `as of ${STAFF_AS_OF}`;
