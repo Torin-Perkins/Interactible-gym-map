@@ -210,24 +210,75 @@ function weeklyClientGrowth(g) {
   return weeks > 0 ? (last.value - base.value) / weeks : null;
 }
 
-// Compares current session load (payroll) plus projected load from client growth against
-// trainer capacity. Returns null when the club has no payroll data.
+// Time of year: the busiest month in the next `weeks` weeks vs this month (HIRING.seasonality), so a
+// club is flagged before a busy season (e.g. the New Year rush), not during it.
+function seasonFactor(weeks, now = new Date()) {
+  const idx = (d) => HIRING.seasonality[d.getMonth() + 1] || 1;
+  let peak = idx(now), peakMonth = now;
+  for (let w = 1; w <= weeks; w++) {
+    const d = new Date(now.getTime() + w * 7 * 864e5);
+    if (idx(d) > peak) { peak = idx(d); peakMonth = d; }
+  }
+  return { factor: peak / idx(now), month: peakMonth.toLocaleDateString(undefined, { month: "long" }) };
+}
+
+// Does a club need more trainers? Bookable capacity (the availability sheets: hours each trainer is
+// available × sessions per hour; else trainers × HIRING.trainerCapacity) against current bookings
+// (payroll sessions per week), projected HIRING.horizonWeeks ahead with member growth (net new
+// clients per week × sessions per new client) and the time of year. Null without bookings data.
 function hiringNeed(g) {
   const p = PAYROLL[g.brand]?.[g.name];
+  // An availability sheet with no hours for a club (yet sessions are booked) is incomplete: use the estimate.
+  const a = g.avail && g.avail.hours > 0 ? g.avail : null;
   if (!p) return null;
+  const perHour = 60 / HIRING.sessionMinutes, H = HIRING.horizonWeeks;
+  const capacity = a ? a.hours * perHour : p.trainers * HIRING.trainerCapacity;
+  const capSource = a ? "availability" : "estimate";
   const growth = weeklyClientGrowth(g);
-  const capacity = p.trainers * HIRING.trainerCapacity;
-  const util = capacity ? p.sessionsPerWeek / capacity : Infinity;
   const addedPerWeek = growth != null && growth > 0 ? growth * HIRING.sessionsPerNewClient : 0;
-  const spare = capacity - p.sessionsPerWeek;
-  const weeksToFull = spare <= 0 ? 0 : addedPerWeek > 0 ? spare / addedPerWeek : Infinity;
+  const season = seasonFactor(H);
+  const projected = (p.sessionsPerWeek + addedPerWeek * H) * season.factor;
+  const util = capacity ? p.sessionsPerWeek / capacity : Infinity;
+  const projUtil = capacity ? projected / capacity : Infinity;
+  // Weeks until bookings (with the seasonal lift) reach the target share of capacity.
+  const spare = capacity * HIRING.targetUtilization - p.sessionsPerWeek * season.factor;
+  const weeksToFull = spare <= 0 ? 0 : addedPerWeek > 0 ? spare / (addedPerWeek * season.factor) : Infinity;
   let level = "Low";
-  if (!p.trainers || util >= HIRING.highUtilization || weeksToFull <= HIRING.highWeeks) level = "High";
-  else if (util >= HIRING.mediumUtilization || weeksToFull <= HIRING.mediumWeeks) level = "Medium";
-  // Extra trainers needed to bring the load projected 8 weeks out back under capacity.
-  const projected = p.sessionsPerWeek + addedPerWeek * 8;
-  const extra = Math.max(0, Math.ceil(projected / HIRING.trainerCapacity - p.trainers));
-  return { level, util, growth, weeksToFull, extra, ...p };
+  if (!capacity || projUtil >= HIRING.highUtilization || weeksToFull <= HIRING.highWeeks) level = "High";
+  else if (projUtil >= HIRING.mediumUtilization || weeksToFull <= HIRING.mediumWeeks) level = "Medium";
+  // Trainers to add (each bringing the club's average availability) to get the projection back under target.
+  const perTrainer = a && a.trainers ? (a.hours / a.trainers) * perHour : HIRING.trainerCapacity;
+  const extra = Math.max(0, Math.ceil((projected / HIRING.targetUtilization - capacity) / perTrainer));
+  return { level, util, projUtil, projected, capacity, capSource, growth, addedPerWeek, season, weeksToFull, extra, perTrainer, avail: a, ...p };
+}
+
+// ---------- Trainer availability ----------
+// AVAILABILITY_SHEETS (data.js): each trainer's available hours per day; summed per gym into g.avail.
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+async function loadAvailability() {
+  GYMS.forEach((g) => (g.avail = null));
+  const unmatched = new Set();
+  const results = await Promise.allSettled(Object.entries(AVAILABILITY_SHEETS).map(async ([brand, id]) => {
+    const [header, ...rows] = await fetchTab(id, "Availability", 1);
+    const h = header.map((x) => norm(x));
+    const col = (name) => h.indexOf(name);
+    const C = { loc: col("location"), trainer: col("trainer"), role: col("role"), total: h.findIndex((x) => /weekly hours/.test(x)), days: DAYS.map((d) => col(d.toLowerCase())) };
+    rows.forEach((r) => {
+      const loc = (r[C.loc] || "").trim();
+      if (!loc || !(r[C.trainer] || "").trim()) return;
+      const g = adoptionGym(brand, AVAILABILITY_ALIASES[norm(loc)] || loc) || GYMS.find((x) => x.brand === brand && (norm(x.label || "") === norm(loc) || norm(x.name).includes(norm(loc))));
+      if (!g) { unmatched.add(`${loc} (${brand})`); return; }
+      const a = (g.avail ||= { hours: 0, trainers: 0, byDay: DAYS.map(() => 0) });
+      const byDay = C.days.map((i) => (i >= 0 ? parseNum(r[i]) || 0 : 0));
+      a.hours += C.total >= 0 ? parseNum(r[C.total]) || byDay.reduce((s, x) => s + x, 0) : byDay.reduce((s, x) => s + x, 0);
+      a.trainers++;
+      byDay.forEach((x, i) => (a.byDay[i] += x));
+    });
+  }));
+  if (unmatched.size) console.warn("Availability rows with an unrecognized club:", [...unmatched]);
+  const failed = results.filter((r) => r.status === "rejected");
+  failed.forEach((r) => console.error(r.reason));
+  return failed.length ? failed[0].reason.message : "";
 }
 const HIRE_COLORS = { High: "#d62828", Medium: "#f0aa1e", Low: "#2a9d4b" };
 const hireBadge = (h) => (h ? `<span class="hire ${h.level.toLowerCase()}">${h.level}</span>` : `<span class="muted">—</span>`);
@@ -261,18 +312,24 @@ function gymPopup(g) {
 
   const h = hiringNeed(g);
   const fmtWeeks = (w) => (w === 0 ? "already at capacity" : w === Infinity ? "not on current growth" : `in ~${Math.round(w)} week${Math.round(w) === 1 ? "" : "s"}`);
+  const av = g.avail;
+  const availHtml = av
+    ? `<div class="muted">Available hours by day: ${DAYS.map((d, i) => `${d} ${Math.round(av.byDay[i] * 10) / 10}`).join(" · ")}</div>` : "";
   const hireHtml = h
-    ? `<div class="section-title">Need for a new trainer ${hireBadge(h)}</div>
+    ? `<div class="section-title">Need for more trainers ${hireBadge(h)}</div>
        <table class="stats">
-         <tr><td>Trainers running sessions</td><td class="num">${h.trainers}</td></tr>
-         <tr><td>Sessions / week</td><td class="num">${h.sessionsPerWeek.toLocaleString()}</td></tr>
-         <tr><td>Capacity used <span class="muted">(${HIRING.trainerCapacity}/trainer)</span></td><td class="num">${h.util === Infinity ? "—" : pct0(h.util)}</td></tr>
-         <tr><td>Net new clients / week</td><td class="num">${h.growth == null ? "—" : (h.growth > 0 ? "+" : "") + h.growth.toFixed(1)}</td></tr>
-         <tr><td>Fills capacity</td><td class="num">${fmtWeeks(h.weeksToFull)}</td></tr>
-         ${h.extra ? `<tr><td>Suggested extra trainers <span class="muted">(8-wk outlook)</span></td><td class="num"><b>+${h.extra}</b></td></tr>` : ""}
+         <tr><td>Bookable capacity <span class="muted">(${h.capSource === "availability" ? `${av.trainers} trainers, ${Math.round(av.hours)} hrs/wk available` : `${h.trainers} trainers × ${HIRING.trainerCapacity}, ${av ? "availability sheet shows 0 hrs" : "not on an availability sheet"}`})</span></td><td class="num">${Math.round(h.capacity).toLocaleString()} sessions/wk</td></tr>
+         <tr><td>Booked now <span class="muted">(payroll)</span></td><td class="num">${h.sessionsPerWeek.toLocaleString()} sessions/wk</td></tr>
+         <tr><td>Capacity used now</td><td class="num">${h.util === Infinity ? "—" : pct0(h.util)}</td></tr>
+         <tr><td>Member growth <span class="muted">(net new clients/wk)</span></td><td class="num">${h.growth == null ? "—" : (h.growth > 0 ? "+" : "") + h.growth.toFixed(1)}</td></tr>
+         <tr><td>Time of year <span class="muted">(${esc(h.season.month)} vs now)</span></td><td class="num">${h.season.factor === 1 ? "no change" : `${h.season.factor > 1 ? "+" : ""}${Math.round((h.season.factor - 1) * 100)}%`}</td></tr>
+         <tr><td>Projected in ${HIRING.horizonWeeks} weeks</td><td class="num"><b>${h.projUtil === Infinity ? "—" : pct0(h.projUtil)}</b> of capacity</td></tr>
+         <tr><td>Reaches ${pct0(HIRING.targetUtilization)} full</td><td class="num">${fmtWeeks(h.weeksToFull)}</td></tr>
+         ${h.extra ? `<tr><td>Suggested extra trainers <span class="muted">(~${Math.round(h.perTrainer / (60 / HIRING.sessionMinutes))} hrs/wk each)</span></td><td class="num"><b>+${h.extra}</b></td></tr>` : ""}
        </table>
-       <div class="muted">Payroll ${esc(PAYROLL_PERIOD)} · busiest trainer ${h.maxTrainerLoad} sessions/wk</div>`
-    : `<div class="section-title">Need for a new trainer</div><div class="muted">No payroll data for this club.</div>`;
+       ${availHtml}
+       <div class="muted">Bookings from payroll ${esc(PAYROLL_PERIOD)} · busiest trainer ${h.maxTrainerLoad} sessions/wk</div>`
+    : `<div class="section-title">Need for more trainers</div><div class="muted">No bookings (payroll) data for this club yet.</div>${availHtml}`;
 
   const ad = adoptionPct(g);
   const o = CLUB_APP && CLUB_APP[`${g.brand}|${g.name}`];
@@ -385,7 +442,7 @@ const TABLE_COLS = [
   { key: "billing", label: "Billing", get: (g) => latest(g, "billing").value },
   { key: "staff", label: "PT/FM/AFM", get: (g) => staffTotal(g) },
   { key: "clientApp", label: "Client app", get: (g) => adoptionPct(g).client },
-  { key: "hire", label: "Hire need", get: (g) => { const h = hiringNeed(g); return h ? { High: 3, Medium: 2, Low: 1 }[h.level] + Math.min(h.util, 5) / 10 : null; } },
+  { key: "hire", label: "Hire need", get: (g) => { const h = hiringNeed(g); return h ? { High: 3, Medium: 2, Low: 1 }[h.level] + Math.min(h.projUtil, 5) / 10 : null; } },
 ];
 
 function renderTable() {
@@ -730,12 +787,14 @@ document.addEventListener("viewchange", (e) => { if (e.detail === "map") { map.i
 async function refresh() {
   $("refreshBtn").disabled = true;
   $("dataStatus").textContent = "Loading stats and candidates from Google Sheets…";
-  const [statsErr, candErr, adoptErr] = await Promise.all([
+  const [statsErr, candErr, adoptErr, availErr] = await Promise.all([
     loadStats().catch((e) => e.message),
     loadCandidates((msg) => ($("dataStatus").textContent = msg)).catch((e) => e.message),
     loadAdoption().catch((e) => e.message),
+    loadAvailability().catch((e) => e.message),
   ]);
-  const errs = [statsErr && `Stats: ${statsErr}`, candErr && `Candidates: ${candErr}`, adoptErr && `App adoption: ${adoptErr}`].filter(Boolean);
+  const errs = [statsErr && `Stats: ${statsErr}`, candErr && `Candidates: ${candErr}`, adoptErr && `App adoption: ${adoptErr}`,
+    availErr && `Trainer availability: ${availErr}`].filter(Boolean);
   $("dataStatus").textContent = errs.length
     ? `⚠ ${errs.join(" · ")}`
     : `Live from Google Sheets · updated ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
