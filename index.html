@@ -18,7 +18,22 @@
   <button type="button" role="tab" class="tab" data-view="gyms" aria-selected="false">Gym stats</button>
   <button type="button" role="tab" class="tab" data-view="trainers" aria-selected="false">Trainer stats</button>
   <button type="button" role="tab" class="tab" data-view="rates" aria-selected="false">Rates <span aria-hidden="true">🔒</span></button>
+  <button type="button" id="fullReportBtn" class="full-report-btn" title="Needs action, big improvements and the top &amp; bottom 5 trainers and clubs">Full report</button>
 </nav>
+
+<dialog id="fullReportDialog" class="chart-dialog report-dialog" aria-labelledby="frTitle">
+  <div class="dlg-head">
+    <div><h2 id="frTitle">Full report</h2><p class="sub" id="frSub"></p></div>
+    <div class="card-tools no-print">
+      <button type="button" id="frPrint" class="btn-secondary">Print / save as PDF</button>
+      <button type="button" id="frCsv" class="btn-secondary">Download CSV</button>
+      <button type="button" id="frEmail" class="btn-secondary" title="Send it to the people set up for reports">Email it</button>
+      <button type="button" id="frClose" class="btn-secondary">Close</button>
+    </div>
+  </div>
+  <p id="frStatus" class="status" role="status"></p>
+  <div id="frBody" class="full-report"></div>
+</dialog>
 
 <div id="view-map" class="view">
 <aside id="panel">

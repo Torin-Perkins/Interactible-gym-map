@@ -135,6 +135,9 @@ with no clients yet aren't ranked on the KPIs. **Print / save as PDF**, **Downlo
 CSV attached) through the tracker's Apps Script, only to the addresses in its `REPORT_EMAILS` script property
 (see apps-script/README.md); it needs the edit key.
 
+**Full report** (top right of the header, on every tab) opens the same report as the weekly email from the current
+data, with Print / save as PDF, Download CSV and Email it (to the `REPORT_EMAILS` addresses).
+
 **Weekly email.** Every Monday at 11:00 Pacific, `.github/workflows/weekly-report.yml` opens the live site in a
 headless browser and emails, to the same `REPORT_EMAILS` addresses:
 - **⚠ Needs action**: clubs that need more trainers (the map's High rating, Medium ones to watch) and trainers
@@ -156,7 +159,8 @@ sheet. A billing health export (CSV) dropped into a **Billing Health** Drive fol
 ### KPI trends and trainer graphs
 **Gym stats** has a chart per KPI (clients, lost sheep, lost sheep %, late amounts, billing health). With no
 filter it shows one line per brand; the Company / Region / Club filters narrow it to one line for that scope
-(counts summed, billing health client-weighted, lost sheep % recomputed from each club's own base). A Range picker
+(counts summed, billing health client-weighted, lost sheep % recomputed from each club's own base; the percentage charts go back to the first report,
+the count charts start where nearly every club in the scope reports). A Range picker
 and a Table view are next to it. On **Trainer stats**, each trainer's **Graph** button compares them with their
 club's and brand's trainer averages (lost sheep, billing health, unlogged sessions, app adoption and completion).
 
