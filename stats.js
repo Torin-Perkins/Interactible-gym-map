@@ -952,8 +952,20 @@ function scopeSeries(clubs, metric) {
     });
   });
   if (!clubsWith) return [];
-  return [...byDate.entries()].sort((a, b) => a[0] - b[0])
-    .filter(([, x]) => x.n >= Math.ceil(clubsWith * 0.9))
+  // Counts need (nearly) every club, or clubs added later make the total jump. A percentage doesn't
+  // jump when clubs are added, so for those every report date counts back to when the data began, as
+  // long as at least 90% of the clubs that reported in the 2 weeks before it reported (a date only a
+  // few clubs have reached yet would be noisy).
+  const pct = (METRICS.find((m) => m.key === metric) || {}).pct;
+  const dates = [...byDate.entries()].sort((a, b) => a[0] - b[0]);
+  const enough = (i) => {
+    const [d, x] = dates[i];
+    if (!pct) return x.n >= Math.ceil(clubsWith * 0.9);
+    let recent = x.n;
+    for (let j = i - 1; j >= 0 && d - dates[j][0] <= 14 * 864e5; j--) recent = Math.max(recent, dates[j][1].n);
+    return x.n >= Math.ceil(recent * 0.9);
+  };
+  return dates.filter((_, i) => enough(i))
     .map(([d, x]) => {
       let v = x.sum;
       if (metric === "lostPct") v = x.base ? (x.lost / x.base) * 100 : x.sum / x.n;
@@ -990,7 +1002,7 @@ function olderNote(clubs, f) {
     const plotted = scopeSeries(cs, "clients");
     if (!plotted.length || first(cs) >= +plotted[0].date) return "";
     const early = cs.filter((c) => (c.kpi.clients || []).some((p) => +p.date < +plotted[0].date));
-    return ` ${co} reports before ${fmtDate(plotted[0].date)} cover only ${early.length} of ${cs.length} clubs, so the combined line starts there. Pick ${f.region ? "a club" : "a region or club"} to see the earlier reports.`;
+    return ` ${co} reports before ${fmtDate(plotted[0].date)} cover only ${early.length} of ${cs.length} clubs, so its count charts (clients, lost sheep, late amounts) start there; the percentage charts go back to the first report. Pick ${f.region ? "a club" : "a region or club"} to see every count.`;
   });
   return notes.join("");
 }

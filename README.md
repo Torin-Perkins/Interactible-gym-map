@@ -156,7 +156,8 @@ sheet. A billing health export (CSV) dropped into a **Billing Health** Drive fol
 ### KPI trends and trainer graphs
 **Gym stats** has a chart per KPI (clients, lost sheep, lost sheep %, late amounts, billing health). With no
 filter it shows one line per brand; the Company / Region / Club filters narrow it to one line for that scope
-(counts summed, billing health client-weighted, lost sheep % recomputed from each club's own base). A Range picker
+(counts summed, billing health client-weighted, lost sheep % recomputed from each club's own base; the percentage charts go back to the first report,
+the count charts start where nearly every club in the scope reports). A Range picker
 and a Table view are next to it. On **Trainer stats**, each trainer's **Graph** button compares them with their
 club's and brand's trainer averages (lost sheep, billing health, unlogged sessions, app adoption and completion).
 
