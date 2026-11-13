@@ -490,3 +490,12 @@ input[type=search], select, .cell-input { border-radius: 3px; }
 .chip, .role-tag, .rank-head { font-family: var(--font-label); letter-spacing: .08em; text-transform: uppercase; }
 .na-head b { font: 900 20px/1 var(--font-head); text-transform: uppercase; letter-spacing: .01em; }
 .na-pill { background: var(--red); }
+
+/* Full report button (top right of the header) and its pop-up */
+#tabs .full-report-btn { margin-left: auto; align-self: center; flex: none; background: var(--red); color: #fff;
+  font: 700 14px/1 var(--font-label); text-transform: uppercase; letter-spacing: .1em; padding: 10px 16px; border-radius: 3px; }
+#tabs .full-report-btn:hover { background: #b51f1f; }
+.full-report { margin-top: 10px; max-width: 800px; }
+#frStatus.bad { color: var(--bad); }
+:root[data-theme="dark"] .full-report, :root[data-theme="dark"] #printReport { background: #fff; color: #1d2330; border-radius: 4px; padding: 12px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .full-report { background: #fff; color: #1d2330; border-radius: 4px; padding: 12px; } }

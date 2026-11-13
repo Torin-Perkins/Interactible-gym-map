@@ -135,6 +135,9 @@ with no clients yet aren't ranked on the KPIs. **Print / save as PDF**, **Downlo
 CSV attached) through the tracker's Apps Script, only to the addresses in its `REPORT_EMAILS` script property
 (see apps-script/README.md); it needs the edit key.
 
+**Full report** (top right of the header, on every tab) opens the same report as the weekly email from the current
+data, with Print / save as PDF, Download CSV and Email it (to the `REPORT_EMAILS` addresses).
+
 **Weekly email.** Every Monday at 11:00 Pacific, `.github/workflows/weekly-report.yml` opens the live site in a
 headless browser and emails, to the same `REPORT_EMAILS` addresses:
 - **⚠ Needs action**: clubs that need more trainers (the map's High rating, Medium ones to watch) and trainers

@@ -1595,10 +1595,9 @@ async function postReportEmail(email, key, by) {
 // The weekly email (.github/workflows/weekly-report.yml runs this in a headless browser on the live
 // site every Monday): both reports for all brands in one email, one CSV. Refuses to send if a data
 // source failed to load, so nobody gets a half-empty report.
-window.sendWeeklyReport = async ({ key = "", by = "Weekly report", build = false } = {}) => {
-  if (!MODEL) throw new Error("data hasn't loaded");
-  const bad = Object.entries(MODEL.data.status || {}).filter(([k, s]) => !s.ok && ["staff", "kpis"].includes(k)).map(([k]) => k);
-  if (bad.length) throw new Error(`not sending: ${bad.join(", ")} failed to load`);
+// The full report, all brands: needs action, big improvements, then both top & bottom 5 reports.
+// Used by the weekly email and the "Full report" button. Inline styles so it works in email too.
+function buildFullReport() {
   const all = { company: "", region: "", club: "" };
   const reports = [buildReport("trainers", all), buildReport("clubs", all)];
   const date = reports[0].date;
@@ -1606,10 +1605,85 @@ window.sendWeeklyReport = async ({ key = "", by = "Weekly report", build = false
   const hr = '<hr style="border:0;border-top:2px solid #e4e7ec;margin:20px 0">';
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;color:#1d2330;font-size:13px;margin-bottom:12px">Weekly report for ${esc(day)}: what needs action, big improvements, then the top &amp; bottom 5 trainers and clubs. The CSV has the top &amp; bottom 5.</div>`
     + actionEmailHtml() + hr + reports.map((R) => reportEmailHtml(R)).join(hr);
-  const email = { subject: `Weekly report · needs action, improvements, top & bottom 5 · ${day}`, html, csv: reportCsv(reports),
+  return { day, date, subject: `Weekly report · needs action, improvements, top & bottom 5 · ${day}`, html, csv: reportCsv(reports),
     filename: `weekly-top-bottom-5-${date.toISOString().slice(0, 10)}.csv` };
+}
+
+window.sendWeeklyReport = async ({ key = "", by = "Weekly report", build = false } = {}) => {
+  if (!MODEL) throw new Error("data hasn't loaded");
+  const bad = Object.entries(MODEL.data.status || {}).filter(([k, s]) => !s.ok && ["staff", "kpis"].includes(k)).map(([k]) => k);
+  if (bad.length) throw new Error(`not sending: ${bad.join(", ")} failed to load`);
+  const R = buildFullReport();
+  const email = { subject: R.subject, html: R.html, csv: R.csv, filename: R.filename };
   if (build) return { url: TRACKER_DB.url, email }; // the weekly job sends it itself (so it can log errors)
   return postReportEmail(email, key, by);
+};
+
+// ---------- Full report button (top right) ----------
+let FULL_REPORT = null;
+const frStatus = (text, bad) => { $("frStatus").textContent = text; $("frStatus").classList.toggle("bad", !!bad); };
+$("fullReportBtn").onclick = () => {
+  const dlg = $("fullReportDialog");
+  frStatus("");
+  if (!MODEL) {
+    $("frSub").textContent = "";
+    $("frBody").innerHTML = `<p class="chart-empty">The data is still loading. Try again in a moment.</p>`;
+  } else {
+    FULL_REPORT = buildFullReport();
+    $("frSub").textContent = `All brands · ${FULL_REPORT.day}`
+      + (typeof window.clubNeeds === "function" && window.mapDataReady ? "" : " · clubs that need trainers will appear once the map's data has loaded");
+    $("frBody").innerHTML = FULL_REPORT.html;
+  }
+  if (!dlg.open) dlg.showModal();
+};
+$("frClose").onclick = () => $("fullReportDialog").close();
+$("fullReportDialog").addEventListener("click", (e) => { if (e.target === $("fullReportDialog")) $("fullReportDialog").close(); });
+$("fullReportDialog").addEventListener("close", endPrintReport);
+$("frPrint").onclick = () => {
+  if (!FULL_REPORT) return;
+  endPrintReport();
+  const el = document.createElement("div");
+  el.id = "printReport";
+  el.innerHTML = `<h2>Full report</h2><p class="sub">${esc($("frSub").textContent)}</p>${FULL_REPORT.html}`;
+  document.body.appendChild(el);
+  document.body.classList.add("print-report");
+  window.print();
+};
+$("frCsv").onclick = () => {
+  if (!FULL_REPORT) return;
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([FULL_REPORT.csv], { type: "text/csv" }));
+  a.download = FULL_REPORT.filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+$("frEmail").onclick = async () => {
+  if (!FULL_REPORT) return;
+  if (!TRACKER_DB.url) return frStatus("Emailing needs the shared tracker (TRACKER_DB.url in data.js).", true);
+  const btn = $("frEmail");
+  btn.disabled = true;
+  try {
+    frStatus("Checking who reports go to…");
+    const info = await (await fetch(`${TRACKER_DB.url}?email=1`, { credentials: "omit" })).json();
+    if (!info.recipients) throw new Error("no one is set up to get reports yet: add REPORT_EMAILS in the Apps Script's script properties");
+    if (!confirm(`Email the full report to the ${info.recipients} ${info.recipients === 1 ? "person" : "people"} set up for reports?`)) return frStatus("");
+    const email = { subject: FULL_REPORT.subject, html: FULL_REPORT.html, csv: FULL_REPORT.csv, filename: FULL_REPORT.filename };
+    frStatus("Sending…");
+    let res = await postReportEmail(email, pref("trackerEditKey"), pref("trackerName"));
+    if (!res.ok && res.error === "bad key") {
+      const key = prompt("Enter the edit key to send reports:", "");
+      if (key == null) return frStatus("Not sent.", true);
+      pref("trackerEditKey", key.trim());
+      res = await postReportEmail(email, key.trim(), pref("trackerName"));
+    }
+    if (!res.ok) throw new Error(res.error === "bad key" ? "that edit key didn't work" : res.error);
+    frStatus(`Sent to ${res.sent} ${res.sent === 1 ? "person" : "people"} at ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`);
+  } catch (err) {
+    console.error(err);
+    frStatus(`Couldn't send the report: ${err.message}`, true);
+  } finally {
+    btn.disabled = false;
+  }
 };
 
 function rpStatus(text, bad) {
