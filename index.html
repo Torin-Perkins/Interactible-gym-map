@@ -18,6 +18,7 @@
   <button type="button" role="tab" class="tab" data-view="gyms" aria-selected="false">Gym stats</button>
   <button type="button" role="tab" class="tab" data-view="trainers" aria-selected="false">Trainer stats</button>
   <button type="button" role="tab" class="tab" data-view="rates" aria-selected="false">Rates <span aria-hidden="true">🔒</span></button>
+  <button type="button" role="tab" class="tab" data-view="shepherd" aria-selected="false">Shepherd</button>
   <button type="button" id="fullReportBtn" class="full-report-btn" title="Needs action, big improvements and the top &amp; bottom 5 trainers and clubs">Full report</button>
 </nav>
 
@@ -223,6 +224,42 @@
   </div>
 </div>
 
+<div id="view-shepherd" class="view" hidden>
+  <div class="stats-wrap sh-wrap">
+    <header class="stats-head">
+      <div>
+        <h1>Shepherd</h1>
+        <p class="sub">Win back your club's lost sheep: the ones most likely to come back first, with a text ready to send. <span id="shSub"></span></p>
+      </div>
+    </header>
+    <p id="shStatus" class="status" role="status"></p>
+
+    <section class="card sh-signin" id="shSignIn">
+      <h2>Sign in</h2>
+      <form id="shSignInForm" autocomplete="off">
+        <label class="field">Your name <input id="shName" type="text" autocomplete="name" placeholder="First and last name" required></label>
+        <label class="field">Club <select id="shClub" required></select></label>
+        <label class="field">Club code <input id="shCode" type="password" autocomplete="off" placeholder="e.g. K7QF-3MXA" required></label>
+        <button type="submit" id="shOpenBtn">Open my club</button>
+      </form>
+      <p class="hint">Your manager has your club's code. Texts open in your phone's Messages app and send from your number, signed with your name.</p>
+    </section>
+
+    <section id="shApp" hidden>
+      <div class="sh-bar">
+        <span id="shWho" class="sub"></span>
+        <button type="button" id="shSwitch" class="link">Switch club</button>
+      </div>
+      <div class="sh-tools">
+        <div id="shFilters" class="ta-cats"></div>
+        <input id="shSearch" type="search" placeholder="Search a name">
+        <label class="check sh-optout"><input type="checkbox" id="shOptOut"> Add "Reply STOP to opt out"</label>
+      </div>
+      <div id="shList" class="sh-list"></div>
+    </section>
+  </div>
+</div>
+
 <div id="view-rates" class="view" hidden>
   <div class="stats-wrap">
     <header class="stats-head">
@@ -252,6 +289,7 @@
           <button id="rExport" type="button" class="btn-secondary">Export CSV</button>
           <label class="btn-secondary">Import CSV<input id="rImport" type="file" accept=".csv,text/csv" hidden></label>
           <button id="rContacts" type="button" class="btn-secondary" title="Email and phone numbers of all active staff, from the staff lists">Download staff contacts</button>
+          <button id="rShepherdCodes" type="button" class="btn-secondary" title="Each club's code for the Shepherd tab">Shepherd club codes</button>
           <button id="rChangePw" type="button" class="btn-secondary">Change password</button>
           <button id="rLock" type="button" class="btn-secondary">Lock</button>
         </div>
@@ -324,5 +362,6 @@
 <script src="charts.js"></script>
 <script src="stats.js"></script>
 <script src="rates.js"></script>
+<script src="shepherd.js"></script>
 </body>
 </html>

@@ -96,6 +96,9 @@ def iso_date(v):
         return v.strftime("%Y-%m-%d")
     if isinstance(v, (int, float)) and 20000 < v < 80000:
         return (datetime(1899, 12, 30) + timedelta(days=float(v))).strftime("%Y-%m-%d")
+    m = re.match(r"(\d{4})-(\d{2})-(\d{2})", text(v))  # "2026-09-02 00:00:00"
+    if m:
+        return m.group(0)
     m = re.match(r"(\d{1,2})/(\d{1,2})/(\d{4})", text(v))
     return f"{m.group(3)}-{int(m.group(1)):02d}-{int(m.group(2)):02d}" if m else ""
 
@@ -174,21 +177,38 @@ def read_unlogged(f):
     return {"file": f["name"], "period": m.group(1) if m else re.sub(r"\.\w+$", "", f["name"]), "rows": out}
 
 
-def read_lost_sheep(f):
+def read_lost_sheep(f, members=None):
     """Lost sheep report: one row per member without a completed booking in the report window.
     A lost sheep belongs to the trainer of their last session ("Last Booking With"). The report is
-    full of client contact details, so only per-trainer counts are kept."""
+    full of client contact details, so only per-trainer counts go into drive-data.json. When
+    `members` is a list (Shepherd), each member's outreach details are added to it; those are only
+    ever written encrypted (see write_shepherd)."""
     sheets = read_workbook(f["id"], f["name"])
     rows = next(iter(sheets.values()))
     hi, h = header_index(rows, "last booking with")
     if hi is None:
         return None
     c = {k: h.index(k) for k in ("location name", "user id", "last booking with")}
+    col = lambda k: h.index(k) if k in h else None
     counts, total, no_booking = {}, 0, 0
     for r in rows[hi + 1:]:
         loc = text(r[c["location name"]])
         if not text(r[c["user id"]]) or re.search(r" - demo$", loc, re.I):  # Demo = test logins
             continue
+        if members is not None:
+            g = lambda k: text(r[col(k)]) if col(k) is not None else ""
+            phone = re.sub(r"\D", "", g("cell phone") or g("phone"))
+            members.append({
+                "location": loc, "id": g("user id"), "name": g("member name"), "phone": phone[-10:] if len(phone) >= 10 else "",
+                "status": g("membership status"), "eft": g("active eft?").lower().startswith("y"),
+                "sessions": int(number(g("sessions remaining"))), "lastBooking": iso_date(r[col("last booking")]) if col("last booking") is not None else "",
+                "lastWith": g("last booking with"), "noShows": int(number(g("no show count"))),
+                "frozen": g("frozen").lower().startswith("y"), "freezeEnds": iso_date(r[col("freeze ends")]) if col("freeze ends") is not None else "",
+                "expires": iso_date(r[col("membership expiration")]) if col("membership expiration") is not None else "",
+                "lastContact": iso_date(r[col("last contact date")]) if col("last contact date") is not None else "",
+                "contactedBy": g("contacted by"), "contactType": g("contact type"), "cancelReason": g("cancel reason"),
+                "type": g("membership type"),
+            })
         total += 1
         trainer = text(r[c["last booking with"]])
         if not trainer:
@@ -317,6 +337,47 @@ def newest_staff_lists(files):
     return set(id(f) for f in best.values())
 
 
+def shepherd_code(password, key):
+    """A club's Shepherd code ("K7QF-3MXA"): derived from the rates password, so it needs no setup of
+    its own, stays the same between builds, and changes when the rates password changes."""
+    import hashlib
+    import hmac
+    raw = base64.b32encode(hmac.new(password.encode(), f"shepherd:{key}".encode(), hashlib.sha256).digest()).decode()
+    code = raw.replace("O", "8").replace("I", "9")[:8]  # no O/0 or I/1 mix-ups when typing
+    return f"{code[:4]}-{code[4:]}"
+
+
+def write_shepherd(reports, password, generated, out_dir):
+    """shepherd.json: each club's lost sheep (names, cell numbers and outreach details, no email or
+    address), encrypted with that club's code, plus the list of club codes encrypted with the rates
+    password (shown on the unlocked Rates page). The newest report per brand is used."""
+    def end_date(title):
+        m = re.findall(r"(\d{1,2})/(\d{1,2})/(\d{4})", title)
+        return (int(m[-1][2]), int(m[-1][0]), int(m[-1][1])) if m else (0, 0, 0)
+    newest = {}
+    for rep in reports:
+        co = company_of(rep["title"] + " " + (rep["members"][0]["location"] if rep["members"] else ""))
+        if co not in newest or end_date(rep["title"]) > end_date(newest[co]["title"]):
+            newest[co] = rep
+    by_club = {}
+    for co, rep in newest.items():
+        rng = re.search(r"from (.+)$", rep["title"])
+        for m in rep["members"]:
+            club = re.sub(r"^.*?(fitness|connection|10gym)\s*-\s*", "", m["location"], flags=re.I).strip() or m["location"]
+            key = f"{company_of(m['location'])}|{club}"
+            c = by_club.setdefault(key, {"key": key, "company": company_of(m["location"]), "club": club,
+                                         "range": rng.group(1).strip() if rng else "", "members": []})
+            c["members"].append({k: v for k, v in m.items() if k != "location"})
+    codes = {key: shepherd_code(password, key) for key in by_club}
+    clubs = [{"key": c["key"], "company": c["company"], "club": c["club"], "count": len(c["members"]),
+              "blob": encrypt_for_page({"range": c["range"], "members": c["members"]}, codes[c["key"]].replace("-", ""))}
+             for c in sorted(by_club.values(), key=lambda c: (c["company"], c["club"]))]
+    out = os.path.join(out_dir, "shepherd.json")
+    with open(out, "w", encoding="utf-8") as fh:
+        json.dump({"generated": generated, "clubs": clubs, "codes": encrypt_for_page(codes, password)}, fh)
+    print(f"Wrote {out}: {sum(c['count'] for c in clubs)} lost sheep in {len(clubs)} clubs (encrypted per club)")
+
+
 def main():
     if len(sys.argv) > 2 and sys.argv[1] == "--app-clients":
         with open(sys.argv[2], encoding="utf-8-sig") as fh:
@@ -333,6 +394,7 @@ def main():
     # Staff contact details, only when the rates password is set (RATES_PASSWORD, a GitHub secret).
     password = os.environ.get("RATES_PASSWORD", "")
     contacts = [] if password else None
+    shepherd_reports = []  # lost sheep with contact details, for Shepherd (only with the password)
     for f in files:
         if f["kind"] != "file":
             continue
@@ -361,9 +423,12 @@ def main():
             elif re.search(r"billing health", f["folder"], re.I) and f["name"].lower().endswith(".csv"):
                 billing_files.append(f)
             elif re.search(r"lost sheep", f["folder"], re.I):
-                ls = read_lost_sheep(f)
+                members = [] if password else None
+                ls = read_lost_sheep(f, members)
                 if ls:
                     lost_sheep.append(ls)
+                    if members:
+                        shepherd_reports.append({"title": ls["title"], "members": members})
         except Exception as e:  # keep going; the page shows what failed
             errors.append(f"{f['name']}: {e}")
             print("ERROR", f["name"], e, file=sys.stderr)
@@ -402,6 +467,8 @@ def main():
         with open(contacts_out, "w", encoding="utf-8") as fh:
             json.dump(encrypt_for_page(payload, password), fh)
         print(f"Wrote {contacts_out}: {len(contacts)} staff contacts (encrypted)")
+    if password and shepherd_reports:
+        write_shepherd(shepherd_reports, password, data["generated"], os.path.dirname(os.path.abspath(out)))
     print(f"Wrote {out}: {len(staff)} staff, {len(unlogged)} payroll comparisons, "
           f"{len(lost_sheep)} lost sheep reports, {len(errors)} errors")
 

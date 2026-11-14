@@ -38,8 +38,9 @@ jobs:
       - name: Collect site files
         run: |
           mkdir _site
-          cp index.html style.css data.js sources.js app.js charts.js stats.js rates.js usapt-logo.png drive-data.json _site/
+          cp index.html style.css data.js sources.js app.js charts.js stats.js rates.js shepherd.js usapt-logo.png drive-data.json _site/
           if [ -f contacts.enc.json ]; then cp contacts.enc.json _site/; fi
+          if [ -f shepherd.json ]; then cp shepherd.json _site/; fi
           # Version the site's own scripts and styles so browsers load this deploy's files, not cached ones.
           sed -i -E "s#(src|href)=\"([a-z]+\.(js|css))\"#\1=\"\2?v=${GITHUB_SHA::8}\"#g" _site/index.html
       - uses: actions/configure-pages@v5

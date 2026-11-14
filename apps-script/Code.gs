@@ -35,6 +35,7 @@ const RATES_HEADERS = ["Saved", "Saved by", "Encrypted rates"];
 function doGet(e) {
   if (e && e.parameter && e.parameter.rates) return json_({ ok: true, rates: latestRates_() });
   if (e && e.parameter && e.parameter.email) return json_({ ok: true, recipients: reportRecipients_().length });
+  if (e && e.parameter && e.parameter.shepherd) return json_({ ok: true, log: shepherdLog_(String(e.parameter.shepherd)) });
   const sheet = getSheet_();
   const rows = sheet.getDataRange().getValues().slice(1);
   const records = rows.filter((r) => r[0] !== "").map((r) => ({
@@ -59,6 +60,8 @@ function doPost(e) {
   } catch (err) {
     return json_({ ok: false, error: "Bad request" });
   }
+  // Shepherd outreach log: trainers don't have the edit key, and it only records who texted which member.
+  if (body.shepherd) return json_(logShepherd_(body.shepherd));
   const key = PropertiesService.getScriptProperties().getProperty("EDIT_KEY");
   if (key && body.key !== key) return json_({ ok: false, error: "bad key" });
 
@@ -168,6 +171,45 @@ function saveRates_(rates, by) {
   const sheet = ratesSheet_();
   sheet.appendRow([new Date(), by, blob]);
   return { ok: true, version: sheet.getLastRow() };
+}
+
+// ---------- Shepherd outreach log ----------
+// One row per action in a "Shepherd" tab: when, club, member (ClubReady user ID), status, trainer,
+// channel. No phone numbers or messages are stored. The page shows each member's latest entry.
+const SHEPHERD_TAB = "Shepherd";
+const SHEPHERD_STATUSES = ["Texted", "Replied", "Booked", "Not interested", "Wrong number", "Clear"];
+function shepherdSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEPHERD_TAB);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEPHERD_TAB);
+    sheet.appendRow(["When", "Club", "Member ID", "Status", "By", "Channel"]);
+    sheet.setFrozenRows(1);
+    sheet.getRange("C:C").setNumberFormat("@");
+  }
+  return sheet;
+}
+function logShepherd_(s) {
+  const club = String(s.club || "").slice(0, 120), id = String(s.id || ""), status = String(s.status || "");
+  if (!club || !/^\d{1,20}$/.test(id) || SHEPHERD_STATUSES.indexOf(status) < 0) return { ok: false, error: "Bad request" };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    shepherdSheet_().appendRow([new Date(), club, id, status, String(s.by || "").slice(0, 60), String(s.channel || "").slice(0, 20)]);
+  } finally {
+    lock.releaseLock();
+  }
+  return { ok: true };
+}
+function shepherdLog_(club) {
+  const rows = shepherdSheet_().getDataRange().getValues().slice(1);
+  const latest = {};
+  rows.forEach((r) => {
+    if (String(r[1]) !== club) return;
+    latest[String(r[2])] = { id: String(r[2]), status: String(r[3]), by: String(r[4] || ""), channel: String(r[5] || ""),
+      at: r[0] instanceof Date ? r[0].toISOString() : String(r[0]) };
+  });
+  return Object.values(latest).filter((x) => x.status !== "Clear");
 }
 
 // REPORT_EMAILS script property: comma-separated addresses that reports go to.

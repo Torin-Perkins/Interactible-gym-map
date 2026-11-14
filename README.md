@@ -187,6 +187,30 @@ numbers from the newest staff list per brand. The deploy encrypts them into `con
 password; the page opens the file with the password typed to unlock it. After changing the Rates password, update
 the secret too. Without the secret, no contacts file is built.
 
+### Shepherd (win back lost sheep)
+The **Shepherd** tab is a simple outreach list for trainers. A trainer enters their name, picks their club and types
+the club's code, and sees that club's lost sheep (from the newest lost sheep report per brand), most likely to come
+back first:
+- **Ranking:** paid sessions they haven't used (the strongest sign), still paying by autopay, paid before (inactive
+  or expired), and a recent last session raise the score; no-shows, a cancellation and being contacted in the last
+  1–2 weeks lower it. Frozen memberships and members sent to collections are parked. Hot ≥ 70, Warm ≥ 40, else Cool.
+- **Texts:** each member gets a message for their situation (sessions waiting, lapsed, active but not training,
+  never started), signed with the trainer's name; edit it or Shuffle for another version. **Text** opens the phone's
+  Messages app with the number and message filled in, sent from the trainer's own phone. An optional
+  "Reply STOP to opt out" line can be added.
+- **Team log:** Text and the status menu (Replied, Booked, Not interested, Wrong number) are logged in a **Shepherd**
+  tab of the tracker sheet (member ID, status, trainer; no numbers or messages) so the team doesn't double-text. It
+  needs the current `Code.gs` deployed; it doesn't need the edit key.
+
+**Privacy:** the deploy writes `shepherd.json` with each club's members (name, cell number and outreach details; no
+email or address) encrypted with that club's code, so a code only opens its own club. Codes are derived from the
+`RATES_PASSWORD` secret (no extra setup; they change when it changes); managers download them with **Shepherd club
+codes** on the unlocked Rates page. Without the secret, Shepherd isn't built.
+
+**Later: a company number.** Sending from one business number (with replies in Shepherd) would go through Twilio or
+similar from the tracker's Apps Script: it needs US carrier registration (A2P 10DLC), opt-out handling and consent
+records. The log already records the channel, so it can be added alongside the phone texts.
+
 ## Publish on GitHub Pages
 1. Repo **Settings → Pages → Source: GitHub Actions**.
 2. `.github/workflows/deploy.yml` deploys on every push to `main`, every 3 hours (to pick up new Drive files),

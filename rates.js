@@ -282,6 +282,31 @@ $("rContacts").onclick = async () => {
   }
 };
 
+// ---------- Shepherd club codes ----------
+// shepherd.json carries every club's Shepherd code, encrypted with the rates password; managers
+// download them here to hand each club its code.
+$("rShepherdCodes").onclick = async () => {
+  try {
+    ratesSaveStatus("Opening Shepherd club codes…");
+    const res = await fetch(`shepherd.json?_=${Date.now()}`);
+    if (!res.ok) throw new Error("Shepherd isn't built yet: add the RATES_PASSWORD secret to the GitHub repo and redeploy");
+    const d = await res.json();
+    let codes;
+    try { codes = (await decryptRates(JSON.stringify(d.codes), ratesPw)).data; }
+    catch { throw new Error("the codes were made with a different password. Update the RATES_PASSWORD secret to the current rates password and redeploy"); }
+    const lines = ["Company,Club,Lost sheep,Shepherd code"].concat(d.clubs.map((c) => [c.company, c.club, c.count, codes[c.key] || ""].map(csvCell).join(",")));
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
+    a.download = "shepherd-club-codes.csv";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    ratesSaveStatus(`Downloaded the Shepherd codes for ${d.clubs.length} clubs. They change if the rates password changes.`);
+  } catch (err) {
+    console.error(err);
+    ratesSaveStatus(`Couldn't open the Shepherd codes: ${err.message}`, true);
+  }
+};
+
 // ---------- Table ----------
 const newRateId = () => Math.random().toString(36).slice(2, 10);
 const rateSortVal = (r, k) => (k === "rate" ? Number(r.rate) || 0 : String(r[k] || "").toLowerCase());
