@@ -174,20 +174,43 @@ function saveRates_(rates, by) {
 }
 
 // ---------- Shepherd outreach log ----------
-// One row per action in a "Shepherd" tab: when, club, member (ClubReady user ID), status, trainer,
+// Kept in its own spreadsheet, "Shepherd log", in the same Drive folder as the tracker (not a tab
+// of the tracker). One row per action: when, club, member (ClubReady user ID), status, trainer,
 // channel. No phone numbers or messages are stored. The page shows each member's latest entry.
-const SHEPHERD_TAB = "Shepherd";
+// The sheet is created on first use (or by running setupShepherdSheet once) and its ID is kept in
+// the SHEPHERD_SHEET_ID script property; set that property yourself to point at another sheet.
+const SHEPHERD_FILE = "Shepherd log";
+const SHEPHERD_TAB = "Log";
 const SHEPHERD_STATUSES = ["Texted", "Replied", "Booked", "Not interested", "Wrong number", "Clear"];
 function shepherdSheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName(SHEPHERD_TAB);
-  if (!sheet) {
-    sheet = ss.insertSheet(SHEPHERD_TAB);
+  const props = PropertiesService.getScriptProperties();
+  let ss = null;
+  const id = props.getProperty("SHEPHERD_SHEET_ID");
+  if (id) {
+    try { ss = SpreadsheetApp.openById(id); } catch (err) { ss = null; }
+  }
+  if (!ss) {
+    ss = SpreadsheetApp.create(SHEPHERD_FILE);
+    const tracker = DriveApp.getFileById(SpreadsheetApp.getActiveSpreadsheet().getId());
+    const parents = tracker.getParents();
+    if (parents.hasNext()) DriveApp.getFileById(ss.getId()).moveTo(parents.next());
+    props.setProperty("SHEPHERD_SHEET_ID", ss.getId());
+    const first = ss.getSheets()[0];
+    first.setName(SHEPHERD_TAB);
+  }
+  let sheet = ss.getSheetByName(SHEPHERD_TAB) || ss.getSheets()[0];
+  if (sheet.getLastRow() === 0) {
     sheet.appendRow(["When", "Club", "Member ID", "Status", "By", "Channel"]);
     sheet.setFrozenRows(1);
     sheet.getRange("C:C").setNumberFormat("@");
   }
   return sheet;
+}
+// Run this once from the Apps Script editor (pick setupShepherdSheet, click Run): Google asks for
+// permission to create the sheet in your Drive, then "Shepherd log" appears next to the tracker.
+function setupShepherdSheet() {
+  const sheet = shepherdSheet_();
+  Logger.log("Shepherd log: " + sheet.getParent().getUrl());
 }
 function logShepherd_(s) {
   const club = String(s.club || "").slice(0, 120), id = String(s.id || ""), status = String(s.status || "");
@@ -202,6 +225,7 @@ function logShepherd_(s) {
   return { ok: true };
 }
 function shepherdLog_(club) {
+  if (!PropertiesService.getScriptProperties().getProperty("SHEPHERD_SHEET_ID")) return [];
   const rows = shepherdSheet_().getDataRange().getValues().slice(1);
   const latest = {};
   rows.forEach((r) => {

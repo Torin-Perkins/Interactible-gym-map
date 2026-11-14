@@ -198,9 +198,10 @@ back first:
   never started), signed with the trainer's name; edit it or Shuffle for another version. **Text** opens the phone's
   Messages app with the number and message filled in, sent from the trainer's own phone. An optional
   "Reply STOP to opt out" line can be added.
-- **Team log:** Text and the status menu (Replied, Booked, Not interested, Wrong number) are logged in a **Shepherd**
-  tab of the tracker sheet (member ID, status, trainer; no numbers or messages) so the team doesn't double-text. It
-  needs the current `Code.gs` deployed; it doesn't need the edit key.
+- **Team log:** Text and the status menu (Replied, Booked, Not interested, Wrong number) are logged in a separate
+  **Shepherd log** spreadsheet in the tracker's Drive folder (member ID, status, trainer; no numbers or messages) so the team doesn't double-text. It
+  needs the current `Code.gs` deployed (run `setupShepherdSheet` once in the editor to allow Drive access and
+  create the sheet); it doesn't need the edit key.
 
 **Privacy:** the deploy writes `shepherd.json` with each club's members (name, cell number and outreach details; no
 email or address) encrypted with that club's code, so a code only opens its own club. Codes are derived from the

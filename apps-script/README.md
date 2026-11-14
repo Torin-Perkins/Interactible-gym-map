@@ -40,6 +40,13 @@ in the editor's function list and click Run**: Google asks for permission to sen
 doesn't ask), and a short test email goes to the recipients. Until that's done, sending fails with "You do not
 have permission to call MailApp.sendEmail". Saving needs the `EDIT_KEY`, like other edits.
 
+**Shepherd log.** Shepherd's outreach log (who was texted, replied, booked…) is kept in its own spreadsheet,
+**Shepherd log**, in the same Drive folder as the tracker, not in the tracker itself. After pasting in the new
+`Code.gs` and deploying a new version, **pick `setupShepherdSheet` in the function list and click Run**: Google asks
+for permission to manage files in your Drive (deploying alone doesn't ask), and the sheet is created next to the
+tracker. Its ID is saved in the `SHEPHERD_SHEET_ID` script property. Columns: When, Club, Member ID, Status, By,
+Channel (no phone numbers or messages). It doesn't need the `EDIT_KEY`.
+
 **Onboarding checklist.** Ticks from each trainer's onboarding page are saved as JSON in the Tracker tab's
 "Onboarding checklist" column (L, added automatically). This needs the current `Code.gs`: paste it in and deploy a
 **new version of the existing deployment** (Deploy → Manage deployments → pencil → Version: New version), so the
