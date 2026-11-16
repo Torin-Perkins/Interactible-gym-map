@@ -499,10 +499,31 @@ function renderTable(el, name, cols, rows) {
     if (y == null) return -1;
     return (typeof x === "string" ? x.localeCompare(y) : x - y) * st.dir;
   });
-  el.innerHTML = `<thead><tr>${cols.map((c) =>
-    `<th data-k="${c.key}" class="${c.num ? "num" : ""}${c.key === st.key ? (st.dir > 0 ? " asc" : " desc") : ""}">${c.label}</th>`).join("")}</tr></thead>
+  // Header subtext (<small>…</small>) shows on hover instead of under the heading.
+  const head = (c) => {
+    const tmp = document.createElement("div");
+    tmp.innerHTML = c.label;
+    const sub = [...tmp.querySelectorAll("small")].map((x) => (x.remove(), x.textContent.trim())).filter(Boolean).join(" · ");
+    const main = tmp.innerHTML.replace(/<br\s*\/?>/gi, " ").trim();
+    return { main, tip: [tmp.textContent.trim(), sub].filter(Boolean).join(": ") + " · click to sort" };
+  };
+  el.innerHTML = `<thead><tr>${cols.map((c) => { const h = head(c); return `<th data-k="${c.key}" title="${esc(h.tip)}" class="${c.num ? "num" : ""}${c.key === st.key ? (st.dir > 0 ? " asc" : " desc") : ""}">${h.main}</th>`; }).join("")}</tr></thead>
     <tbody>${rows.length ? rows.map((r) => `<tr data-id="${esc(r.id || r.key)}">${cols.map((c) => `<td class="${c.num ? "num" : ""}">${c.html(r)}</td>`).join("")}</tr>`).join("")
       : `<tr><td colspan="${cols.length}" class="empty">Nothing matches these filters.</td></tr>`}</tbody>`;
+  // Cell subtext that's only information (no links or buttons) also moves into the cell's hover text.
+  el.querySelectorAll("td .cell-sub").forEach((sub) => {
+    if (sub.querySelector("button, a, input, select") || !sub.textContent.trim()) return;
+    const td = sub.closest("td");
+    td.title = [td.title, sub.textContent.trim()].filter(Boolean).join("\n");
+    sub.classList.add("hover-sub");
+    td.classList.add("has-tip");
+  });
+  // A cell whose only content was that subtext ("no reviews", "—") shows a dash, with the text on hover.
+  el.querySelectorAll("td.has-tip").forEach((td) => {
+    const visible = td.cloneNode(true);
+    visible.querySelectorAll(".hover-sub").forEach((x) => x.remove());
+    if (!visible.textContent.trim() && !visible.querySelector("input, button, select, img, svg, i")) td.insertAdjacentHTML("afterbegin", `<span class="muted">—</span>`);
+  });
   el.querySelectorAll("th").forEach((th) => (th.onclick = () => {
     st.dir = st.key === th.dataset.k ? -st.dir : 1;
     st.key = th.dataset.k;
@@ -532,11 +553,11 @@ function renderClubs() {
       (c.pts ? `${clubCounts(c).onboarded} / ${c.pts}` : "—") },
     { key: "clients", label: "Total clients", num: true, sort: lv("clients"), html: (c) => kpiCell(c.kpi.clients) },
     { key: "lost", label: "Lost sheep<br><small>incl. prospects</small>", num: true, sort: lv("lost"), html: (c) => kpiCell(c.kpi.lost, { higherIsGood: false }) },
-    { key: "lostNp", label: "Lost sheep<br><small>non-prospect</small>", num: true, sort: lv("lostNp"), html: (c) => kpiCell(c.kpi.lostNp, { higherIsGood: false }) },
+    { key: "lostNp", label: "Non-prospect lost sheep<br><small>members only, prospects left out</small>", num: true, sort: lv("lostNp"), html: (c) => kpiCell(c.kpi.lostNp, { higherIsGood: false }) },
     { key: "lostPct", label: "Lost sheep %", num: true, sort: lv("lostPct"), html: (c) => kpiCell(c.kpi.lostPct, { pct: true, higherIsGood: false }) },
     { key: "billing", label: "Billing health", num: true, sort: lv("billing"), html: (c) => kpiCell(c.kpi.billing, { pct: true }) },
     { key: "late", label: "Late amounts", num: true, sort: lv("late"), html: (c) => kpiCell(c.kpi.late, { higherIsGood: false }) },
-    { key: "sessionsWk", label: "Sessions run<br><small>per week, latest pay period</small>", num: true, sort: (c) => (last(c.sessions) || {}).v ?? null, html: (c) => {
+    { key: "sessionsWk", label: "Sessions run / wk<br><small>latest pay period with session payroll</small>", num: true, sort: (c) => (last(c.sessions) || {}).v ?? null, html: (c) => {
       const l = last(c.sessions);
       return l ? `${kpiCell(c.sessions)}<span class="cell-sub">${fmtNum(l.total)} in ${esc(l.label)} · ${l.trainers} trainer${l.trainers === 1 ? "" : "s"}</span>` : `<span class="cell-sub">no session payroll</span>`;
     } },
@@ -578,7 +599,19 @@ function renderTrainers() {
       + (t.kind !== "pt" ? `<span class="role-tag ${t.kind}">${esc(ROLE_LABEL[t.kind])}</span>` : "")
       + `<button type="button" class="graph-btn" data-graph title="Graph ${esc(t.name)}'s stats">Graph</button>` },
     // Sub-division stats: avg invoice for hybrid trainers, avg clocked hours for head trainers (click for the trend).
-    ...Object.entries(PAY_STATS).filter(([, s]) => statShown(s)).map(([key, s]) => ({
+    // With no role filter they share one "Role stat" column (each trainer has at most one of them).
+    ...(!$("tRole").value ? [{
+      key: "rolestat", label: "Role stat<br><small>hybrid: avg invoice · head: avg clocked hours, per pay period</small>", num: true,
+      sort: (t) => (t.kind === "hybrid" ? 1e6 + (t.avgInvoice ?? -1) : t.kind === "head" ? t.avgHours ?? -1 : null),
+      html: (t) => {
+        const key = t.kind === "hybrid" ? "invoice" : t.kind === "head" ? "hours" : null, s = key && PAY_STATS[key];
+        if (!s) return `<span class="cell-sub">—</span>`;
+        if (s.avg(t) == null) return `<span class="cell-sub">${key === "hours" ? "no time clock entries" : "no pay periods since hire"}</span>`;
+        return `<button type="button" class="stat-link" data-trend="${key}" title="${esc(s.label)}: show the trend">${esc(s.fmt(s.avg(t)))}</button>`
+          + `<span class="cell-sub">${esc(s.label.toLowerCase())} · ${s.series(t).length} pay period${s.series(t).length === 1 ? "" : "s"}${key === "invoice" ? ` · ${fmtNum(s.series(t).reduce((n, x) => n + x.n, 0))} agreements` : ""}</span>`;
+      },
+    }] : []),
+    ...Object.entries(PAY_STATS).filter(([, s]) => statShown(s) && (s.kind === "all" || $("tRole").value)).map(([key, s]) => ({
       key, label: `${s.label}<br><small>${s.kind === "all" ? "" : `${s.who}, `}per pay period</small>`, num: true,
       sort: (t) => (statFor(s, t) ? s.avg(t) : null),
       html: (t) => (!statFor(s, t) ? `<span class="cell-sub">—</span>`
