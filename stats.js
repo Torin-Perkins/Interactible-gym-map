@@ -77,6 +77,7 @@ function buildModel(data) {
   });
 
   attachPayrollStats(trainers, data);
+  const sessionClubs = clubSessions(data.drive);
 
   const clubs = new Map();
   kpiByKey.forEach((k) => clubs.set(k.key, { key: k.key, company: k.company, region: k.region, club: k.club, sheetName: k.sheetName, kpi: k.kpi }));
@@ -94,6 +95,11 @@ function buildModel(data) {
     c.unlogged = mean(withU.map((t) => t.unlogged));
     // The whole club's unlogged sessions per pay period (sum of its trainers' averages).
     c.unloggedTotal = withU.length ? withU.reduce((sum, t) => sum + t.unlogged, 0) : null;
+    // Sessions run per week at the club, per pay period (session payroll).
+    const sc = sessionClubs.filter((x) => x.company === c.company);
+    const scName = matchClub(c.club, sc.map((x) => x.club)) || (c.sheetName && matchClub(c.sheetName, sc.map((x) => x.club)));
+    const sess = scName && sc.find((x) => x.club === scName);
+    c.sessions = sess ? sess.series.map((p) => ({ date: p.date, label: p.label, v: Math.round(p.perWeek * 10) / 10, total: p.sessions, trainers: p.trainers })) : [];
   });
   return { data, trainers, clubs: [...clubs.values()] };
 }
@@ -155,17 +161,26 @@ function tenure(d) {
 // From the "Trainer Payroll Stats" Drive folder (drive-data.json payrollStats), per pay period:
 // - invoice = total value of the agreements a trainer sold (cancelled ones left out, shared sales
 //   split), matched to the staff list by name like the Lumin names; for hybrid trainers;
-// - clocked hours from the time clock summary, by user ID; for head trainers.
+// - clocked hours from the time clock summary, by user ID; for head trainers;
+// - sessions run from the session payroll summary, by user ID (all clubs); for every trainer, over the
+//   pay periods that have a session payroll file.
 // Pay periods before the hire date don't count; a period with no sales / no clock-ins counts as 0.
 let PAY_PERIODS = [];
 const fmtMoney = (v) => (v == null || isNaN(v) ? "—" : `$${fmtNum(v, 0)}`);
 const fmtHours = (v) => (v == null || isNaN(v) ? "—" : `${fmtNum(v, 1)} hrs`);
+const fmtSessions = (v) => (v == null || isNaN(v) ? "—" : fmtNum(v, v % 1 ? 1 : 0));
 function attachPayrollStats(trainers, data) {
   const ps = data.drive && data.drive.payrollStats;
   PAY_PERIODS = ps ? ps.periods : [];
   if (!ps) return;
   const findSales = appMatcher(ps.sales);
   const hoursById = new Map(ps.hours.map((h) => [h.id, h]));
+  const sessionsById = new Map();
+  (ps.sessions || []).forEach((e) => {
+    const x = sessionsById.get(e.id) || sessionsById.set(e.id, {}).get(e.id);
+    Object.entries(e.periods).forEach(([label, n]) => (x[label] = (x[label] || 0) + n));
+  });
+  const sessionLabels = new Set((ps.sessions || []).flatMap((e) => Object.keys(e.periods)));
   trainers.forEach((t) => {
     const periods = PAY_PERIODS.filter((p) => !t.hired || p.end >= t.hired);
     const at = (p) => new Date(`${p.end}T12:00`);
@@ -176,6 +191,9 @@ function attachPayrollStats(trainers, data) {
     const h = hoursById.get(t.id);
     t.hoursSeries = h ? periods.map((p) => ({ date: at(p), label: p.label, v: (h.periods[p.label] || 0) / 60 })) : [];
     t.avgHours = t.hoursSeries.length ? mean(t.hoursSeries.map((x) => x.v)) : null;
+    const ran = sessionsById.get(t.id) || {};
+    t.sessionsSeries = periods.filter((p) => sessionLabels.has(p.label)).map((p) => ({ date: at(p), label: p.label, v: ran[p.label] || 0 }));
+    t.avgSessions = t.sessionsSeries.length ? mean(t.sessionsSeries.map((x) => x.v)) : null;
   });
 }
 // Which payroll stat each trainer sub-division is measured on.
@@ -184,7 +202,13 @@ const PAY_STATS = {
     sub: "total value of agreements sold per pay period, cancelled ones left out" },
   hours: { kind: "head", who: "head trainers", label: "Avg clocked hours", series: (t) => t.hoursSeries || [], avg: (t) => t.avgHours, fmt: fmtHours,
     sub: "time clock hours per pay period" },
+  sessions: { kind: "all", who: "trainers", label: "Avg sessions", series: (t) => t.sessionsSeries || [], avg: (t) => t.avgSessions, fmt: fmtSessions,
+    sub: "sessions run per pay period, from the session payroll summary" },
 };
+// Does a PAY_STATS stat apply to this trainer / show under the role filter? ("all" = every trainer)
+const statFor = (s, t) => s.kind === "all" || t.kind === s.kind;
+const statShown = (s) => s.kind === "all" || !$("tRole").value || $("tRole").value === s.kind;
+const statWho = (s) => (s.kind === "all" ? "Trainers" : `${ROLE_LABEL[s.kind]}s`);
 const roleOk = (t) => !$("tRole").value || t.kind === $("tRole").value;
 const ROLE_LABEL = { head: "Head trainer", hybrid: "Hybrid trainer", pt: "Personal trainer" };
 
@@ -444,10 +468,12 @@ function renderTiles() {
     ["Avg unlogged sessions", fmtNum(mean(ul.map((t) => t.unlogged)), 2),
       `per trainer per pay period · ${[...new Set(periods.map((p) => p.label))].join(", ") || "no payroll files"}`],
     // Sub-division tiles (click for the trend by pay period), shown when the role filter includes them.
-    ...Object.entries(PAY_STATS).filter(([, s]) => !$("tRole").value || $("tRole").value === s.kind).map(([key, s]) => {
-      const who = ts.filter((t) => t.kind === s.kind), with_ = who.filter((t) => s.avg(t) != null);
-      return [`${ROLE_LABEL[s.kind]}s: ${s.label.toLowerCase()}`, s.fmt(mean(with_.map(s.avg))),
-        `per pay period · ${with_.length} of ${who.length} ${s.who}${key === "hours" ? " with time clock entries" : ""}`, "trainers", key];
+    ...Object.entries(PAY_STATS).filter(([, s]) => statShown(s)).map(([key, s]) => {
+      const who = ts.filter((t) => statFor(s, t)), with_ = who.filter((t) => s.avg(t) != null);
+      return [`${statWho(s)}: ${s.label.toLowerCase()}`, s.fmt(mean(with_.map(s.avg))),
+        key === "sessions"
+          ? `per pay period · ${with_.filter((t) => s.series(t).some((x) => x.v > 0)).length} of ${who.length} trainers ran sessions`
+          : `per pay period · ${with_.length} of ${who.length} ${s.who}${key === "hours" ? " with time clock entries" : ""}`, "trainers", key];
     }),
     ["Lost sheep by trainer", fmtNum(tls.reduce((s, t) => s + t.lostSheep, 0)),
       `last session with ${tls.filter((t) => t.lostSheep).length} of ${n} trainers · ${lsRanges || "no lost sheep report"}`],
@@ -510,6 +536,10 @@ function renderClubs() {
     { key: "lostPct", label: "Lost sheep %", num: true, sort: lv("lostPct"), html: (c) => kpiCell(c.kpi.lostPct, { pct: true, higherIsGood: false }) },
     { key: "billing", label: "Billing health", num: true, sort: lv("billing"), html: (c) => kpiCell(c.kpi.billing, { pct: true }) },
     { key: "late", label: "Late amounts", num: true, sort: lv("late"), html: (c) => kpiCell(c.kpi.late, { higherIsGood: false }) },
+    { key: "sessionsWk", label: "Sessions run<br><small>per week, latest pay period</small>", num: true, sort: (c) => (last(c.sessions) || {}).v ?? null, html: (c) => {
+      const l = last(c.sessions);
+      return l ? `${kpiCell(c.sessions)}<span class="cell-sub">${fmtNum(l.total)} in ${esc(l.label)} · ${l.trainers} trainer${l.trainers === 1 ? "" : "s"}</span>` : `<span class="cell-sub">no session payroll</span>`;
+    } },
     { key: "unloggedTotal", label: "Unlogged sessions<br><small>club, per pay period</small>", num: true, sort: (c) => c.unloggedTotal, html: (c) =>
       `<span class="${c.unloggedTotal > CLUB_TAGS.unloggedMax ? "flag" : ""}">${fmtNum(c.unloggedTotal, c.unloggedTotal % 1 ? 1 : 0)}</span>` },
     { key: "unlogged", label: "Avg unlogged<br><small>per trainer</small>", num: true, sort: (c) => c.unlogged, html: (c) => fmtNum(c.unlogged, 2) },
@@ -548,11 +578,11 @@ function renderTrainers() {
       + (t.kind !== "pt" ? `<span class="role-tag ${t.kind}">${esc(ROLE_LABEL[t.kind])}</span>` : "")
       + `<button type="button" class="graph-btn" data-graph title="Graph ${esc(t.name)}'s stats">Graph</button>` },
     // Sub-division stats: avg invoice for hybrid trainers, avg clocked hours for head trainers (click for the trend).
-    ...Object.entries(PAY_STATS).filter(([, s]) => !$("tRole").value || $("tRole").value === s.kind).map(([key, s]) => ({
-      key, label: `${s.label}<br><small>${s.who}, per pay period</small>`, num: true,
-      sort: (t) => (t.kind === s.kind ? s.avg(t) : null),
-      html: (t) => (t.kind !== s.kind ? `<span class="cell-sub">—</span>`
-        : s.avg(t) == null ? `<span class="cell-sub">${key === "hours" ? "no time clock entries" : "no pay periods since hire"}</span>`
+    ...Object.entries(PAY_STATS).filter(([, s]) => statShown(s)).map(([key, s]) => ({
+      key, label: `${s.label}<br><small>${s.kind === "all" ? "" : `${s.who}, `}per pay period</small>`, num: true,
+      sort: (t) => (statFor(s, t) ? s.avg(t) : null),
+      html: (t) => (!statFor(s, t) ? `<span class="cell-sub">—</span>`
+        : s.avg(t) == null ? `<span class="cell-sub">${key === "hours" ? "no time clock entries" : key === "sessions" ? "no session payroll since hire" : "no pay periods since hire"}</span>`
         : `<button type="button" class="stat-link" data-trend="${key}" title="Show the trend">${esc(s.fmt(s.avg(t)))}</button>`
           + `<span class="cell-sub">${s.series(t).length} pay period${s.series(t).length === 1 ? "" : "s"}${key === "invoice" ? ` · ${fmtNum(s.series(t).reduce((n, x) => n + x.n, 0))} agreements` : ""}</span>`),
     })),
@@ -642,7 +672,7 @@ $("trainerTable").addEventListener("click", (e) => {
 
 // ---------- Export / import ----------
 const CSV_COLS = ["User ID", "Trainer", "Hire date", "Company", "Region", "Club", "Onboarded", "Onboarded via", "Onboarding %", "Onboarding checklist", "Cert on file", "Cert",
-  "Cert expires", "Cert link", "Lost sheep", "Billing health %", "On app", "Clients on app", "Total clients", "Client adoption %", "Star rating", "Reviews", "Avg unlogged sessions", "Notes", "Role", "Avg invoice per pay period", "Avg clocked hours per pay period"];
+  "Cert expires", "Cert link", "Lost sheep", "Billing health %", "On app", "Clients on app", "Total clients", "Client adoption %", "Star rating", "Reviews", "Avg unlogged sessions", "Notes", "Role", "Avg invoice per pay period", "Avg clocked hours per pay period", "Avg sessions per pay period"];
 const csvCell = (v) => (/[",\n]/.test(String(v ?? "")) ? `"${String(v).replace(/"/g, '""')}"` : String(v ?? ""));
 
 $("exportBtn").onclick = () => {
@@ -657,7 +687,7 @@ $("exportBtn").onclick = () => {
       t.adopt && t.adopt.adoption != null ? Math.round(t.adopt.adoption * 10) / 10 : "",
       t.adopt && t.adopt.rating ? Math.round(t.adopt.rating * 100) / 100 : "", t.adopt && t.adopt.rating ? t.adopt.reviews || 0 : "",
       t.unlogged ?? "", e.notes, ROLE_LABEL[t.kind] || "",
-      t.kind === "hybrid" && t.avgInvoice != null ? Math.round(t.avgInvoice) : "", t.kind === "head" && t.avgHours != null ? Math.round(t.avgHours * 10) / 10 : ""].map(csvCell).join(","));
+      t.kind === "hybrid" && t.avgInvoice != null ? Math.round(t.avgInvoice) : "", t.kind === "head" && t.avgHours != null ? Math.round(t.avgHours * 10) / 10 : "", t.avgSessions != null ? Math.round(t.avgSessions * 10) / 10 : ""].map(csvCell).join(","));
   });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
@@ -764,7 +794,7 @@ function renderSources(data) {
       `${esc(r.company)}${r.range ? ` ${esc(r.range)}` : ""}: ${fmtNum(r.total)} lost sheep · ${fmtNum(r.total - r.noBooking)} with a last session, across ${r.trainers} trainers · ${MODEL.trainers.filter((t) => t.company === r.company && t.lostSheep).length} matched to current PTs`).join(" · ") || "no lost sheep reports" : err("lostSheep")),
     line("Trainer payroll stats", !!(data.drive && data.drive.payrollStats && PAY_PERIODS.length), PAY_PERIODS.length
       ? `${PAY_PERIODS.map((p) => esc(p.label)).join(", ")} · agreements: ${fmtNum(data.drive.payrollStats.sales.length)} salespeople, `
-        + `${fmtNum(data.drive.payrollStats.cancelledLeftOut)} cancelled agreements left out · time clock: ${fmtNum(data.drive.payrollStats.hours.length)} employees · `
+        + `${fmtNum(data.drive.payrollStats.cancelledLeftOut)} cancelled agreements left out · time clock: ${fmtNum(data.drive.payrollStats.hours.length)} employees · session payroll: ${fmtNum(new Set((data.drive.payrollStats.sessions || []).map((e) => e.id)).size)} employees · `
         + `${MODEL.trainers.filter((t) => t.kind === "hybrid" && t.invoiceSeries && t.invoiceSeries.some((x) => x.n)).length} of ${MODEL.trainers.filter((t) => t.kind === "hybrid").length} hybrid trainers with sales, `
         + `${MODEL.trainers.filter((t) => t.kind === "head" && t.avgHours != null).length} of ${MODEL.trainers.filter((t) => t.kind === "head").length} head trainers with time clock entries`
       : "no Agreements Log / Time Clock Payroll files in the Trainer Payroll Stats folder"),
@@ -1241,7 +1271,7 @@ function payAverageSeries(stat, trainers, name, company) {
 }
 function openPayTrend(key, trainerId) {
   const s = PAY_STATS[key], f = F();
-  const group = MODEL.trainers.filter((t) => t.kind === s.kind && s.avg(t) != null);
+  const group = MODEL.trainers.filter((t) => statFor(s, t) && s.avg(t) != null);
   let series, title, sub;
   if (trainerId) {
     const t = MODEL.trainers.find((x) => x.id === trainerId);
@@ -1252,16 +1282,17 @@ function openPayTrend(key, trainerId) {
   } else {
     const ts = group.filter((t) => inFilter(t, f));
     series = [...new Set(ts.map((t) => t.company))].sort().map((co) => payAverageSeries(s, ts.filter((t) => t.company === co), co, co));
-    title = `${ROLE_LABEL[s.kind]}s: ${s.label.toLowerCase()}`;
+    title = `${statWho(s)}: ${s.label.toLowerCase()}`;
     sub = `average of ${ts.length} ${s.who}${f.company || f.region || f.club ? " in the filters" : ""} · ${s.sub}`;
   }
   series = series.filter((x) => x.points.length);
   $("tdTrendTitle").textContent = title;
-  $("tdTrendSub").textContent = `${sub} · ${PAY_PERIODS.length} pay period${PAY_PERIODS.length === 1 ? "" : "s"} so far`;
+  const nPeriods = new Set(series.flatMap((x) => x.points.map((p) => +p.date))).size;
+  $("tdTrendSub").textContent = `${sub} · ${nPeriods} pay period${nPeriods === 1 ? "" : "s"} so far`;
   const dlg = $("trendDialog");
   dlg.dataset.key = key; dlg.dataset.id = trainerId || "";
   if (!dlg.open) dlg.showModal();
-  lineChart($("tdTrendChart"), { series, fmt: (v, axis) => (key === "invoice" ? (axis && v >= 1000 ? `$${fmtNum(v / 1000, v % 1000 ? 1 : 0)}k` : fmtMoney(v)) : fmtHours(v)), height: 240 });
+  lineChart($("tdTrendChart"), { series, fmt: (v, axis) => (key === "invoice" ? (axis && v >= 1000 ? `$${fmtNum(v / 1000, v % 1000 ? 1 : 0)}k` : fmtMoney(v)) : key === "sessions" ? fmtSessions(v) : fmtHours(v)), height: 240 });
   const dates = [...new Set(series.flatMap((x) => x.points.map((p) => +p.date)))].sort((a, b) => b - a);
   const label = (d) => (PAY_PERIODS.find((p) => +new Date(`${p.end}T12:00`) === d) || {}).label || fmtDate(new Date(d));
   $("tdTrendTable").innerHTML = dates.length ? `<div class="table-scroll"><table class="grid"><thead><tr><th>Pay period</th>${series.map((x) => `<th class="num">${esc(x.name)}</th>`).join("")}</tr></thead>

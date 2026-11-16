@@ -265,6 +265,23 @@ def read_time_clock(f, hours, period):
         e["periods"][period["label"]] = e["periods"].get(period["label"], 0) + int(number(r[c["total minutes"]]))
 
 
+def read_session_payroll(f, sessions, period):
+    """Session Payroll Summary: sessions run per employee (by user ID) and their club for the pay
+    period. Keeps the session count only (no pay)."""
+    rows = next(iter(read_workbook(f["id"], f["name"]).values()))
+    hi, h = header_index(rows, "location name")
+    if hi is None or "total sessions" not in h or "user id" not in h:
+        return
+    c = {k: h.index(k) for k in ("location name", "user id", "total sessions")}
+    for r in rows[hi + 1:]:
+        uid, loc = text(r[c["user id"]]), text(r[c["location name"]])
+        if not uid or not loc:
+            continue  # the totals row at the bottom has neither
+        club = re.sub(r"^.*?(fitness|connection|10gym)\s*-\s*", "", loc, flags=re.I).strip() or loc
+        e = sessions.setdefault((uid, club), {"id": uid, "company": company_of(loc), "club": club, "periods": {}})
+        e["periods"][period["label"]] = e["periods"].get(period["label"], 0) + int(number(r[c["total sessions"]]))
+
+
 APP_CLIENTS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "app-clients.json")
 
 
@@ -329,7 +346,7 @@ def main():
     files = list_folder(ROOT_FOLDER, [])
     keep_staff = newest_staff_lists([f for f in files if f["kind"] == "file" and re.search(r"staff list", f["folder"], re.I)])
     staff, unlogged, lost_sheep, errors, billing_files = [], [], [], [], []
-    sales, hours, periods, cancelled = {}, {}, {}, 0  # trainer payroll stats (agreements, time clock)
+    sales, hours, sessions, periods, cancelled = {}, {}, {}, {}, 0  # trainer payroll stats (agreements, time clock, sessions)
     # Staff contact details, only when the rates password is set (RATES_PASSWORD, a GitHub secret).
     password = os.environ.get("RATES_PASSWORD", "")
     contacts = [] if password else None
@@ -355,6 +372,8 @@ def main():
                     cancelled += read_agreements(f, sales, period)
                 elif re.search(r"time clock", f["name"], re.I):
                     read_time_clock(f, hours, period)
+                elif re.search(r"session payroll", f["name"], re.I):
+                    read_session_payroll(f, sessions, period)
                 else:
                     continue
                 periods.setdefault(period["label"], {**period, "files": []})["files"].append(f["name"])
@@ -386,11 +405,12 @@ def main():
         "unlogged": unlogged,
         "lostSheep": lost_sheep,
         "appClients": app_clients,
-        # Per pay period: invoice totals per salesperson (cancelled agreements left out) and clocked
-        # minutes per employee, from the "Trainer Payroll Stats" folder.
+        # Per pay period: invoice totals per salesperson (cancelled agreements left out), clocked
+        # minutes per employee and sessions run per employee and club, from the "Trainer Payroll Stats" folder.
         "payrollStats": {"periods": sorted(({k: v for k, v in p.items() if k != "files"} for p in periods.values()), key=lambda p: p["start"]),
                          "sales": sorted(sales.values(), key=lambda s: (s["company"], s["trainer"])),
-                         "hours": sorted(hours.values(), key=lambda e: e["id"]), "cancelledLeftOut": cancelled},
+                         "hours": sorted(hours.values(), key=lambda e: e["id"]),
+                         "sessions": sorted(sessions.values(), key=lambda e: (e["company"], e["club"], e["id"])), "cancelledLeftOut": cancelled},
         "errors": errors,
     }
     with open(out, "w", encoding="utf-8") as fh:
