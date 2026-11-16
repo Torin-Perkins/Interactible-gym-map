@@ -105,6 +105,14 @@ period read from the file name's dates):
   an agreement credited to two salespeople is split evenly. Salespeople are matched to the staff list by name.
 - **Head trainers: avg clocked hours** = their time clock hours per pay period, from the *Time Clock Payroll –
   Chain Summary* files, by user ID. Head trainers with no time clock entries show as such.
+- **Trainers: avg sessions** (every trainer) = sessions run per pay period, from the *Session Payroll_Summary* files,
+  by user ID, over the pay periods since their hire date that have a session payroll file. Only session counts are
+  kept, not pay.
+
+The same session payroll gives each club's **sessions run per week** (Gym stats, with the change since the pay
+period before) and replaces the built-in bookings snapshot in the map's **need for more trainers** model: each
+club's bookings are its sessions per week in the latest pay period with session payroll, with the trainers who ran
+sessions and the busiest trainer's load. Clubs not in that period's files keep no bookings figure.
 
 Click either tile, or a trainer's number in the tracker, to see the trend by pay period (a trainer next to their
 brand's average). Both are in the Top & bottom 5 report and Export CSV. The build keeps only per-person totals.

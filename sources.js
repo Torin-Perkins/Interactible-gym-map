@@ -88,6 +88,31 @@ function matchClub(name, clubs) {
     || null;
 }
 
+// ---------- Sessions run (Session Payroll Summary) ----------
+// drive.payrollStats.sessions: sessions per employee, club and pay period. Per club and pay period:
+// sessions, sessions per week (period length / 7), trainers who ran any, and the busiest one's per week.
+function clubSessions(drive) {
+  const ps = drive && drive.payrollStats;
+  if (!ps || !ps.sessions || !ps.sessions.length) return [];
+  const weeks = Object.fromEntries(ps.periods.map((p) => [p.label, ((new Date(`${p.end}T12:00`) - new Date(`${p.start}T12:00`)) / 864e5 + 1) / 7]));
+  const end = Object.fromEntries(ps.periods.map((p) => [p.label, p.end]));
+  const clubs = new Map();
+  ps.sessions.forEach((e) => Object.entries(e.periods).forEach(([label, n]) => {
+    if (!weeks[label]) return;
+    const k = `${e.company}|${e.club}`;
+    const c = clubs.get(k) || clubs.set(k, { company: e.company, club: e.club, periods: {} }).get(k);
+    const p = (c.periods[label] ||= { label, end: end[label], weeks: weeks[label], sessions: 0, trainers: 0, max: 0 });
+    p.sessions += n;
+    if (n > 0) p.trainers++;
+    p.max = Math.max(p.max, n);
+  }));
+  return [...clubs.values()].map((c) => {
+    const series = Object.values(c.periods).sort((a, b) => a.end.localeCompare(b.end))
+      .map((p) => ({ ...p, date: new Date(`${p.end}T12:00`), perWeek: p.sessions / p.weeks, maxPerWeek: p.max / p.weeks }));
+    return { ...c, series, latest: series[series.length - 1] };
+  });
+}
+
 // ---------- Staff lists ----------
 function staffRole(type) {
   if (PT_TYPE.test(type)) return "pt";

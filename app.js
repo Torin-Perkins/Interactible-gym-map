@@ -328,7 +328,7 @@ function gymPopup(g) {
          ${h.extra ? `<tr><td>Suggested extra trainers <span class="muted">(~${Math.round(h.perTrainer / (60 / HIRING.sessionMinutes))} hrs/wk each)</span></td><td class="num"><b>+${h.extra}</b></td></tr>` : ""}
        </table>
        ${availHtml}
-       <div class="muted">Bookings from payroll ${esc(PAYROLL_PERIOD)} · busiest trainer ${h.maxTrainerLoad} sessions/wk</div>`
+       <div class="muted">Bookings from session payroll ${esc(h.period || payrollPeriod)} · busiest trainer ${h.maxTrainerLoad} sessions/wk</div>`
     : `<div class="section-title">Need for more trainers</div><div class="muted">No bookings (payroll) data for this club yet.</div>${availHtml}`;
 
   const ad = adoptionPct(g);
@@ -808,6 +808,30 @@ $("nearestN").onchange = () => { if (searchLayer.point) findNearest(searchLayer.
 $("showGyms").onchange = (e) => (e.target.checked ? gymLayer.addTo(map) : map.removeLayer(gymLayer));
 $("showAreas").onchange = (e) => (e.target.checked ? areaLayer.addTo(map) : map.removeLayer(areaLayer));
 $("onlyInterview").onchange = renderAreas;
+
+// ---------- Live bookings (Session Payroll Summary) ----------
+// Sessions run per club in the latest pay period with session payroll (sources.js clubSessions)
+// replace the PAYROLL snapshot for that brand, so hiringNeed() uses current bookings.
+let payrollPeriod = PAYROLL_PERIOD;
+document.addEventListener("dataloaded", (e) => {
+  const clubs = clubSessions(e.detail.drive);
+  if (!clubs.length) return;
+  const live = {}, labels = new Set();
+  GYMS.forEach((g) => {
+    const cs = clubs.filter((c) => c.company === g.brand && c.latest), names = cs.map((c) => c.club);
+    const name = matchClub(g.name, names) || (g.label && matchClub(g.label, names));
+    const c = name && cs.find((x) => x.club === name);
+    if (!c) return;
+    const l = c.latest, r1 = (v) => Math.round(v * 10) / 10;
+    (live[g.brand] ||= {})[g.name] = { trainers: l.trainers, sessionsPerWeek: r1(l.perWeek), maxTrainerLoad: r1(l.maxPerWeek), period: l.label };
+    labels.add(l.label);
+  });
+  if (!labels.size) return;
+  Object.entries(live).forEach(([brand, gyms]) => (PAYROLL[brand] = gyms));
+  payrollPeriod = [...labels].join(", ");
+  $("payrollDate").textContent = `${payrollPeriod} (session payroll)`;
+  renderAll();
+});
 
 // ---------- Live staff counts ----------
 // Once the live staff lists load (sources.js, shared with the Trainer stats tab), they replace

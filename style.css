@@ -178,6 +178,11 @@ table.grid { width: 100%; border-collapse: collapse; font-size: 13px; }
 .grid th, .grid td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
 .grid th { position: sticky; top: 0; background: var(--bg); color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; user-select: none; }
 .grid th small { font-weight: 400; }
+/* Subtext moved into hover text (renderTable): hidden, the cell gets a dotted hint. */
+.grid .hover-sub { display: none; }
+.grid th, .grid th.num { white-space: normal; width: 72px; line-height: 1.25; vertical-align: bottom; }
+.grid th[data-k="name"], .grid th[data-k="club"], .grid th[data-k="tags"] { width: auto; }
+.grid td.has-tip { cursor: help; }
 .grid th.asc::after { content: " ▲"; } .grid th.desc::after { content: " ▼"; }
 .grid .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .grid tbody tr:hover { background: var(--panel); }
@@ -192,7 +197,7 @@ table.grid { width: 100%; border-collapse: collapse; font-size: 13px; }
   font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line);
   border-radius: 5px; padding: 4px 6px; width: 76px; text-align: right;
 }
-.cell-input.notes { width: 180px; text-align: left; }
+.cell-input.notes { width: 150px; text-align: left; }
 .cell-input.warn { background: var(--warn-bg); border-color: var(--bad); }
 .db-bar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; font-size: 12px; color: var(--muted); margin: 4px 0 6px; }
 .db-bar[hidden], .db-bar [hidden] { display: none !important; }
