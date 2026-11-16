@@ -2,8 +2,8 @@ name: Weekly report email
 
 # Emails the top & bottom 5 trainers and clubs report every Monday at 11:00 Pacific
 # (scripts/send_weekly_report.mjs). Cron is UTC, so it starts at 10:45 Pacific in both
-# standard time (18:45 UTC) and daylight time (17:45 UTC); the script ignores the other line
-# and waits until 11:00 to send. Run it by hand from the Actions tab to send one now.
+# standard time (18:45 UTC) and daylight time (17:45 UTC); the script ignores the line for the
+# other season, and sends at 11:00 or as soon as GitHub starts it if late. Run by hand to send now.
 on:
   schedule:
     - cron: "45 17 * * 1"
@@ -34,3 +34,4 @@ jobs:
           SITE_URL: https://torin-perkins.github.io/Interactible-gym-map/
           TRACKER_EDIT_KEY: ${{ secrets.TRACKER_EDIT_KEY }}
           FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force }}
+          SCHEDULE: ${{ github.event.schedule }}

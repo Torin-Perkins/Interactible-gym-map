@@ -2,11 +2,13 @@
 // data to load, and calls the page's sendWeeklyReport(), which emails both reports through the
 // tracker's Apps Script to the REPORT_EMAILS addresses. Run by .github/workflows/weekly-report.yml.
 //
-// GitHub's schedule runs in UTC and can start late, so the workflow starts it at 10:45 Pacific
-// (two cron lines cover standard and daylight time) and this waits until 11:00 Pacific to send.
-// A run that lands outside 10:30–11:40 Pacific (the other cron line) does nothing.
+// GitHub's schedule runs in UTC and often starts late (hours, sometimes), so the workflow has two
+// cron lines, 10:45 Pacific in standard time (18:45 UTC) and in daylight time (17:45 UTC). SCHEDULE
+// is the line that started this run: only the one matching today's Pacific offset sends, however
+// late it starts (any time Monday Pacific); it waits until 11:00 if it's early. The other does nothing.
 //
-// Env: SITE_URL, TRACKER_EDIT_KEY (the Apps Script's EDIT_KEY, if set), FORCE=true to send now.
+// Env: SITE_URL, TRACKER_EDIT_KEY (the Apps Script's EDIT_KEY, if set), FORCE=true to send now,
+// SCHEDULE (github.event.schedule).
 import { chromium } from "playwright";
 
 const SITE = process.env.SITE_URL || "https://torin-perkins.github.io/Interactible-gym-map/";
@@ -21,10 +23,21 @@ function pacificNow() {
 
 const now = pacificNow();
 if (!force) {
-  if (now.day !== "Mon" || now.minutes < 10 * 60 + 30 || now.minutes > 11 * 60 + 40) {
-    console.log(`Not the Monday 11:00 Pacific run (it's ${now.day} ${Math.floor(now.minutes / 60)}:${String(now.minutes % 60).padStart(2, "0")} Pacific); nothing to do.`);
+  // Pacific offset today: -7 (daylight) uses the 17:45 UTC line, -8 (standard) the 18:45 one.
+  const tzName = new Intl.DateTimeFormat("en-US", { timeZone: "America/Los_Angeles", timeZoneName: "short" })
+    .formatToParts(new Date()).find((p) => p.type === "timeZoneName").value;
+  const myLine = /PDT/.test(tzName) ? "45 17 * * 1" : "45 18 * * 1";
+  const schedule = (process.env.SCHEDULE || "").trim();
+  const when = `${now.day} ${Math.floor(now.minutes / 60)}:${String(now.minutes % 60).padStart(2, "0")} ${tzName}`;
+  if (schedule && schedule !== myLine) {
+    console.log(`Started by "${schedule}"; today's send is the "${myLine}" run. Nothing to do (${when}).`);
     process.exit(0);
   }
+  if (now.day !== "Mon") {
+    console.log(`Not Monday in Pacific time (${when}); nothing to do.`);
+    process.exit(0);
+  }
+  if (now.minutes > 11 * 60) console.log(`Started late (${when}); sending now.`);
 }
 
 // When sending fails, show what the Apps Script actually answers (read-only GETs; nothing is sent).
