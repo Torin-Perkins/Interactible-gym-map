@@ -504,3 +504,11 @@ input[type=search], select, .cell-input { border-radius: 3px; }
 #frStatus.bad { color: var(--bad); }
 :root[data-theme="dark"] .full-report, :root[data-theme="dark"] #printReport { background: #fff; color: #1d2330; border-radius: 4px; padding: 12px; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .full-report { background: #fff; color: #1d2330; border-radius: 4px; padding: 12px; } }
+
+/* Needs check-in (Trainer stats): trainers 1–2 weeks after their hire date */
+.ci-card { border: 1px solid var(--line); border-top: 4px solid var(--navy, #073c74); }
+.ci-title { color: var(--navy, #073c74); }
+.ci-week h3 { margin: 10px 0 2px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.ci-week h3 b { color: var(--fg); margin-left: 4px; }
+.tag.good { background: #e6f4ea; color: #1e7b34; }
+.ci-more { margin-top: 6px; font-size: 12px; }

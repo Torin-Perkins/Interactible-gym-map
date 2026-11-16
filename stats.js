@@ -1406,8 +1406,39 @@ $("trainerActions").addEventListener("click", (e) => {
   if (v && ![...$("tShow").options].some((o) => o.value === v)) $("tShow").add(new Option(`Needs action: ${ACTION_CATS[b.dataset.act].label}`, v));
   $("tShow").value = v;
   renderTrainers();
-  renderTrainerActions();
+  renderTrainerActions(); renderCheckins();
   if (v) $("trainerTable").scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+// ---------- Needs check-in ----------
+// Trainers who started (staff list hire date) 1 or 2 weeks ago: CHECKIN_DAYS after the hire date.
+const CHECKIN_DAYS = [7, 20];
+function checkinTrainers(f = F()) {
+  const today = new Date(new Date().toDateString());
+  return MODEL.trainers.filter((t) => inFilter(t, f) && roleOk(t) && t.hired).map((t) => {
+    const days = Math.round((today - new Date(`${t.hired}T00:00`)) / 864e5);
+    return { t, days, week: Math.floor(days / 7) };
+  }).filter((x) => x.days >= CHECKIN_DAYS[0] && x.days <= CHECKIN_DAYS[1])
+    .sort((a, b) => b.days - a.days || a.t.name.localeCompare(b.t.name));
+}
+const CI_OPEN = new Set(); // weeks showing everyone
+function renderCheckins() {
+  const card = $("trainerCheckins"), list = checkinTrainers();
+  const byWeek = [1, 2].map((w) => list.filter((x) => x.week === w)), CI_SHOW = 9;
+  card.innerHTML = `<div class="card-head"><h2 class="ci-title">Needs check-in</h2>
+      <span class="sub">${fmtNum(list.length)} trainer${list.length === 1 ? "" : "s"} started 1–2 weeks ago · click a name for their onboarding checklist</span></div>
+    ${list.length ? byWeek.map((xs, i) => xs.length ? `<div class="ci-week"><h3>${i + 1} week${i ? "s" : ""} in <b>${xs.length}</b></h3>
+      <ul class="ta-list">${(CI_OPEN.has(i) ? xs : xs.slice(0, CI_SHOW)).map(({ t, days }) => { const p = checklistProgress(t.id); return `<li><button type="button" class="ta-who" data-onboard-id="${esc(t.id)}">
+        <b>${esc(t.name)}</b><span class="cell-sub">${esc(t.club)} · ${esc(t.company)}${t.kind !== "pt" ? ` · ${esc(ROLE_LABEL[t.kind])}` : ""}</span></button>
+        <span class="ta-flags"><span class="tag ${p.pct >= 50 ? "good" : "warn"}" title="Onboarding checklist + cert">${p.pct}% onboarded</span>
+        <span class="cell-sub">Started ${esc(fmtHired(t.hired))} · ${days} days ago${eff(t).cert ? "" : " · no cert on file"}</span></span></li>`; }).join("")}</ul>${xs.length > CI_SHOW ? `<button type="button" class="link ci-more" data-ci-week="${i}">${CI_OPEN.has(i) ? "show fewer" : `show all ${xs.length}`}</button>` : ""}</div>` : "").join("")
+      : `<p class="chart-empty">No trainers started 1–2 weeks ago${F().company || F().region || F().club ? " in these filters" : ""}.</p>`}`;
+}
+$("trainerCheckins").addEventListener("click", (e) => {
+  const who = e.target.closest("[data-onboard-id]");
+  if (who) return openOnboarding(who.dataset.onboardId);
+  const more = e.target.closest("[data-ci-week]");
+  if (more) { const w = +more.dataset.ciWeek; CI_OPEN.has(w) ? CI_OPEN.delete(w) : CI_OPEN.add(w); renderCheckins(); }
 });
 
 // ---------- Big improvements (weekly email) ----------
@@ -1791,7 +1822,7 @@ function renderAll() {
   if (statsTab() === "gyms") renderTrends();
   renderClubs();
   renderTrainers();
-  renderTrainerActions();
+  renderTrainerActions(); renderCheckins();
   if (statsView === "map") setStatsView("map");
 }
 
@@ -1833,8 +1864,8 @@ $("dbMigrate").onclick = () => {
   dbSave();
 };
 window.addEventListener("beforeunload", (e) => { if (dirty.size) { e.preventDefault(); e.returnValue = ""; } });
-$("tShow").onchange = () => { renderTrainers(); renderTrainerActions(); };
-$("tRole").onchange = () => { renderTiles(); renderTrainers(); renderTrainerActions(); };
+$("tShow").onchange = () => { renderTrainers(); renderTrainerActions(); renderCheckins(); };
+$("tRole").onchange = () => { renderTiles(); renderTrainers(); renderTrainerActions(); renderCheckins(); };
 $("statsRefresh").onclick = () => {
   $("statsStatus").textContent = "Reloading…";
   $("statsRefresh").disabled = true;
