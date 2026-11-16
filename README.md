@@ -96,6 +96,10 @@ expired / expiring within 60 days / none on file, 20+ lost sheep, 5+ unlogged se
 health under 90%, and app adoption under 50% (10+ clients). Click a category to filter the tracker to it, or a
 trainer to open their graph. Trainers whose only issue is a missing cert are counted separately.
 
+A **Needs check-in** box below it lists trainers who started 1 or 2 weeks ago (7–20 days after their staff list hire
+date, `CHECKIN_DAYS` in `stats.js`), grouped by week, with their onboarding % and whether a cert is on file. Click a
+name for their onboarding checklist. It follows the company / region / club and role filters.
+
 ### Hybrid and head trainers
 Trainer stats has a **Role** filter (personal / hybrid / head trainers, from the staff list job title) and a stat for
 each sub-division, from the **Trainer Payroll Stats** Drive folder (one file per brand per pay period, the pay
