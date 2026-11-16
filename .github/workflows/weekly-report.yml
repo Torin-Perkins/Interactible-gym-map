@@ -3,7 +3,9 @@ name: Weekly report email
 # Emails the top & bottom 5 trainers and clubs report every Monday at 11:00 Pacific
 # (scripts/send_weekly_report.mjs). Cron is UTC, so it starts at 10:45 Pacific in both
 # standard time (18:45 UTC) and daylight time (17:45 UTC); the script ignores the line for the
-# other season, and sends at 11:00 or as soon as GitHub starts it if late. Run by hand to send now.
+# other season, and sends at 11:00 or as soon as GitHub starts it if late. A successful send is
+# recorded per Pacific date, so a scheduled run skips if the day's email already went out (e.g. sent
+# by hand). Run by hand to send now; "mark_sent" records today as sent without sending.
 on:
   schedule:
     - cron: "45 17 * * 1"
@@ -14,6 +16,10 @@ on:
         description: "Send now instead of waiting for Monday 11:00 Pacific"
         type: boolean
         default: true
+      mark_sent:
+        description: "Don't send; just record today's email as sent (so a late scheduled run skips)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -27,11 +33,36 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - run: npm install --no-save playwright@1.48.2
-      - run: npx playwright install --with-deps chromium
-      - run: node scripts/send_weekly_report.mjs
+      # "Sent today" marker (a cache entry per Pacific date): a scheduled run skips when today's
+      # email already went out, e.g. sent by hand before GitHub started the scheduled run late.
+      - id: day
+        run: |
+          echo "date=$(TZ=America/Los_Angeles date +%F)" >> "$GITHUB_OUTPUT"
+          mkdir -p .sent
+      - id: sent
+        uses: actions/cache/restore@v4
+        with:
+          path: .sent
+          key: weekly-email-sent-${{ steps.day.outputs.date }}
+      - if: github.event_name == 'schedule' && steps.sent.outputs.cache-hit == 'true'
+        run: echo "Today's weekly email was already sent; nothing to do."
+      - if: github.event_name == 'workflow_dispatch' && inputs.mark_sent
+        run: date -u +%FT%TZ > .sent/sent
+      - if: (github.event_name != 'schedule' || steps.sent.outputs.cache-hit != 'true') && !(github.event_name == 'workflow_dispatch' && inputs.mark_sent)
+        run: npm install --no-save playwright@1.48.2 && npx playwright install --with-deps chromium
+      - if: (github.event_name != 'schedule' || steps.sent.outputs.cache-hit != 'true') && !(github.event_name == 'workflow_dispatch' && inputs.mark_sent)
+        run: node scripts/send_weekly_report.mjs
         env:
           SITE_URL: https://torin-perkins.github.io/Interactible-gym-map/
           TRACKER_EDIT_KEY: ${{ secrets.TRACKER_EDIT_KEY }}
           FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force }}
           SCHEDULE: ${{ github.event.schedule }}
+          SENT_MARKER: .sent/sent
+      - id: marker
+        if: always()
+        run: if [ -f .sent/sent ]; then echo "made=true" >> "$GITHUB_OUTPUT"; fi
+      - if: always() && steps.marker.outputs.made == 'true' && steps.sent.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .sent
+          key: weekly-email-sent-${{ steps.day.outputs.date }}

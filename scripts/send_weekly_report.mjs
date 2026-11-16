@@ -8,7 +8,7 @@
 // late it starts (any time Monday Pacific); it waits until 11:00 if it's early. The other does nothing.
 //
 // Env: SITE_URL, TRACKER_EDIT_KEY (the Apps Script's EDIT_KEY, if set), FORCE=true to send now,
-// SCHEDULE (github.event.schedule).
+// SCHEDULE (github.event.schedule), SENT_MARKER (a file written after a successful send).
 import { chromium } from "playwright";
 
 const SITE = process.env.SITE_URL || "https://torin-perkins.github.io/Interactible-gym-map/";
@@ -100,6 +100,8 @@ try {
   }
   if (!res.ok) throw new Error(`Apps Script refused: ${res.error}`);
   console.log(`Weekly report sent to ${res.sent} recipient(s).`);
+  // The workflow saves this as "sent today", so a late scheduled run the same day doesn't send again.
+  if (process.env.SENT_MARKER) (await import("node:fs")).writeFileSync(process.env.SENT_MARKER, new Date().toISOString());
 } finally {
   await browser.close();
 }
