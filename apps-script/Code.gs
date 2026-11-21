@@ -126,7 +126,7 @@ function checklistText_(c) {
   Object.keys(c).slice(0, 100).forEach((k) => {
     if (!/^[a-z0-9_]{1,40}$/.test(k)) return;
     const v = c[k];
-    if (v === "na") out[k] = "na";
+    if (v === "na" || v === "off") out[k] = v; // "off" = an automatic tick unticked by hand
     else if (v && /^\d{4}-\d{2}-\d{2}$/.test(String(v.d || ""))) out[k] = { d: String(v.d), by: String(v.by || "").slice(0, 60) };
   });
   return Object.keys(out).length ? JSON.stringify(out) : "";
