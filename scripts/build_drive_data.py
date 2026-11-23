@@ -282,6 +282,60 @@ def read_session_payroll(f, sessions, period):
         e["periods"][period["label"]] = e["periods"].get(period["label"], 0) + int(number(r[c["total sessions"]]))
 
 
+def read_pt_clients(f, period, pt):
+    """Unique personal training clients per trainer (and per club) from ClubReady booking exports:
+    "Session Payroll Detail" (one row per session, with the trainer's user ID and a status; cancelled
+    sessions are left out) or "Bookings Attendance" (one row per booking, trainer by name). Fit Start
+    and comp sessions are free intro sessions, counted apart. Keeps counts only, no client details.
+    pt[company] = {"period", "trainers": {key: {...}}, "clubs": {club: set of client IDs}}, newest period per company."""
+    rows = next(iter(read_workbook(f["id"], f["name"]).values()))
+    detail = re.search(r"session payroll detail", f["name"], re.I)
+    hi, h = header_index(rows, "location name" if detail else "locationname")
+    if hi is None:
+        return
+    col = lambda k: h.index(k) if k in h else None
+    c = ({"loc": col("location name"), "trainer": col("provider"), "tid": col("provider user id"), "client": col("customer cr user id"),
+          "service": col("session type"), "status": col("status")} if detail else
+         {"loc": col("locationname"), "trainer": col("trainer"), "tid": None, "client": col("userid"),
+          "service": col("class/service name"), "status": None})
+    if c["trainer"] is None or c["client"] is None:
+        return
+    for r in rows[hi + 1:]:
+        name, client, loc = text(r[c["trainer"]]), text(r[c["client"]]), text(r[c["loc"]])
+        if not name or not client or (c["status"] is not None and text(r[c["status"]]).lower().startswith("cancel")):
+            continue
+        company = company_of(loc or f["name"])
+        b = pt.get(company)
+        if b and b["period"]["end"] > period["end"]:
+            continue  # an older export than one already read for this brand
+        if not b or b["period"]["end"] < period["end"]:
+            b = pt[company] = {"period": period, "files": set(), "trainers": {}, "clubs": {}}
+        b["files"].add(f["name"])
+        club = re.sub(r"\s*\(\d+\)$", "", re.sub(r"^.*?(fitness|connection|10gym)\s*-\s*", "", loc, flags=re.I).strip() or loc)
+        tid = text(r[c["tid"]]) if c["tid"] is not None else ""
+        t = b["trainers"].setdefault(tid or name.lower(), {"trainer": name, "id": tid, "clubs": {}, "pt": set(), "fitStart": set(), "sessions": 0})
+        t["clubs"][club] = t["clubs"].get(club, 0) + 1
+        service = text(r[c["service"]]) if c["service"] is not None else ""
+        if re.search(r"fit ?start", service, re.I):
+            t["fitStart"].add(client)
+        elif not re.search(r"\bcomp\b", service, re.I):
+            t["pt"].add(client)
+            t["sessions"] += 1
+            b["clubs"].setdefault(club, set()).add(client)
+
+
+def pt_clients_json(pt):
+    """drive-data.json ptClients: per brand, its period and each trainer's / club's PT client count."""
+    out = []
+    for company, b in sorted(pt.items()):
+        out.append({"company": company, "period": b["period"], "files": sorted(b["files"]),
+                    "trainers": sorted(({"trainer": t["trainer"], "id": t["id"], "club": max(t["clubs"], key=t["clubs"].get),
+                                         "clients": len(t["pt"]), "sessions": t["sessions"], "fitStart": len(t["fitStart"])}
+                                        for t in b["trainers"].values()), key=lambda t: (t["club"], t["trainer"])),
+                    "clubs": sorted(({"club": k, "clients": len(v)} for k, v in b["clubs"].items()), key=lambda x: x["club"])})
+    return out
+
+
 APP_CLIENTS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "app-clients.json")
 
 
@@ -351,6 +405,7 @@ def main():
     staff_lists = []  # every staff list read; the newest per brand is kept after the loop
     staff, unlogged, lost_sheep, errors, billing_files = [], [], [], [], []
     sales, hours, sessions, periods, cancelled = {}, {}, {}, {}, 0  # trainer payroll stats (agreements, time clock, sessions)
+    pt_clients = {}  # unique PT clients per trainer, from booking exports (newest per brand)
     # Staff contact details, only when the rates password is set (RATES_PASSWORD, a GitHub secret).
     password = os.environ.get("RATES_PASSWORD", "")
     contacts = [] if password else None
@@ -371,6 +426,10 @@ def main():
             elif re.search(r"trainer payroll", f["folder"], re.I):
                 period = pay_period(f["name"])
                 if not period:
+                    continue
+                # Booking exports cover their own date range, not a pay period: kept apart from periods.
+                if re.search(r"session payroll detail|bookings? attendance", f["name"], re.I):
+                    read_pt_clients(f, period, pt_clients)
                     continue
                 if re.search(r"agreements", f["name"], re.I):
                     cancelled += read_agreements(f, sales, period)
@@ -419,6 +478,7 @@ def main():
                          "sales": sorted(sales.values(), key=lambda s: (s["company"], s["trainer"])),
                          "hours": sorted(hours.values(), key=lambda e: e["id"]),
                          "sessions": sorted(sessions.values(), key=lambda e: (e["company"], e["club"], e["id"])), "cancelledLeftOut": cancelled},
+        "ptClients": pt_clients_json(pt_clients),
         "errors": errors,
     }
     with open(out, "w", encoding="utf-8") as fh:
