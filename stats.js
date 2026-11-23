@@ -95,6 +95,15 @@ function buildModel(data) {
     t.ptClients = r ? r.clients : 0;
     t.ptInfo = r ? { sessions: r.sessions, fitStart: r.fitStart, period: e.b.period.label } : { sessions: 0, fitStart: 0, period: e.b.period.label };
   });
+  // App adoption = active clients in Lumin ÷ PT clients from the booking export (max 100%), for brands
+  // with an export; brands without one keep the adoption sheet's Total Clients #.
+  if (appRows.length) trainers.forEach((t) => {
+    if (t.ptClients == null) return;
+    const a = t.adopt || { onApp: false, clientsInApp: 0, rating: null, reviews: null, inLumin: false, fromExport: true };
+    const inApp = a.clientsInApp || 0;
+    t.adopt = { ...a, sheetTotal: a.totalClients ?? null, totalClients: t.ptClients, totalFrom: "pt",
+      adoption: t.ptClients ? Math.min(100, (inApp / t.ptClients) * 100) : null };
+  });
   const sessionClubs = clubSessions(data.drive);
 
   const clubs = new Map();
@@ -128,7 +137,8 @@ function buildModel(data) {
 }
 
 // App adoption = the trainer's clients in the billing health export (billed through the app) ÷ their
-// total clients on the app adoption sheet, capped at 100%. Without the export, the sheet's own
+// total clients on the app adoption sheet, capped at 100% (buildModel then swaps in PT clients from the
+// booking export as the total where a brand has one). Without the export, the sheet's own
 // adoption % is used. Workout completion and the rest still come from the adoption sheet.
 // Matches a staff member to their app row. Lumin shows trainers as first name + last initial
 // ("Aaron S."): match on brand + first name + initial, and when two share that, on club too.
@@ -256,9 +266,10 @@ function dataChecks(t) {
   const A = ONBOARDING_AUTO, a = t.adopt || {}, r = TRACKER[t.id] || {};
   const billing = r.billing ?? a.billing ?? null;
   const full = a.adoption != null && a.adoption >= A.adoptionPct;
+  const totalWhere = a.totalFrom === "pt" ? "PT clients booked" : "total on the adoption sheet";
   const adoptWhy = !full ? "" : a.clientsInApp > a.totalClients
-    ? `100% adoption (${fmtNum(a.clientsInApp)} active in Lumin, ${fmtNum(a.totalClients)} total on the adoption sheet)`
-    : `100% adoption (all ${fmtNum(a.totalClients)} clients in Lumin)`;
+    ? `100% adoption (${fmtNum(a.clientsInApp)} active in Lumin, ${fmtNum(a.totalClients)} ${totalWhere})`
+    : `100% adoption (all ${fmtNum(a.totalClients)} ${a.totalFrom === "pt" ? "PT clients" : "clients"} in Lumin)`;
   const comp = a.completion != null ? a.completion : null;
   // On a staff list (the staff lists are ClubReady exports) = their ClubReady account exists and is set up.
   const cr = A.clubReadyFromStaffList && t.staffFile ? `on the ClubReady staff list (${t.staffFile})` : "";
@@ -679,9 +690,9 @@ function renderTrainers() {
     { key: "app", label: "App<br><small>client adoption</small>", sort: (t) => (t.adopt ? t.adopt.adoption ?? (t.adopt.onApp ? 0 : -1) : null), html: (t) => {
       const a = t.adopt;
       if (!a) return `<span class="cell-sub">no clients on the app</span>`;
-      const clients = a.fromExport ? `${fmtNum(a.clientsInApp)}${a.totalClients ? ` of ${fmtNum(a.totalClients)}` : ""} clients` : "";
+      const clients = a.fromExport ? `${fmtNum(a.clientsInApp)} in Lumin${a.totalClients != null ? ` of ${fmtNum(a.totalClients)} ${a.totalFrom === "pt" ? "PT client" : "client"}${a.totalClients === 1 ? "" : "s"}` : ""}` : "";
       return `${a.adoption != null ? `<b>${fmtPct(a.adoption, 0)}</b>` : a.onApp ? "On app" : "Not on app"}`
-        + `<span class="cell-sub">${[clients, a.totalClients == null && a.fromExport ? "no total on adoption sheet" : "",
+        + `<span class="cell-sub">${[clients, a.totalClients == null && a.fromExport ? "no total on adoption sheet" : a.totalFrom === "pt" && !a.totalClients ? "no PT clients booked" : "",
           a.completion != null ? `${fmtPct(a.completion, 0)} complete` : ""].filter(Boolean).join(" · ")}</span>`;
     } },
     { key: "rating", label: "Rating<br><small>Lumin stars</small>", num: true, sort: (t) => (t.adopt && t.adopt.rating) || null, html: (t) => {
@@ -866,7 +877,7 @@ function renderSources(data) {
         + `${MODEL.trainers.filter((t) => t.kind === "head" && t.avgHours != null).length} of ${MODEL.trainers.filter((t) => t.kind === "head").length} head trainers with time clock entries`
       : "no Agreements Log / Time Clock Payroll files in the Trainer Payroll Stats folder"),
     line("App clients", !!(data.drive && data.drive.appClients), data.drive && data.drive.appClients
-      ? `${esc(data.drive.appClients.file)}: ${fmtNum(data.drive.appClients.total)} clients across ${data.drive.appClients.rows.length} trainers · ${MODEL.trainers.filter((t) => t.adopt && t.adopt.clientsInApp > 0).length} matched to current PTs · adoption % = clients on the app ÷ total clients on the adoption sheet (max 100%)${data.drive.appClients.generated ? ` · pulled ${new Date(data.drive.appClients.generated).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}` : ""}`
+      ? `${esc(data.drive.appClients.file)}: ${fmtNum(data.drive.appClients.total)} clients across ${data.drive.appClients.rows.length} trainers · ${MODEL.trainers.filter((t) => t.adopt && t.adopt.clientsInApp > 0).length} matched to current PTs · adoption % = active clients in Lumin ÷ PT clients booked (booking export; the adoption sheet's total clients for brands without one), max 100%${data.drive.appClients.generated ? ` · pulled ${new Date(data.drive.appClients.generated).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}` : ""}`
       : "no billing health export (Billing Health folder in Drive, or app-clients.json)"),
     line("App adoption sheet", st.adoption && st.adoption.ok, data.adoption
       ? `${data.adoption.length} rows · ${MODEL.trainers.filter((t) => t.adopt).length} matched to current PTs` : err("adoption")),
