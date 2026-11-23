@@ -219,7 +219,8 @@ const autoValue = (t, f) => (f === "cert" ? !!t.certText
 
 // ---------- Onboarding checklist ----------
 // ONBOARDING_CHECKLIST (data.js); each trainer's ticks are TRACKER[id].checklist =
-// { itemId: { d: "YYYY-MM-DD", by } | "na" } ("na" = an optional item marked not needed).
+// { itemId: { d: "YYYY-MM-DD", by } | "na" | "off" } ("na" = an optional item marked not needed,
+// "off" = an automatically ticked item unticked by hand, which then stays unticked).
 // Onboarding % counts those items plus a cert on file (the tracker's Cert on file). Automatic ticks:
 // - hired more than ONBOARDED_AFTER_MONTHS ago (staff list hire date): every item, so they're at 100%
 //   with a cert on file, or one short of it without;
@@ -272,7 +273,7 @@ function checklistProgress(id) {
   const autoWhy = (i) => (tenured ? `hired over ${ONBOARDED_AFTER_MONTHS} months ago` : data[i.id]
     || (auto && AUTO_WEEK1.has(i.id) ? "cert on file + onboarding form" : ""));
   const autoItem = (i) => !!autoWhy(i);
-  const itemDone = (i) => (c[i.id] && (c[i.id] !== "na" || i.optional)) || autoItem(i);
+  const itemDone = (i) => c[i.id] !== "off" && ((c[i.id] && (c[i.id] !== "na" || i.optional)) || autoItem(i));
   const done = CHECK_ITEMS.filter(itemDone).length + (certOn ? 1 : 0), total = CHECK_ITEMS.length + 1;
   const fromData = !tenured ? CHECK_ITEMS.filter((i) => !c[i.id] && data[i.id]).length : 0;
   return { done, total, pct: Math.round((done / total) * 100), complete: done === total, started: done > 0, certOn, auto, tenured, autoItem, itemDone, autoWhy, fromData };
@@ -1254,12 +1255,13 @@ function renderOnboarding() {
         ? ` · <span class="${late ? "ob-late" : ""}">${late ? "overdue, was due" : "due"} ${esc(fmtDay(dueIso))}</span>` : ""}</span></div>
       ${s.note ? `<p class="cell-sub ob-note">${esc(s.note)}</p>` : ""}
       <ul class="ob-list">${s.items.map((i) => {
-        const v = c[i.id], na = v === "na", auto = !v && p.autoItem(i);
-        return `<li class="${v || auto ? "on" : ""}">
-          <label><input type="checkbox" data-item="${esc(i.id)}" ${(v && !na) || auto ? "checked" : ""}${na || auto ? " disabled" : ""}> <span>${esc(i.label)}</span></label>
-          ${i.optional && !auto ? `<label class="ob-na"><input type="checkbox" data-na="${esc(i.id)}" ${na ? "checked" : ""}> ${esc(i.optional)}</label>` : ""}
-          ${auto ? `<span class="cell-sub">automatic: ${esc(p.autoWhy(i))}</span>` : ""}
-          ${v ? `<span class="cell-sub">${na ? "marked not needed" : `done ${esc(fmtDay(v.d))}${v.by ? ` by ${esc(v.by)}` : ""}`}</span>` : ""}
+        const v = c[i.id], na = v === "na", off = v === "off", auto = !v && p.autoItem(i);
+        return `<li class="${(v && !off) || auto ? "on" : ""}">
+          <label><input type="checkbox" data-item="${esc(i.id)}" ${(v && !na && !off) || auto ? "checked" : ""}${na ? " disabled" : ""}> <span>${esc(i.label)}</span></label>
+          ${i.optional && !auto && !off ? `<label class="ob-na"><input type="checkbox" data-na="${esc(i.id)}" ${na ? "checked" : ""}> ${esc(i.optional)}</label>` : ""}
+          ${auto ? `<span class="cell-sub">automatic: ${esc(p.autoWhy(i))} · untick if it isn't actually done</span>` : ""}
+          ${off ? `<span class="cell-sub">unticked by hand${p.autoItem(i) ? ` (would be automatic: ${esc(p.autoWhy(i))})` : ""}</span>` : ""}
+          ${v && !off ? `<span class="cell-sub">${na ? "marked not needed" : `done ${esc(fmtDay(v.d))}${v.by ? ` by ${esc(v.by)}` : ""}`}</span>` : ""}
           ${i.hint ? `<span class="cell-sub">${esc(i.hint)}</span>` : ""}
           ${(i.links || []).map(([text, url]) => `<a class="ob-link" href="${esc(url)}" target="_blank" rel="noopener">${esc(text)} ↗</a>`).join("")}
         </li>`;
@@ -1284,7 +1286,13 @@ function setChecklistItem(id, item, value) {
 $("obBody").addEventListener("change", (e) => {
   const id = $("onboardDialog").dataset.id, el = e.target;
   const stamp = { d: isoToday(), by: ($("obBy").value || "").trim().slice(0, 60) };
-  if (el.dataset.item) setChecklistItem(id, el.dataset.item, el.checked ? stamp : undefined);
+  if (el.dataset.item) {
+    // An automatically ticked item unticked by hand is saved as "off" so it stays unticked;
+    // ticking it again clears that and the automatic tick comes back.
+    const item = CHECK_ITEMS.find((i) => i.id === el.dataset.item), p = checklistProgress(id);
+    const isAuto = item && p.autoItem(item);
+    setChecklistItem(id, el.dataset.item, el.checked ? (isAuto ? undefined : stamp) : (isAuto ? "off" : undefined));
+  }
   else if (el.dataset.na) setChecklistItem(id, el.dataset.na, el.checked ? "na" : undefined);
 });
 $("obBy").onchange = () => { pref("trackerName", $("obBy").value.trim()); $("dbName").value = pref("trackerName"); };

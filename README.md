@@ -136,7 +136,9 @@ automatically. Items the data can show are ticked from it too (thresholds in `ON
 ClubReady items for anyone on a staff list (the staff lists are ClubReady exports); Lumin Pro set up (has a Lumin account); the "every client on the app / in Lumin" items (100% client adoption); workout
 cards and assigned workouts (100% adoption plus workout completion); tracks progress (workout completion ≥ 75%);
 high-energy experience (Lumin ★4.8+ from 5+ reviews); knows their billing health (billing health ≥ 94%). These
-are worked out on each load, so a tick comes off if the numbers drop; the page shows the reason for each. The tracker has a sortable Onboarding % column (click it to open the page), an
+are worked out on each load, so a tick comes off if the numbers drop; the page shows the reason for each. Any
+automatic tick can be unticked by hand when it isn't actually done: it's saved as "off" and stays unticked until
+ticked again (needs the current `Code.gs` deployed). The tracker has a sortable Onboarding % column (click it to open the page), an
 average tile, and onboarding % is in the Top & bottom 5 reports for trainers and clubs.
 
 ### Top & bottom 5 reports
