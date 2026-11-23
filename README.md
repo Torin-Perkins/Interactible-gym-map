@@ -113,6 +113,14 @@ period read from the file name's dates):
   by user ID, over the pay periods since their hire date that have a session payroll file. Only session counts are
   kept, not pay.
 
+**PT clients** (Trainer stats column and tile, Gym stats column) = unique clients booked for personal training
+with each trainer (and at each club), from ClubReady booking exports in the Trainer Payroll Stats folder:
+*Session Payroll Detail* (one row per session, with the trainer's user ID; cancelled sessions are left out) or
+*Bookings Attendance* (one row per booking, trainer by name). The date range comes from the file name
+("... 2026-11-01 - 2026-11-23.xlsx"); the newest export per brand is used and it doesn't count as a pay period.
+Fit Start and comp sessions are free intro sessions, so they're counted apart. Only counts are kept, no client
+details. Trainers are matched by user ID, else by name (one staff account per name).
+
 The same session payroll gives each club's **sessions run per week** (Gym stats, with the change since the pay
 period before) and replaces the built-in bookings snapshot in the map's **need for more trainers** model: each
 club's bookings are its sessions per week in the latest pay period with session payroll, with the trainers who ran

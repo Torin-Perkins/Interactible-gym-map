@@ -77,6 +77,24 @@ function buildModel(data) {
   });
 
   attachPayrollStats(trainers, data);
+  // Unique PT clients from the booking exports (drive-data ptClients, newest export per brand).
+  const ptc = (data.drive && data.drive.ptClients) || [];
+  const ptByCo = Object.fromEntries(ptc.map((b) => [b.company, { b, byId: new Map(b.trainers.filter((x) => x.id).map((x) => [x.id, x])),
+    byName: nameIndex(b.trainers, (x) => x.trainer) }]));
+  // A row matched by name counts for one trainer only (an ID match always wins): two staff accounts
+  // with the same name don't both get it. ID matches go first.
+  const claimed = new Set(trainers.map((t) => ptByCo[t.company] && ptByCo[t.company].byId.get(t.id)).filter(Boolean));
+  trainers.forEach((t) => {
+    const e = ptByCo[t.company];
+    if (!e) { t.ptClients = null; return; }
+    let r = e.byId.get(t.id);
+    if (!r) {
+      const n = lookupName(e.byName, t.name);
+      if (n && !claimed.has(n)) { r = n; claimed.add(n); }
+    }
+    t.ptClients = r ? r.clients : 0;
+    t.ptInfo = r ? { sessions: r.sessions, fitStart: r.fitStart, period: e.b.period.label } : { sessions: 0, fitStart: 0, period: e.b.period.label };
+  });
   const sessionClubs = clubSessions(data.drive);
 
   const clubs = new Map();
@@ -100,6 +118,11 @@ function buildModel(data) {
     const scName = matchClub(c.club, sc.map((x) => x.club)) || (c.sheetName && matchClub(c.sheetName, sc.map((x) => x.club)));
     const sess = scName && sc.find((x) => x.club === scName);
     c.sessions = sess ? sess.series.map((p) => ({ date: p.date, label: p.label, v: Math.round(p.perWeek * 10) / 10, total: p.sessions, trainers: p.trainers })) : [];
+    // Unique PT clients at the club (booking export).
+    const pb = ptc.find((b) => b.company === c.company);
+    const pName = pb && (matchClub(c.club, pb.clubs.map((x) => x.club)) || (c.sheetName && matchClub(c.sheetName, pb.clubs.map((x) => x.club))));
+    c.ptClients = pb ? (pName ? pb.clubs.find((x) => x.club === pName).clients : 0) : null;
+    c.ptPeriod = pb ? pb.period.label : "";
   });
   return { data, trainers, clubs: [...clubs.values()] };
 }
@@ -476,6 +499,11 @@ function renderTiles() {
           ? `per pay period · ${with_.filter((t) => s.series(t).some((x) => x.v > 0)).length} of ${who.length} trainers ran sessions`
           : `per pay period · ${with_.length} of ${who.length} ${s.who}${key === "hours" ? " with time clock entries" : ""}`, "trainers", key];
     }),
+    ...(() => {
+      const w = ts.filter((t) => t.ptClients != null);
+      return w.length ? [["PT clients", fmtNum(w.reduce((n, t) => n + t.ptClients, 0)),
+        `avg ${fmtNum(mean(w.map((t) => t.ptClients)), 1)} per trainer · ${w.filter((t) => t.ptClients > 0).length} of ${w.length} trainers have PT clients · ${[...new Set(w.map((t) => t.ptInfo.period))].join(", ")}`]] : [];
+    })(),
     ["Lost sheep by trainer", fmtNum(tls.reduce((s, t) => s + t.lostSheep, 0)),
       `last session with ${tls.filter((t) => t.lostSheep).length} of ${n} trainers · ${lsRanges || "no lost sheep report"}`],
     ["On the app", `${onApp} / ${n}`, `${MODEL.data.drive && MODEL.data.drive.appClients ? `active clients in ${MODEL.data.drive.appClients.source || "the billing export"} or marked on the adoption sheet` : "matched on the app adoption sheet"}${share(onApp)}`],
@@ -558,6 +586,8 @@ function renderClubs() {
     { key: "lostPct", label: "Lost sheep %", num: true, sort: lv("lostPct"), html: (c) => kpiCell(c.kpi.lostPct, { pct: true, higherIsGood: false }) },
     { key: "billing", label: "Billing health", num: true, sort: lv("billing"), html: (c) => kpiCell(c.kpi.billing, { pct: true }) },
     { key: "late", label: "Late amounts", num: true, sort: lv("late"), html: (c) => kpiCell(c.kpi.late, { higherIsGood: false }) },
+    { key: "ptClients", label: "PT clients<br><small>unique clients booked for personal training (booking export)</small>", num: true, sort: (c) => c.ptClients, html: (c) =>
+      (c.ptClients == null ? `<span class="cell-sub">no booking export</span>` : `${fmtNum(c.ptClients)}<span class="cell-sub">${esc(c.ptPeriod)}</span>`) },
     { key: "sessionsWk", label: "Sessions run / wk<br><small>latest pay period with session payroll</small>", num: true, sort: (c) => (last(c.sessions) || {}).v ?? null, html: (c) => {
       const l = last(c.sessions);
       return l ? `${kpiCell(c.sessions)}<span class="cell-sub">${fmtNum(l.total)} in ${esc(l.label)} · ${l.trainers} trainer${l.trainers === 1 ? "" : "s"}</span>` : `<span class="cell-sub">no session payroll</span>`;
@@ -634,6 +664,9 @@ function renderTrainers() {
         + (x ? `<span class="tag ${x === "expired" ? "bad" : "warn"}">${x === "expired" ? "Expired" : "Expires soon"}</span>` : "")
         + `<span class="cell-sub"><button type="button" class="link" data-certlink>${e.certLink ? "change cert link" : "add cert link"}</button></span>`;
     } },
+    { key: "ptClients", label: "PT clients<br><small>unique clients booked for personal training (booking export)</small>", num: true, sort: (t) => t.ptClients, html: (t) =>
+      (t.ptClients == null ? `<span class="cell-sub">no booking export</span>`
+        : `${fmtNum(t.ptClients)}<span class="cell-sub">${fmtNum(t.ptInfo.sessions)} PT sessions${t.ptInfo.fitStart ? ` · ${fmtNum(t.ptInfo.fitStart)} Fit Start` : ""} · ${esc(t.ptInfo.period)}</span>`) },
     { key: "lostSheep", label: "Lost sheep<br><small>last session with them</small>", num: true, sort: (t) => t.lostSheep, html: (t) =>
       `<span title="${esc(Object.entries(t.lostSheepClubs).map(([c, n]) => `${c}: ${n}`).join(", ") || "none on the lost sheep report")}">${fmtNum(t.lostSheep)}</span>` },
     { key: "billing", label: "Billing health %", num: true, sort: (t) => eff(t).billing, html: (t) => {
@@ -706,7 +739,7 @@ $("trainerTable").addEventListener("click", (e) => {
 
 // ---------- Export / import ----------
 const CSV_COLS = ["User ID", "Trainer", "Hire date", "Company", "Region", "Club", "Onboarded", "Onboarded via", "Onboarding %", "Onboarding checklist", "Cert on file", "Cert",
-  "Cert expires", "Cert link", "Lost sheep", "Billing health %", "On app", "Clients on app", "Total clients", "Client adoption %", "Star rating", "Reviews", "Avg unlogged sessions", "Notes", "Role", "Avg invoice per pay period", "Avg clocked hours per pay period", "Avg sessions per pay period"];
+  "Cert expires", "Cert link", "Lost sheep", "Billing health %", "On app", "Clients on app", "Total clients", "Client adoption %", "Star rating", "Reviews", "Avg unlogged sessions", "Notes", "Role", "Avg invoice per pay period", "Avg clocked hours per pay period", "Avg sessions per pay period", "PT clients"];
 const csvCell = (v) => (/[",\n]/.test(String(v ?? "")) ? `"${String(v).replace(/"/g, '""')}"` : String(v ?? ""));
 
 $("exportBtn").onclick = () => {
@@ -721,7 +754,7 @@ $("exportBtn").onclick = () => {
       t.adopt && t.adopt.adoption != null ? Math.round(t.adopt.adoption * 10) / 10 : "",
       t.adopt && t.adopt.rating ? Math.round(t.adopt.rating * 100) / 100 : "", t.adopt && t.adopt.rating ? t.adopt.reviews || 0 : "",
       t.unlogged ?? "", e.notes, ROLE_LABEL[t.kind] || "",
-      t.kind === "hybrid" && t.avgInvoice != null ? Math.round(t.avgInvoice) : "", t.kind === "head" && t.avgHours != null ? Math.round(t.avgHours * 10) / 10 : "", t.avgSessions != null ? Math.round(t.avgSessions * 10) / 10 : ""].map(csvCell).join(","));
+      t.kind === "hybrid" && t.avgInvoice != null ? Math.round(t.avgInvoice) : "", t.kind === "head" && t.avgHours != null ? Math.round(t.avgHours * 10) / 10 : "", t.avgSessions != null ? Math.round(t.avgSessions * 10) / 10 : "", t.ptClients ?? ""].map(csvCell).join(","));
   });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
