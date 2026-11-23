@@ -171,8 +171,9 @@ secret. It won't send if the staff lists or KPI sheets fail to load. To send one
 from the Actions tab.
 
 ### App adoption
-Each trainer's client app adoption = their **active clients in Lumin** ÷ their *Total Clients #* on the app
-adoption sheet, capped at 100%. The Lumin numbers (plus star rating and review count) are a snapshot in
+Each trainer's client app adoption = their **active clients in Lumin** ÷ their **PT clients** (unique clients booked
+for personal training, from the booking export; see PT clients below), capped at 100%. A brand without a booking
+export uses the *Total Clients #* on the app adoption sheet instead. The Lumin numbers (plus star rating and review count) are a snapshot in
 `app-clients.json`, pulled through the Lumin connector in a Claude session; ask Claude to "refresh the Lumin
 numbers" to update it. Lumin shows trainers as first name + last initial, so they're matched to the staff lists by
 brand, first name and initial, and by club when two share those. Workout completion still comes from the adoption
