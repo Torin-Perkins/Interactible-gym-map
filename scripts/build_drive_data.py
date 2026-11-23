@@ -314,25 +314,29 @@ def encrypt_for_page(obj, password, iterations=600000):
     return {"v": 2, "iter": iterations, "salt": b(salt), "iv": b(iv), "ct": b(ct)}
 
 
-def newest_staff_lists(files):
-    """One staff list per brand: the newest by the date in its name ("Stafflist10-23GRIP.xls",
-    "stafflist11-3-2026GRIP.xls"), so an old list left in the folder doesn't double-count anyone."""
-    def brand(f):
-        m = re.search(r"grip|elevate|lighthouse|redwood", f["name"], re.I)
-        return m.group(0).lower() if m else f["name"]
-    def stamp(f):
-        m = re.search(r"(\d{1,2})-(\d{1,2})(?:-(\d{2,4}))?", f["name"])
-        if not m:
-            return (0, 0, 0)
-        now = datetime.now(timezone.utc)  # no year in the name: this year, or last year for a later month
-        year = int(m.group(3)) if m.group(3) else now.year - (int(m.group(1)) > now.month)
-        return (year + 2000 if year < 100 else year, int(m.group(1)), int(m.group(2)))
-    best = {}
-    for f in files:
-        if brand(f) not in best or stamp(f) > stamp(best[brand(f)]):
-            best[brand(f)] = f
-    return set(id(f) for f in best.values())
+def staff_list_stamp(name):
+    """The date in a staff list's file name ("Stafflist10-23GRIP.xls", "stafflist_11-23-2026.xls")
+    as (year, month, day); (0, 0, 0) without one."""
+    m = re.search(r"(\d{1,2})-(\d{1,2})(?:-(\d{2,4}))?", name)
+    if not m:
+        return (0, 0, 0)
+    now = datetime.now(timezone.utc)  # no year in the name: this year, or last year for a later month
+    year = int(m.group(3)) if m.group(3) else now.year - (int(m.group(1)) > now.month)
+    return (year + 2000 if year < 100 else year, int(m.group(1)), int(m.group(2)))
 
+
+def newest_staff_per_brand(lists):
+    """lists: [(file name, staff rows, contact rows)]. Keeps, for each brand, only the rows from the
+    newest staff list that has that brand's people, worked out from the rows' locations (not the file
+    name, which may not say the brand), so an older list left in the folder doesn't double-count anyone."""
+    newest = {}
+    for name, rows, contacts in lists:
+        for co in {company_of(r["location"]) for r in rows + contacts}:
+            if co not in newest or staff_list_stamp(name) > staff_list_stamp(newest[co]):
+                newest[co] = name
+    staff = [r for name, rows, _ in lists for r in rows if newest.get(company_of(r["location"])) == name]
+    contacts = [r for name, _, cs in lists for r in cs if newest.get(company_of(r["location"])) == name]
+    return staff, contacts, sorted(set(newest.values()))
 
 def main():
     if len(sys.argv) > 2 and sys.argv[1] == "--app-clients":
@@ -344,7 +348,7 @@ def main():
         return
     out = sys.argv[1] if len(sys.argv) > 1 else "drive-data.json"
     files = list_folder(ROOT_FOLDER, [])
-    keep_staff = newest_staff_lists([f for f in files if f["kind"] == "file" and re.search(r"staff list", f["folder"], re.I)])
+    staff_lists = []  # every staff list read; the newest per brand is kept after the loop
     staff, unlogged, lost_sheep, errors, billing_files = [], [], [], [], []
     sales, hours, sessions, periods, cancelled = {}, {}, {}, {}, 0  # trainer payroll stats (agreements, time clock, sessions)
     # Staff contact details, only when the rates password is set (RATES_PASSWORD, a GitHub secret).
@@ -358,8 +362,8 @@ def main():
             continue
         try:
             if re.search(r"staff list", f["folder"], re.I):
-                if id(f) in keep_staff:
-                    staff += read_staff(f, contacts)
+                file_contacts = [] if contacts is not None else None
+                staff_lists.append((f["name"], read_staff(f, file_contacts), file_contacts or []))
             elif re.search(r"unlogged", f["folder"], re.I):
                 u = read_unlogged(f)
                 if u:
@@ -386,6 +390,10 @@ def main():
         except Exception as e:  # keep going; the page shows what failed
             errors.append(f"{f['name']}: {e}")
             print("ERROR", f["name"], e, file=sys.stderr)
+    staff, kept_contacts, staff_files = newest_staff_per_brand(staff_lists)
+    if contacts is not None:
+        contacts = kept_contacts
+    print("Staff lists used:", ", ".join(staff_files))
     # Clients on the app per trainer: the newest export in a "Billing Health" Drive folder, else the
     # counts committed in app-clients.json.
     app_clients = None
